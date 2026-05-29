@@ -19,8 +19,11 @@ summaries.
 
 - Do not call the network in tests.
 - Use mocks or fakes for Strava, Telegram, and OpenAI boundaries.
+- Add or update tests for local logic changes, especially parsing, formatting,
+  classification, prompt/context assembly, and fallback behavior.
 - Keep tests focused on local parsing, formatting, classification, prompt/context
   assembly, and fallback behavior.
+- Keep tests fast and dependency-free. If there's a strong reason, let's discuss first.
 
 ## Useful Commands
 
