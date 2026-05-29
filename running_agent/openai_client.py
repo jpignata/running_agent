@@ -19,6 +19,7 @@ def coaching_reply(
     recent_runs: str,
     weekly_plan: str | None = None,
     training_goal: str | None = None,
+    coach_log: str | None = None,
     conversation: list[dict[str, str]] | None = None,
 ) -> str:
     load_env_file()
@@ -43,6 +44,8 @@ def coaching_reply(
         prompt_parts.extend(["", "Athlete-provided weekly plan:", weekly_plan])
     if training_goal:
         prompt_parts.extend(["", "Athlete-provided overall training goal:", training_goal])
+    if coach_log:
+        prompt_parts.extend(["", "Recent coach log:", coach_log])
     if conversation:
         prior = "\n".join(f"{item['role']}: {item['content']}" for item in conversation[-8:])
         prompt_parts.extend(["", "Recent Telegram conversation:", prior])

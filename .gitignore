@@ -12,4 +12,5 @@ htmlcov/
 .running_agent_state.json
 .weekly_plan.json
 .training_goal.json
+.coach_log.jsonl
 strava-activity-*.json

@@ -35,6 +35,7 @@ class PlanSuggestionTest(unittest.TestCase):
 
     @patch("running_agent.plan_suggestion.training_goal_context", return_value="Goal context")
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")
+    @patch("running_agent.plan_suggestion.coach_log_context", return_value="Coach log context")
     @patch(
         "running_agent.plan_suggestion.coaching_reply",
         return_value="Monday: Easy\nTuesday: Workout",
@@ -42,6 +43,7 @@ class PlanSuggestionTest(unittest.TestCase):
     def test_suggest_next_week_plan_uses_recent_training_context(
         self,
         coaching_reply,
+        _coach_log_context,
         _weekly_plan_context,
         _training_goal_context,
     ) -> None:
@@ -75,13 +77,16 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertIn("Easy Run: 5.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Weekly context")
         self.assertEqual(kwargs["training_goal"], "Goal context")
+        self.assertEqual(kwargs["coach_log"], "Coach log context")
 
     @patch("running_agent.plan_suggestion.training_goal_context", return_value="Goal context")
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")
+    @patch("running_agent.plan_suggestion.coach_log_context", return_value="Coach log context")
     @patch("running_agent.plan_suggestion.coaching_reply", side_effect=RuntimeError("offline"))
     def test_suggest_next_week_plan_has_offline_fallback(
         self,
         _coaching_reply,
+        _coach_log_context,
         _weekly_plan_context,
         _training_goal_context,
     ) -> None:

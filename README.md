@@ -114,6 +114,10 @@ the polling interval with:
 python -m running_agent telegram --poll-seconds 120 --days 28
 ```
 
+When a new run syncs, the bot appends a compact local coach-log entry to `.coach_log.jsonl`
+with the matched planned workout and completed run headline. This file is ignored by git and
+used as context for future plan suggestions.
+
 For a quick demo without waiting for the bot loop, send a latest-run summary directly:
 
 ```bash
@@ -163,6 +167,7 @@ Or set it in Telegram:
 - Telegram chat replies grounded in recent Strava runs
 - Athlete-provided weekly plan context
 - Athlete-provided overall training goal context
+- Local coach log of planned-versus-completed runs
 - New-run monitoring with a short post-run coaching note
 - Sunday evening next-week plan suggestions
 

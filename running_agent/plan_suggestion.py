@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from .activity_format import recent_runs_context
+from .coach_log import coach_log_context
 from .feedback import summarize_training
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
@@ -40,6 +41,7 @@ def suggest_next_week_plan(
             recent_runs=recent_runs_context(activities, limit=20),
             weekly_plan=weekly_plan_context(),
             training_goal=training_goal_context(),
+            coach_log=coach_log_context(),
         )
     except RuntimeError as error:
         note = _fallback_plan_note(error)

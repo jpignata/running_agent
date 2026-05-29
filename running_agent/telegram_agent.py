@@ -9,6 +9,7 @@ from typing import Any
 
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
 from .auth import load_env_file, require_env
+from .coach_log import append_run_result
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
@@ -293,6 +294,7 @@ class TelegramRunningAgent:
 
         for run in reversed(new_runs):
             detailed_run = self.strava.detailed_activity(run["id"])
+            append_run_result(detailed_run)
             prompt = (
                 "A new Strava run just synced. Give a short post-run coaching note with one "
                 "thing that went well and one sensible next step. Use the lap-by-lap data when "
