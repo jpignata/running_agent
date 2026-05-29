@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 from urllib.parse import urlencode
 
-
 STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
 DEFAULT_REDIRECT_URI = "http://localhost/exchange_token"
 TOKEN_PATH = Path(".strava_tokens.json")

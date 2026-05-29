@@ -7,7 +7,6 @@ from typing import Any
 
 from .time_format import human_datetime
 
-
 GOAL_PATH = Path(".training_goal.json")
 
 

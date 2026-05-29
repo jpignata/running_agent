@@ -4,12 +4,11 @@ import json
 import time
 from datetime import date, datetime, timezone
 from typing import Any
-from urllib.parse import urlencode
 from urllib.error import HTTPError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from .auth import TOKEN_PATH, load_tokens, require_env, save_tokens
-
 
 STRAVA_API_BASE = "https://www.strava.com/api/v3"
 STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token"
@@ -47,7 +46,9 @@ class StravaClient:
         save_tokens(self.tokens, self.token_path)
         return self.tokens["access_token"]
 
-    def recent_activities(self, days: int = 14, per_page: int = 100) -> list[dict[str, Any]]:
+    def recent_activities(
+        self, days: int = 14, per_page: int = 100
+    ) -> list[dict[str, Any]]:
         after = int(datetime.now(timezone.utc).timestamp()) - (days * 24 * 60 * 60)
         activities: list[dict[str, Any]] = []
         page = 1
@@ -78,11 +79,14 @@ class StravaClient:
             return None
         return max(runs, key=_activity_start_timestamp)
 
-    def runs_on_date(self, target_date: date, search_days: int = 120) -> list[dict[str, Any]]:
+    def runs_on_date(
+        self, target_date: date, search_days: int = 120
+    ) -> list[dict[str, Any]]:
         runs = [
             activity
             for activity in self.recent_activities(days=search_days)
-            if activity.get("type") == "Run" and _activity_local_date(activity) == target_date
+            if activity.get("type") == "Run"
+            and _activity_local_date(activity) == target_date
         ]
         return sorted(runs, key=_activity_start_timestamp, reverse=True)
 
@@ -110,7 +114,9 @@ class StravaClient:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             body = error.read().decode("utf-8")
-            raise RuntimeError(f"Strava request failed with HTTP {error.code}: {body}") from error
+            raise RuntimeError(
+                f"Strava request failed with HTTP {error.code}: {body}"
+            ) from error
 
 
 def _post_form(url: str, payload: dict[str, str]) -> dict[str, Any]:
@@ -126,7 +132,9 @@ def _post_form(url: str, payload: dict[str, str]) -> dict[str, Any]:
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         body = error.read().decode("utf-8")
-        raise RuntimeError(f"Strava request failed with HTTP {error.code}: {body}") from error
+        raise RuntimeError(
+            f"Strava request failed with HTTP {error.code}: {body}"
+        ) from error
 
 
 def _activity_start_timestamp(activity: dict[str, Any]) -> float:

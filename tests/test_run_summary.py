@@ -4,7 +4,6 @@ import unittest
 
 from running_agent.run_summary import _fallback_summary
 
-
 METERS_PER_MILE = 1609.344
 
 

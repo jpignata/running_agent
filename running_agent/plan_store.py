@@ -8,7 +8,6 @@ from typing import Any
 
 from .time_format import human_datetime
 
-
 PLAN_PATH = Path(".weekly_plan.json")
 WEEKDAYS = {
     "mon": "Monday",

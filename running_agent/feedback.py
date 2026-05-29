@@ -5,7 +5,6 @@ from datetime import datetime
 from statistics import mean
 from typing import Any
 
-
 METERS_PER_MILE = 1609.344
 
 
@@ -18,7 +17,9 @@ def summarize_training(activities: list[dict[str, Any]], days: int) -> str:
     longest = max(runs, key=_miles)
     weekly = _weekly_mileage(runs)
     average_run = total_miles / len(runs)
-    hr_values = [run["average_heartrate"] for run in runs if run.get("average_heartrate")]
+    hr_values = [
+        run["average_heartrate"] for run in runs if run.get("average_heartrate")
+    ]
 
     lines = [
         f"Reviewed {len(runs)} runs over the last {days} days.",
@@ -27,7 +28,9 @@ def summarize_training(activities: list[dict[str, Any]], days: int) -> str:
     ]
 
     if weekly:
-        week_notes = ", ".join(f"{week}: {miles:.1f} mi" for week, miles in sorted(weekly.items()))
+        week_notes = ", ".join(
+            f"{week}: {miles:.1f} mi" for week, miles in sorted(weekly.items())
+        )
         lines.append(f"Weekly mileage: {week_notes}.")
 
     if hr_values:
@@ -35,7 +38,9 @@ def summarize_training(activities: list[dict[str, Any]], days: int) -> str:
     else:
         lines.append("No heart-rate data found, so effort feedback is limited for now.")
 
-    lines.extend(_training_notes(runs, total_miles, longest_miles=_miles(longest), days=days))
+    lines.extend(
+        _training_notes(runs, total_miles, longest_miles=_miles(longest), days=days)
+    )
     return "\n".join(lines)
 
 
@@ -85,4 +90,3 @@ def _weekly_mileage(runs: list[dict[str, Any]]) -> dict[str, float]:
         week = datetime.fromisoformat(start.replace("Z", "+00:00")).strftime("%G-W%V")
         weekly[week] += _miles(run)
     return dict(weekly)
-

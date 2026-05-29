@@ -9,7 +9,9 @@ from running_agent.auth import build_authorization_url, load_env_file
 
 
 class AuthTest(unittest.TestCase):
-    def test_load_env_file_loads_values_and_preserves_existing_environment(self) -> None:
+    def test_load_env_file_loads_values_and_preserves_existing_environment(
+        self,
+    ) -> None:
         path = _env_file(
             "\n".join(
                 [

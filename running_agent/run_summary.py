@@ -10,7 +10,6 @@ from .openai_client import coaching_reply
 from .plan_store import weekly_plan_context_for_date
 from .strava_client import StravaClient
 
-
 DEFAULT_SEARCH_DAYS = 120
 
 
@@ -24,9 +23,7 @@ def run_summary_for_date(
     if not activities:
         raise RuntimeError(f"No Strava runs found on {target_date.isoformat()}.")
     if len(activities) > 1:
-        selected_note = (
-            f"Found {len(activities)} runs on {target_date.isoformat()}; summarizing the latest one."
-        )
+        selected_note = f"Found {len(activities)} runs on {target_date.isoformat()}; summarizing the latest one."
     else:
         selected_note = ""
 

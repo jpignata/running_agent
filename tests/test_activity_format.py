@@ -4,7 +4,6 @@ import unittest
 
 from running_agent.activity_format import activity_headline, detailed_activity_context
 
-
 METERS_PER_MILE = 1609.344
 
 
@@ -30,7 +29,9 @@ class ActivityFormatTest(unittest.TestCase):
 
         self.assertEqual(headline, "Run: 0.00 mi on unknown date, unknown pace")
 
-    def test_detailed_activity_context_includes_run_details_and_lap_signals(self) -> None:
+    def test_detailed_activity_context_includes_run_details_and_lap_signals(
+        self,
+    ) -> None:
         context = detailed_activity_context(
             {
                 "name": "Track",
@@ -63,7 +64,10 @@ class ActivityFormatTest(unittest.TestCase):
         self.assertIn("2 x 0.75 mi", context)
         self.assertIn("Recovery-looking segments:", context)
         self.assertIn("2 x 3:00 recoveries", context)
-        self.assertIn("Lap | Distance | Moving | Elapsed | Pace | Avg HR | Max HR | Elev gain", context)
+        self.assertIn(
+            "Lap | Distance | Moving | Elapsed | Pace | Avg HR | Max HR | Elev gain",
+            context,
+        )
 
     def test_detailed_activity_context_limits_laps(self) -> None:
         context = detailed_activity_context(

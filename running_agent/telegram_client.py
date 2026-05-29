@@ -5,7 +5,6 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-
 TELEGRAM_API_BASE = "https://api.telegram.org"
 MAX_MESSAGE_LENGTH = 3900
 
@@ -14,7 +13,9 @@ class TelegramClient:
     def __init__(self, bot_token: str):
         self.base_url = f"{TELEGRAM_API_BASE}/bot{bot_token}"
 
-    def get_updates(self, offset: int | None = None, timeout: int = 25) -> list[dict[str, Any]]:
+    def get_updates(
+        self, offset: int | None = None, timeout: int = 25
+    ) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "timeout": timeout,
             "allowed_updates": ["message"],
@@ -43,11 +44,15 @@ class TelegramClient:
             method="POST",
         )
         try:
-            with urlopen(request, timeout=max(int(payload.get("timeout", 30)) + 10, 30)) as response:
+            with urlopen(
+                request, timeout=max(int(payload.get("timeout", 30)) + 10, 30)
+            ) as response:
                 body = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             body = error.read().decode("utf-8")
-            raise RuntimeError(f"Telegram request failed with HTTP {error.code}: {body}") from error
+            raise RuntimeError(
+                f"Telegram request failed with HTTP {error.code}: {body}"
+            ) from error
 
         if not body.get("ok"):
             raise RuntimeError(f"Telegram request failed: {body}")

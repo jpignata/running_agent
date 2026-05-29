@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime
-from pathlib import Path
 import time
 import traceback
+from datetime import date, datetime
+from pathlib import Path
 
-from .auth import build_authorization_url
 from .activity_format import activity_headline, detailed_activity_context
+from .auth import build_authorization_url
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .plan_store import save_weekly_plan, weekly_plan_context
@@ -30,12 +30,20 @@ def _main() -> int:
 
     subparsers.add_parser("auth-url", help="Print the Strava OAuth authorization URL.")
 
-    subparsers.add_parser("me", help="Verify Strava authentication and print athlete details.")
+    subparsers.add_parser(
+        "me", help="Verify Strava authentication and print athlete details."
+    )
 
-    exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
-    exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
+    exchange = subparsers.add_parser(
+        "exchange-code", help="Exchange an OAuth code for tokens."
+    )
+    exchange.add_argument(
+        "code", help="Code copied from the Strava OAuth redirect URL."
+    )
 
-    recent = subparsers.add_parser("recent", help="Fetch recent Strava runs and summarize them.")
+    recent = subparsers.add_parser(
+        "recent", help="Fetch recent Strava runs and summarize them."
+    )
     recent.add_argument("--days", type=int, default=14, help="Lookback window in days.")
 
     latest = subparsers.add_parser("latest-run", help="Print the latest Strava run.")
@@ -45,7 +53,9 @@ def _main() -> int:
         "latest-run-detail",
         help="Print lap-by-lap detail for the latest Strava run.",
     )
-    latest_detail.add_argument("--days", type=int, default=90, help="Lookback window in days.")
+    latest_detail.add_argument(
+        "--days", type=int, default=90, help="Lookback window in days."
+    )
 
     run_detail = subparsers.add_parser(
         "run-detail",
@@ -68,7 +78,9 @@ def _main() -> int:
         "run-summary",
         help="Generate a coaching summary for a run on a specific local date.",
     )
-    run_summary.add_argument("date", help="Local date to summarize, formatted YYYY-MM-DD.")
+    run_summary.add_argument(
+        "date", help="Local date to summarize, formatted YYYY-MM-DD."
+    )
     run_summary.add_argument(
         "--search-days",
         type=int,
@@ -80,7 +92,9 @@ def _main() -> int:
         "telegram",
         help="Run the Telegram running coach and monitor Strava for new runs.",
     )
-    telegram.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
+    telegram.add_argument(
+        "--days", type=int, default=21, help="Training lookback window in days."
+    )
     telegram.add_argument(
         "--poll-seconds",
         type=int,
@@ -103,13 +117,17 @@ def _main() -> int:
         "send-last-run",
         help="Send a Telegram workout summary for the latest Strava run.",
     )
-    last_run.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
+    last_run.add_argument(
+        "--days", type=int, default=21, help="Training lookback window in days."
+    )
 
     send_run_summary = subparsers.add_parser(
         "send-run-summary",
         help="Send a Telegram workout summary for a run on a specific local date.",
     )
-    send_run_summary.add_argument("date", help="Local date to summarize, formatted YYYY-MM-DD.")
+    send_run_summary.add_argument(
+        "date", help="Local date to summarize, formatted YYYY-MM-DD."
+    )
     send_run_summary.add_argument(
         "--search-days",
         type=int,
@@ -117,12 +135,16 @@ def _main() -> int:
         help="How far back to search Strava activities.",
     )
 
-    set_plan = subparsers.add_parser("set-plan", help="Save a weekly training plan from a text file.")
+    set_plan = subparsers.add_parser(
+        "set-plan", help="Save a weekly training plan from a text file."
+    )
     set_plan.add_argument("path", help="Path to a plain-text weekly plan.")
 
     subparsers.add_parser("show-plan", help="Print the saved weekly training plan.")
 
-    set_goal = subparsers.add_parser("set-goal", help="Save an overall training goal from text.")
+    set_goal = subparsers.add_parser(
+        "set-goal", help="Save an overall training goal from text."
+    )
     set_goal.add_argument("goal", help="Goal text, quoted if it contains spaces.")
 
     subparsers.add_parser("show-goal", help="Print the saved overall training goal.")
@@ -136,16 +158,26 @@ def _main() -> int:
     if args.command == "exchange-code":
         tokens = StravaClient.exchange_code(args.code)
         athlete = tokens.get("athlete", {})
-        name = " ".join(part for part in [athlete.get("firstname"), athlete.get("lastname")] if part)
+        name = " ".join(
+            part for part in [athlete.get("firstname"), athlete.get("lastname")] if part
+        )
         print(f"Saved Strava tokens for {name or 'authenticated athlete'}.")
         return 0
 
     if args.command == "me":
         client = StravaClient()
         athlete = client.logged_in_athlete()
-        name = " ".join(part for part in [athlete.get("firstname"), athlete.get("lastname")] if part)
+        name = " ".join(
+            part for part in [athlete.get("firstname"), athlete.get("lastname")] if part
+        )
         city = ", ".join(
-            part for part in [athlete.get("city"), athlete.get("state"), athlete.get("country")] if part
+            part
+            for part in [
+                athlete.get("city"),
+                athlete.get("state"),
+                athlete.get("country"),
+            ]
+            if part
         )
         print(f"Authenticated as: {name or 'Unknown athlete'}")
         if city:
@@ -191,7 +223,9 @@ def _main() -> int:
             detailed = client.detailed_activity(activity["id"])
             print(detailed_activity_context(detailed, target_date=target_date))
         if len(activities) > 1 and not args.all:
-            print(f"\n{len(activities) - 1} additional run(s) found on this date. Use --all to print them.")
+            print(
+                f"\n{len(activities) - 1} additional run(s) found on this date. Use --all to print them."
+            )
         return 0
 
     if args.command == "run-summary":
@@ -202,7 +236,9 @@ def _main() -> int:
 
     if args.command == "telegram":
         if args.no_restart:
-            agent = TelegramRunningAgent(poll_seconds=args.poll_seconds, lookback_days=args.days)
+            agent = TelegramRunningAgent(
+                poll_seconds=args.poll_seconds, lookback_days=args.days
+            )
             agent.run_forever()
         else:
             _run_telegram_with_restarts(
@@ -253,12 +289,13 @@ def _run_telegram_with_restarts(
     restart_delay: int,
 ) -> None:
     print(
-        "Running Telegram coach with restart-on-crash enabled. "
-        "Press Ctrl+C to stop."
+        "Running Telegram coach with restart-on-crash enabled. " "Press Ctrl+C to stop."
     )
     while True:
         try:
-            agent = TelegramRunningAgent(poll_seconds=poll_seconds, lookback_days=lookback_days)
+            agent = TelegramRunningAgent(
+                poll_seconds=poll_seconds, lookback_days=lookback_days
+            )
             agent.run_forever()
         except KeyboardInterrupt:
             print("Stopping Telegram coach.")

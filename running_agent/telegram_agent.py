@@ -7,16 +7,23 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
+from .activity_format import (
+    activity_headline,
+    detailed_activity_context,
+    recent_runs_context,
+)
 from .auth import load_env_file, require_env
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
-from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
+from .plan_store import (
+    save_weekly_plan,
+    weekly_plan_context,
+    weekly_plan_context_for_date,
+)
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_client import TelegramClient
-
 
 STATE_PATH = Path(".running_agent_state.json")
 DEFAULT_LOOKBACK_DAYS = 21
@@ -36,7 +43,9 @@ class TelegramRunningAgent:
         self.state = _load_state(state_path)
         self.strava = StravaClient()
         self.telegram = TelegramClient(require_env("TELEGRAM_BOT_TOKEN"))
-        self.allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID") or self.state.get("telegram_chat_id")
+        self.allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID") or self.state.get(
+            "telegram_chat_id"
+        )
         self.conversation: list[dict[str, str]] = []
 
     def run_forever(self) -> None:
@@ -104,7 +113,9 @@ class TelegramRunningAgent:
             else:
                 self.telegram.send_message(chat_id, self._coach_reply(text))
         except RuntimeError as error:
-            self.telegram.send_message(chat_id, f"Something failed while coaching: {error}")
+            self.telegram.send_message(
+                chat_id, f"Something failed while coaching: {error}"
+            )
 
     def _coach_reply(self, text: str) -> str:
         activities = self.strava.recent_activities(days=self.lookback_days)
@@ -153,7 +164,9 @@ class TelegramRunningAgent:
         try:
             note = coaching_reply(
                 prompt,
-                training_summary=summarize_training(activities, days=self.lookback_days),
+                training_summary=summarize_training(
+                    activities, days=self.lookback_days
+                ),
                 recent_runs=detailed_activity_context(
                     detailed_run,
                     target_date=_activity_date(detailed_run),
@@ -205,7 +218,9 @@ class TelegramRunningAgent:
             )
             return
         save_weekly_plan(plan_text)
-        self.telegram.send_message(chat_id, "Saved this week's plan. I will use it in coaching.")
+        self.telegram.send_message(
+            chat_id, "Saved this week's plan. I will use it in coaching."
+        )
 
     def _set_training_goal_from_message(self, chat_id: int | str, text: str) -> None:
         goal_text = text[len("/setgoal") :].strip()
@@ -217,13 +232,17 @@ class TelegramRunningAgent:
             )
             return
         save_training_goal(goal_text)
-        self.telegram.send_message(chat_id, "Saved your training goal. I will use it in coaching.")
+        self.telegram.send_message(
+            chat_id, "Saved your training goal. I will use it in coaching."
+        )
 
     def _seed_seen_activities(self) -> None:
         if self.state.get("seen_activity_ids"):
             return
         activities = self.strava.recent_activities(days=self.lookback_days)
-        self.state["seen_activity_ids"] = [activity["id"] for activity in activities if "id" in activity]
+        self.state["seen_activity_ids"] = [
+            activity["id"] for activity in activities if "id" in activity
+        ]
         _save_state(self.state, self.state_path)
 
     def _notify_new_runs(self, force_chat_id: int | None = None) -> None:
@@ -238,12 +257,16 @@ class TelegramRunningAgent:
             for activity in activities
             if activity.get("type") == "Run" and activity.get("id") not in seen
         ]
-        self.state["seen_activity_ids"] = [activity["id"] for activity in activities if "id" in activity]
+        self.state["seen_activity_ids"] = [
+            activity["id"] for activity in activities if "id" in activity
+        ]
         _save_state(self.state, self.state_path)
 
         if not new_runs:
             if force_chat_id:
-                self.telegram.send_message(chat_id, "No new Strava runs since my last check.")
+                self.telegram.send_message(
+                    chat_id, "No new Strava runs since my last check."
+                )
             return
 
         for run in reversed(new_runs):
