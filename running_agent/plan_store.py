@@ -111,7 +111,7 @@ def parse_weekly_plan(plan_text: str) -> dict[str, str]:
         if not match:
             continue
         weekday = WEEKDAYS.get(match.group(1).lower())
-        workout = match.group(2).strip()
+        workout = match.group(2).strip(" \t,:-")
         if weekday and workout:
             parsed[weekday] = workout
     return parsed
