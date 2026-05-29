@@ -2,6 +2,8 @@
 
 A small local agent for reviewing marathon training from Strava workouts.
 
+Built with Codex.
+
 ## Step 1: Connect Strava
 
 Create a Strava API app at https://www.strava.com/settings/api.
