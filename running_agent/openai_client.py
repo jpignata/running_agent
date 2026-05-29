@@ -11,7 +11,7 @@ from .auth import load_env_file
 
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-DEFAULT_MODEL = "gpt-4.1"
+DEFAULT_MODEL = "gpt-5.4-mini"
 
 
 def coaching_reply(

@@ -72,7 +72,7 @@ For natural coaching replies, add an OpenAI API key:
 
 ```bash
 OPENAI_API_KEY=sk-your-openai-api-key
-OPENAI_MODEL=gpt-4.1
+OPENAI_MODEL=gpt-5.4-mini
 ```
 
 Run the coach:
