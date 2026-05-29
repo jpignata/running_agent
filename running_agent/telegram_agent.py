@@ -13,6 +13,12 @@ from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
+from .plan_suggestion import (
+    mark_sunday_plan_sent,
+    next_week_start,
+    should_send_sunday_plan,
+    suggest_next_week_plan,
+)
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_client import TelegramClient
@@ -47,6 +53,7 @@ class TelegramRunningAgent:
 
         while True:
             self._handle_telegram_updates()
+            self._send_sunday_plan_if_due()
             if time.monotonic() >= next_strava_check:
                 self._notify_new_runs()
                 next_strava_check = time.monotonic() + self.poll_seconds
@@ -92,6 +99,8 @@ class TelegramRunningAgent:
                 self.send_last_run_summary(chat_id=chat_id)
             elif command == "/run":
                 self._send_run_summary_from_message(chat_id, text)
+            elif command == "/suggestplan":
+                self.send_next_week_plan(chat_id=chat_id)
             elif command == "/plan":
                 self.telegram.send_message(chat_id, weekly_plan_context())
             elif command == "/setplan":
@@ -190,6 +199,20 @@ class TelegramRunningAgent:
         )
         self.telegram.send_message(target_chat_id, summary)
 
+    def send_next_week_plan(self, chat_id: int | str | None = None) -> None:
+        target_chat_id = chat_id or self.allowed_chat_id
+        if not target_chat_id:
+            raise RuntimeError(
+                "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
+            )
+        target_week_start = next_week_start(datetime.now().astimezone().date())
+        plan = suggest_next_week_plan(
+            self.strava,
+            target_week_start=target_week_start,
+            lookback_days=max(self.lookback_days, 42),
+        )
+        self.telegram.send_message(target_chat_id, plan)
+
     def _send_run_summary_from_message(self, chat_id: int | str, text: str) -> None:
         date_text = text[len("/run") :].strip()
         if not date_text:
@@ -219,6 +242,23 @@ class TelegramRunningAgent:
             return
         save_training_goal(goal_text)
         self.telegram.send_message(chat_id, "Saved your training goal. I will use it in coaching.")
+
+    def _send_sunday_plan_if_due(self) -> None:
+        if not self.allowed_chat_id:
+            return
+        now = datetime.now().astimezone()
+        if not should_send_sunday_plan(now, self.state):
+            return
+
+        target_week_start = next_week_start(now.date())
+        plan = suggest_next_week_plan(
+            self.strava,
+            target_week_start=target_week_start,
+            lookback_days=max(self.lookback_days, 42),
+        )
+        self.telegram.send_message(self.allowed_chat_id, plan)
+        mark_sunday_plan_sent(now, self.state)
+        _save_state(self.state, self.state_path)
 
     def _seed_seen_activities(self) -> None:
         if self.state.get("seen_activity_ids"):
@@ -284,6 +324,7 @@ def _help_text() -> str:
         "/recent - summarize recent training\n"
         "/last - send a workout summary for the latest Strava run\n"
         "/run YYYY-MM-DD - send a workout summary for a specific day\n"
+        "/suggestplan - suggest a plan idea for next week\n"
         "/plan - show the current weekly plan\n"
         "/setplan <plan> - save this week's plan\n"
         "/goal - show the current overall training goal\n"

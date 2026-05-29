@@ -98,6 +98,7 @@ Then message the bot on Telegram. It supports:
 - `/recent` - summarize recent Strava run training
 - `/last` - send a workout summary for the latest Strava run
 - `/run YYYY-MM-DD` - send a workout summary for a specific day
+- `/suggestplan` - suggest a plan idea for next week
 - `/plan` - show the current weekly plan
 - `/setplan <plan>` - save this week's plan
 - `/goal` - show the current overall training goal
@@ -105,8 +106,9 @@ Then message the bot on Telegram. It supports:
 - `/check` - check for newly synced Strava runs now
 - Any other message - chat with the coach using recent Strava context
 
-The Telegram process checks Strava every five minutes by default and sends a short coaching
-note when a new run appears. Change that interval with:
+The Telegram process checks Strava every five minutes by default, sends a short coaching
+note when a new run appears, and sends one next-week plan idea on Sunday evening. Change
+the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -117,6 +119,7 @@ For a quick demo without waiting for the bot loop, send a latest-run summary dir
 ```bash
 python -m running_agent send-last-run
 python -m running_agent send-run-summary 2026-05-27
+python -m running_agent suggest-plan
 ```
 
 ## Step 3: Add A Weekly Plan
@@ -161,6 +164,7 @@ Or set it in Telegram:
 - Athlete-provided weekly plan context
 - Athlete-provided overall training goal context
 - New-run monitoring with a short post-run coaching note
+- Sunday evening next-week plan suggestions
 
 ## Tests
 

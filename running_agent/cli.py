@@ -11,6 +11,7 @@ from .auth import build_authorization_url
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .plan_store import save_weekly_plan, weekly_plan_context
+from .plan_suggestion import next_week_start, suggest_next_week_plan
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_agent import TelegramRunningAgent
@@ -115,6 +116,21 @@ def _main() -> int:
         type=int,
         default=120,
         help="How far back to search Strava activities.",
+    )
+
+    suggest_plan = subparsers.add_parser(
+        "suggest-plan",
+        help="Print a suggested training plan idea for next week.",
+    )
+    suggest_plan.add_argument(
+        "--days",
+        type=int,
+        default=42,
+        help="Training lookback window in days.",
+    )
+    suggest_plan.add_argument(
+        "--week-start",
+        help="Target Monday for the suggested plan, formatted YYYY-MM-DD.",
     )
 
     set_plan = subparsers.add_parser(
@@ -236,6 +252,22 @@ def _main() -> int:
         agent = TelegramRunningAgent()
         agent.send_run_summary_for_date(args.date, search_days=args.search_days)
         print("Sent run summary to Telegram.")
+        return 0
+
+    if args.command == "suggest-plan":
+        target_week_start = (
+            datetime.strptime(args.week_start, "%Y-%m-%d").date()
+            if args.week_start
+            else next_week_start(datetime.now().astimezone().date())
+        )
+        client = StravaClient()
+        print(
+            suggest_next_week_plan(
+                client,
+                target_week_start=target_week_start,
+                lookback_days=args.days,
+            )
+        )
         return 0
 
     if args.command == "set-plan":
