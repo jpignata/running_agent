@@ -1,0 +1,10 @@
+[project]
+name = "running-agent"
+version = "0.1.0"
+description = "Local Strava workout feedback agent for marathon training."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+
