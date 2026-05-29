@@ -59,8 +59,10 @@ class ActivityFormatTest(unittest.TestCase):
         self.assertIn("- Distance: 3.00 mi", context)
         self.assertIn("- Elevation gain: 33 ft", context)
         self.assertIn("Derived workout signals:", context)
-        self.assertIn("Quality-looking laps:", context)
-        self.assertIn("Recovery-looking laps:", context)
+        self.assertIn("Quality-looking reps:", context)
+        self.assertIn("2 x 0.75 mi", context)
+        self.assertIn("Recovery-looking segments:", context)
+        self.assertIn("2 x 3:00 recoveries", context)
         self.assertIn("Lap | Distance | Moving | Elapsed | Pace | Avg HR | Max HR | Elev gain", context)
 
     def test_detailed_activity_context_limits_laps(self) -> None:
