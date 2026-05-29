@@ -30,20 +30,12 @@ def _main() -> int:
 
     subparsers.add_parser("auth-url", help="Print the Strava OAuth authorization URL.")
 
-    subparsers.add_parser(
-        "me", help="Verify Strava authentication and print athlete details."
-    )
+    subparsers.add_parser("me", help="Verify Strava authentication and print athlete details.")
 
-    exchange = subparsers.add_parser(
-        "exchange-code", help="Exchange an OAuth code for tokens."
-    )
-    exchange.add_argument(
-        "code", help="Code copied from the Strava OAuth redirect URL."
-    )
+    exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
+    exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
 
-    recent = subparsers.add_parser(
-        "recent", help="Fetch recent Strava runs and summarize them."
-    )
+    recent = subparsers.add_parser("recent", help="Fetch recent Strava runs and summarize them.")
     recent.add_argument("--days", type=int, default=14, help="Lookback window in days.")
 
     latest = subparsers.add_parser("latest-run", help="Print the latest Strava run.")
@@ -53,9 +45,7 @@ def _main() -> int:
         "latest-run-detail",
         help="Print lap-by-lap detail for the latest Strava run.",
     )
-    latest_detail.add_argument(
-        "--days", type=int, default=90, help="Lookback window in days."
-    )
+    latest_detail.add_argument("--days", type=int, default=90, help="Lookback window in days.")
 
     run_detail = subparsers.add_parser(
         "run-detail",
@@ -78,9 +68,7 @@ def _main() -> int:
         "run-summary",
         help="Generate a coaching summary for a run on a specific local date.",
     )
-    run_summary.add_argument(
-        "date", help="Local date to summarize, formatted YYYY-MM-DD."
-    )
+    run_summary.add_argument("date", help="Local date to summarize, formatted YYYY-MM-DD.")
     run_summary.add_argument(
         "--search-days",
         type=int,
@@ -92,9 +80,7 @@ def _main() -> int:
         "telegram",
         help="Run the Telegram running coach and monitor Strava for new runs.",
     )
-    telegram.add_argument(
-        "--days", type=int, default=21, help="Training lookback window in days."
-    )
+    telegram.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
     telegram.add_argument(
         "--poll-seconds",
         type=int,
@@ -117,17 +103,13 @@ def _main() -> int:
         "send-last-run",
         help="Send a Telegram workout summary for the latest Strava run.",
     )
-    last_run.add_argument(
-        "--days", type=int, default=21, help="Training lookback window in days."
-    )
+    last_run.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
 
     send_run_summary = subparsers.add_parser(
         "send-run-summary",
         help="Send a Telegram workout summary for a run on a specific local date.",
     )
-    send_run_summary.add_argument(
-        "date", help="Local date to summarize, formatted YYYY-MM-DD."
-    )
+    send_run_summary.add_argument("date", help="Local date to summarize, formatted YYYY-MM-DD.")
     send_run_summary.add_argument(
         "--search-days",
         type=int,
@@ -142,9 +124,7 @@ def _main() -> int:
 
     subparsers.add_parser("show-plan", help="Print the saved weekly training plan.")
 
-    set_goal = subparsers.add_parser(
-        "set-goal", help="Save an overall training goal from text."
-    )
+    set_goal = subparsers.add_parser("set-goal", help="Save an overall training goal from text.")
     set_goal.add_argument("goal", help="Goal text, quoted if it contains spaces.")
 
     subparsers.add_parser("show-goal", help="Print the saved overall training goal.")
@@ -236,9 +216,7 @@ def _main() -> int:
 
     if args.command == "telegram":
         if args.no_restart:
-            agent = TelegramRunningAgent(
-                poll_seconds=args.poll_seconds, lookback_days=args.days
-            )
+            agent = TelegramRunningAgent(poll_seconds=args.poll_seconds, lookback_days=args.days)
             agent.run_forever()
         else:
             _run_telegram_with_restarts(
@@ -288,14 +266,10 @@ def _run_telegram_with_restarts(
     lookback_days: int,
     restart_delay: int,
 ) -> None:
-    print(
-        "Running Telegram coach with restart-on-crash enabled. " "Press Ctrl+C to stop."
-    )
+    print("Running Telegram coach with restart-on-crash enabled. " "Press Ctrl+C to stop.")
     while True:
         try:
-            agent = TelegramRunningAgent(
-                poll_seconds=poll_seconds, lookback_days=lookback_days
-            )
+            agent = TelegramRunningAgent(poll_seconds=poll_seconds, lookback_days=lookback_days)
             agent.run_forever()
         except KeyboardInterrupt:
             print("Stopping Telegram coach.")

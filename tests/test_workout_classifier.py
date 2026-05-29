@@ -11,9 +11,7 @@ class WorkoutClassifierTest(unittest.TestCase):
     def test_plan_race_overrides_generic_activity_name(self) -> None:
         activity = _activity(distance_miles=3.12, moving_time=20 * 60, laps=[])
 
-        classification, reason, emphasis = classify_workout(
-            activity, "Saturday 5K race"
-        )
+        classification, reason, emphasis = classify_workout(activity, "Saturday 5K race")
 
         self.assertEqual(classification, "race")
         self.assertIn("race", reason)

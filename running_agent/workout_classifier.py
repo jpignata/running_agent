@@ -40,9 +40,7 @@ def workout_classification_context(activity: dict[str, Any], target_date: date) 
     return "\n".join(lines)
 
 
-def classify_workout(
-    activity: dict[str, Any], planned: str | None = None
-) -> tuple[str, str, str]:
+def classify_workout(activity: dict[str, Any], planned: str | None = None) -> tuple[str, str, str]:
     plan = f" {planned.lower()} " if planned else ""
     quality_count = _quality_lap_count(activity)
     recovery_count = _recovery_lap_count(activity)
@@ -127,9 +125,7 @@ def _is_recovery_lap(lap: dict[str, Any]) -> bool:
     distance = miles(lap)
     moving_time = int(lap.get("moving_time") or 0)
     pace = _seconds_per_mile(distance, moving_time)
-    return bool(
-        pace is not None and moving_time >= 45 and distance <= 0.2 and pace >= 9 * 60
-    )
+    return bool(pace is not None and moving_time >= 45 and distance <= 0.2 and pace >= 9 * 60)
 
 
 def _seconds_per_mile(distance_miles: float, moving_time_seconds: int) -> int | None:

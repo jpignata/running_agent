@@ -13,9 +13,7 @@ class TelegramClient:
     def __init__(self, bot_token: str):
         self.base_url = f"{TELEGRAM_API_BASE}/bot{bot_token}"
 
-    def get_updates(
-        self, offset: int | None = None, timeout: int = 25
-    ) -> list[dict[str, Any]]:
+    def get_updates(self, offset: int | None = None, timeout: int = 25) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "timeout": timeout,
             "allowed_updates": ["message"],
@@ -50,9 +48,7 @@ class TelegramClient:
                 body = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             body = error.read().decode("utf-8")
-            raise RuntimeError(
-                f"Telegram request failed with HTTP {error.code}: {body}"
-            ) from error
+            raise RuntimeError(f"Telegram request failed with HTTP {error.code}: {body}") from error
 
         if not body.get("ok"):
             raise RuntimeError(f"Telegram request failed: {body}")

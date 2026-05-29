@@ -5,11 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from running_agent.goal_store import (
-    load_training_goal,
-    save_training_goal,
-    training_goal_context,
-)
+from running_agent.goal_store import load_training_goal, save_training_goal, training_goal_context
 
 
 class GoalStoreTest(unittest.TestCase):

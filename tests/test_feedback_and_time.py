@@ -34,14 +34,10 @@ class FeedbackAndTimeTest(unittest.TestCase):
         self.assertIn("Watch-out: the long run is a large share", summary)
 
     def test_summarize_training_handles_no_runs(self) -> None:
-        self.assertEqual(
-            summarize_training([], days=14), "No runs found in the last 14 days."
-        )
+        self.assertEqual(summarize_training([], days=14), "No runs found in the last 14 days.")
 
     def test_summarize_training_handles_missing_heart_rate(self) -> None:
-        summary = summarize_training(
-            [_run_without_hr("2026-05-29T06:00:00Z", 5)], days=7
-        )
+        summary = summarize_training([_run_without_hr("2026-05-29T06:00:00Z", 5)], days=7)
 
         self.assertIn("No heart-rate data found", summary)
 

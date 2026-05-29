@@ -18,9 +18,7 @@ def activity_headline(activity: dict[str, Any]) -> str:
     distance = miles(activity)
     moving_time = int(activity.get("moving_time") or activity.get("elapsed_time") or 0)
     pace = _pace_per_mile(distance, moving_time)
-    date = _friendly_date(
-        activity.get("start_date_local") or activity.get("start_date")
-    )
+    date = _friendly_date(activity.get("start_date_local") or activity.get("start_date"))
     hr = activity.get("average_heartrate")
     hr_note = f", avg HR {hr:.0f}" if isinstance(hr, int | float) else ""
     return f"{name}: {distance:.2f} mi on {date}, {pace}{hr_note}"
@@ -48,9 +46,7 @@ def detailed_activity_context(
 
     lines.append("")
     lines.append("Lap data from Strava detailed activity:")
-    lines.append(
-        "Lap | Distance | Moving | Elapsed | Pace | Avg HR | Max HR | Elev gain"
-    )
+    lines.append("Lap | Distance | Moving | Elapsed | Pace | Avg HR | Max HR | Elev gain")
     for lap in laps[:max_laps]:
         lines.append(
             " | ".join(
@@ -172,20 +168,10 @@ def _recovery_groups(laps: list[dict[str, Any]], limit: int = 12) -> list[str]:
 
 
 def _format_quality_group(distance: float, reps: list[dict[str, Any]]) -> str:
-    lap_numbers = ", ".join(
-        str(rep.get("lap_index") or rep.get("split") or "?") for rep in reps
-    )
-    paces = ", ".join(
-        _pace_per_mile(miles(rep), int(rep.get("moving_time") or 0)) for rep in reps
-    )
-    heart_rates = [
-        rep.get("average_heartrate") for rep in reps if rep.get("average_heartrate")
-    ]
-    hr_note = (
-        f", avg HRs {', '.join(_heart_rate(hr) for hr in heart_rates)}"
-        if heart_rates
-        else ""
-    )
+    lap_numbers = ", ".join(str(rep.get("lap_index") or rep.get("split") or "?") for rep in reps)
+    paces = ", ".join(_pace_per_mile(miles(rep), int(rep.get("moving_time") or 0)) for rep in reps)
+    heart_rates = [rep.get("average_heartrate") for rep in reps if rep.get("average_heartrate")]
+    hr_note = f", avg HRs {', '.join(_heart_rate(hr) for hr in heart_rates)}" if heart_rates else ""
     return f"{len(reps)} x {distance:.2f} mi (laps {lap_numbers}) at {paces}{hr_note}"
 
 
@@ -195,15 +181,9 @@ def _format_recovery_group(seconds: int, recoveries: list[dict[str, Any]]) -> st
     )
     distances = ", ".join(f"{miles(rep):.2f} mi" for rep in recoveries)
     heart_rates = [
-        rep.get("average_heartrate")
-        for rep in recoveries
-        if rep.get("average_heartrate")
+        rep.get("average_heartrate") for rep in recoveries if rep.get("average_heartrate")
     ]
-    hr_note = (
-        f", avg HRs {', '.join(_heart_rate(hr) for hr in heart_rates)}"
-        if heart_rates
-        else ""
-    )
+    hr_note = f", avg HRs {', '.join(_heart_rate(hr) for hr in heart_rates)}" if heart_rates else ""
     return f"{len(recoveries)} x {_duration(seconds)} recoveries (laps {lap_numbers}) over {distances}{hr_note}"
 
 

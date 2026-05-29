@@ -42,13 +42,9 @@ def coaching_reply(
     if weekly_plan:
         prompt_parts.extend(["", "Athlete-provided weekly plan:", weekly_plan])
     if training_goal:
-        prompt_parts.extend(
-            ["", "Athlete-provided overall training goal:", training_goal]
-        )
+        prompt_parts.extend(["", "Athlete-provided overall training goal:", training_goal])
     if conversation:
-        prior = "\n".join(
-            f"{item['role']}: {item['content']}" for item in conversation[-8:]
-        )
+        prior = "\n".join(f"{item['role']}: {item['content']}" for item in conversation[-8:])
         prompt_parts.extend(["", "Recent Telegram conversation:", prior])
 
     payload = {
@@ -96,9 +92,7 @@ def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         body = error.read().decode("utf-8")
-        raise RuntimeError(
-            f"OpenAI request failed with HTTP {error.code}: {body}"
-        ) from error
+        raise RuntimeError(f"OpenAI request failed with HTTP {error.code}: {body}") from error
 
 
 def _extract_output_text(response: dict[str, Any]) -> str:
@@ -108,9 +102,7 @@ def _extract_output_text(response: dict[str, Any]) -> str:
     chunks: list[str] = []
     for item in response.get("output", []):
         for content in item.get("content", []):
-            if content.get("type") == "output_text" and isinstance(
-                content.get("text"), str
-            ):
+            if content.get("type") == "output_text" and isinstance(content.get("text"), str):
                 chunks.append(content["text"])
     return "\n".join(chunks)
 
