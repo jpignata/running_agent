@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from running_agent.garmin_context import format_garmin_readiness_context
+from running_agent.garmin_context import (
+    format_garmin_readiness_context,
+    format_garmin_weekly_context,
+)
 
 
 class GarminContextTest(unittest.TestCase):
@@ -95,6 +98,84 @@ class GarminContextTest(unittest.TestCase):
         )
 
         self.assertIn("Sleep: 6h 00m.", context)
+
+    def test_format_garmin_weekly_context_summarizes_recovery_trends(self) -> None:
+        context = format_garmin_weekly_context(
+            [
+                _snapshot(
+                    "2026-05-24",
+                    readiness=32,
+                    level="LOW",
+                    rhr=47,
+                    stress=44,
+                    battery_low=28,
+                    sleep_hours=5.5,
+                    vo2=51.8,
+                ),
+                _snapshot(
+                    "2026-05-25",
+                    readiness=62,
+                    level="MODERATE",
+                    rhr=44,
+                    stress=31,
+                    battery_low=42,
+                    sleep_hours=7.0,
+                    vo2=51.9,
+                ),
+                _snapshot(
+                    "2026-05-26",
+                    readiness=38,
+                    level="LOW",
+                    rhr=46,
+                    stress=41,
+                    battery_low=35,
+                    sleep_hours=5.8,
+                    vo2=52.0,
+                ),
+            ]
+        )
+
+        self.assertIn("Garmin recovery context, last 3 days:", context)
+        self.assertIn("Training readiness: avg 44, low days 2, latest 38 (Low).", context)
+        self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
+        self.assertIn("Stress: avg 39, high-stress days 2.", context)
+        self.assertIn("Body Battery: avg daily low 35, days below 40 2.", context)
+        self.assertIn("Sleep: avg 6.1h, short nights 2.", context)
+        self.assertIn("VO2 max: latest 52.0.", context)
+
+
+def _snapshot(
+    date: str,
+    readiness: int,
+    level: str,
+    rhr: int,
+    stress: int,
+    battery_low: int,
+    sleep_hours: float,
+    vo2: float,
+) -> dict:
+    return {
+        "date": date,
+        "training_readiness": {
+            "available": True,
+            "data": [{"timestampLocal": f"{date}T07:00:00", "score": readiness, "level": level}],
+        },
+        "heart_rates": {"available": True, "data": {"restingHeartRate": rhr}},
+        "stats": {
+            "available": True,
+            "data": {
+                "bodyBatteryLowestValue": battery_low,
+                "bodyBatteryMostRecentValue": battery_low + 10,
+                "bodyBatteryHighestValue": battery_low + 40,
+            },
+        },
+        "stress": {"available": True, "data": {"avgStressLevel": stress}},
+        "sleep": {
+            "available": True,
+            "data": {"dailySleepDTO": {"sleepTimeSeconds": sleep_hours * 3600}},
+        },
+        "vo2max": {"available": True, "data": [{"generic": {"vo2MaxPreciseValue": vo2}}]},
+    }
 
 
 if __name__ == "__main__":

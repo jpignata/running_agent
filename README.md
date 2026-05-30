@@ -1,6 +1,9 @@
 # Running Agent
 
-A small local agent for reviewing marathon training from Strava workouts.
+A local system for automated running coaching toward race goals.
+
+It uses training and recovery data from sources like Strava and Garmin to review workouts,
+adjust advice, and suggest what to do next.
 
 Built with Codex.
 

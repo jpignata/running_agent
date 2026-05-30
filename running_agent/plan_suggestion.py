@@ -6,6 +6,7 @@ from typing import Any
 from .activity_format import recent_runs_context
 from .coach_log import coach_log_context
 from .feedback import summarize_training
+from .garmin_context import safe_garmin_weekly_context
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import weekly_plan_context
@@ -29,7 +30,9 @@ def suggest_next_week_plan(
         "The weekly plan below is the current or just-finished plan. Use it only as context for "
         "what the athlete was supposed to do recently. Do not copy it forward as the new plan. "
         "Adapt the next week based on recent Strava training, how the current plan appears to "
-        "have gone, and the overall goal. Keep the plan conservative, specific, and practical. "
+        "have gone, Garmin recovery context, and the overall goal. Use Garmin data as recovery "
+        "context, but do not overreact to one bad day; look for repeated signals. "
+        "Keep the plan conservative, specific, and practical. "
         "Include each day Monday through Sunday. Include a short rationale, but do not claim "
         "the plan has been saved."
     )
@@ -42,6 +45,7 @@ def suggest_next_week_plan(
             weekly_plan=weekly_plan_context(),
             training_goal=training_goal_context(),
             coach_log=coach_log_context(),
+            garmin_context=safe_garmin_weekly_context(days=7),
         )
     except RuntimeError as error:
         note = _fallback_plan_note(error)

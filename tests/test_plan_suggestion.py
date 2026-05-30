@@ -37,12 +37,17 @@ class PlanSuggestionTest(unittest.TestCase):
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")
     @patch("running_agent.plan_suggestion.coach_log_context", return_value="Coach log context")
     @patch(
+        "running_agent.plan_suggestion.safe_garmin_weekly_context",
+        return_value="Garmin weekly context",
+    )
+    @patch(
         "running_agent.plan_suggestion.coaching_reply",
         return_value="Monday: Easy\nTuesday: Workout",
     )
     def test_suggest_next_week_plan_uses_recent_training_context(
         self,
         coaching_reply,
+        _safe_garmin_weekly_context,
         _coach_log_context,
         _weekly_plan_context,
         _training_goal_context,
@@ -73,19 +78,27 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertIn("2026-06-01 through 2026-06-07", prompt)
         self.assertIn("current or just-finished plan", prompt)
         self.assertIn("Do not copy it forward", prompt)
+        self.assertIn("Garmin recovery context", prompt)
+        self.assertIn("do not overreact to one bad day", prompt)
         self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
         self.assertIn("Easy Run: 5.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Weekly context")
         self.assertEqual(kwargs["training_goal"], "Goal context")
         self.assertEqual(kwargs["coach_log"], "Coach log context")
+        self.assertEqual(kwargs["garmin_context"], "Garmin weekly context")
 
     @patch("running_agent.plan_suggestion.training_goal_context", return_value="Goal context")
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")
     @patch("running_agent.plan_suggestion.coach_log_context", return_value="Coach log context")
+    @patch(
+        "running_agent.plan_suggestion.safe_garmin_weekly_context",
+        return_value="Garmin weekly context",
+    )
     @patch("running_agent.plan_suggestion.coaching_reply", side_effect=RuntimeError("offline"))
     def test_suggest_next_week_plan_has_offline_fallback(
         self,
         _coaching_reply,
+        _safe_garmin_weekly_context,
         _coach_log_context,
         _weekly_plan_context,
         _training_goal_context,
