@@ -1,0 +1,260 @@
+from __future__ import annotations
+
+from datetime import date
+from typing import Any
+
+from .garmin_client import GarminClient
+
+
+def garmin_readiness_context(
+    client: GarminClient | None = None, target_date: date | None = None
+) -> str:
+    client = client or GarminClient()
+    snapshot = client.readiness_snapshot(target_date=target_date)
+    return format_garmin_readiness_context(snapshot)
+
+
+def format_garmin_readiness_context(snapshot: dict[str, Any]) -> str:
+    lines = [f"Garmin readiness context for {snapshot.get('date', 'unknown date')}:"]
+
+    lines.extend(
+        [
+            _sleep_line(_data(snapshot, "sleep")),
+            _hrv_line(_data(snapshot, "hrv")),
+            _resting_hr_line(_data(snapshot, "heart_rates"), _data(snapshot, "stats")),
+            _stress_line(_data(snapshot, "stress")),
+            _body_battery_line(_data(snapshot, "body_battery"), _data(snapshot, "stats")),
+            _training_readiness_line(_data(snapshot, "training_readiness")),
+            _training_status_line(_data(snapshot, "training_status")),
+            _vo2_line(_data(snapshot, "vo2max")),
+        ]
+    )
+
+    errors = _error_lines(snapshot)
+    if errors:
+        lines.append("Missing Garmin fields: " + "; ".join(errors))
+
+    return "\n".join(line for line in lines if line)
+
+
+def _data(snapshot: dict[str, Any], key: str) -> Any:
+    value = snapshot.get(key)
+    if isinstance(value, dict) and value.get("available"):
+        return value.get("data")
+    return None
+
+
+def _error_lines(snapshot: dict[str, Any]) -> list[str]:
+    errors = []
+    for key, value in snapshot.items():
+        if isinstance(value, dict) and not value.get("available") and value.get("error"):
+            errors.append(f"{key}: {value['error']}")
+    return errors
+
+
+def _sleep_line(data: Any) -> str:
+    if not isinstance(data, dict):
+        return "Sleep: unavailable."
+    sleep = data.get("dailySleepDTO") if isinstance(data.get("dailySleepDTO"), dict) else data
+    seconds = _first_number(
+        sleep,
+        ["sleepTimeSeconds", "sleepTimeInSeconds", "measurableAsleepDuration", "duration"],
+    )
+    if seconds is None:
+        sleep_stage_seconds = [
+            _first_number(sleep, [key])
+            for key in ["deepSleepSeconds", "lightSleepSeconds", "remSleepSeconds"]
+        ]
+        if any(value is not None for value in sleep_stage_seconds):
+            seconds = sum(value or 0 for value in sleep_stage_seconds)
+    score = _nested_first(data, [["sleepScores", "overall", "value"], ["sleepScore", "value"]])
+    parts = []
+    if seconds:
+        parts.append(_duration(seconds))
+    if score:
+        parts.append(f"score {score:.0f}")
+    return "Sleep: " + (", ".join(parts) + "." if parts else "available, no summary fields found.")
+
+
+def _hrv_line(data: Any) -> str:
+    if not isinstance(data, dict):
+        return "HRV: unavailable."
+    hrv = _nested_first(
+        data,
+        [
+            ["hrvSummary", "lastNightAvg"],
+            ["hrvSummary", "weeklyAvg"],
+            ["lastNightAvg"],
+            ["weeklyAvg"],
+        ],
+    )
+    status = _nested_first(data, [["hrvSummary", "status"], ["status"]])
+    if hrv and status:
+        return f"HRV: {hrv:.0f} ms, {status}."
+    if hrv:
+        return f"HRV: {hrv:.0f} ms."
+    if status:
+        return f"HRV: {status}."
+    return "HRV: available, no summary fields found."
+
+
+def _resting_hr_line(heart_rates: Any, stats: Any) -> str:
+    value = None
+    if isinstance(heart_rates, dict):
+        value = _first_number(heart_rates, ["restingHeartRate", "restingHR"])
+    if value is None and isinstance(stats, dict):
+        value = _first_number(stats, ["restingHeartRate", "restingHR"])
+    return f"Resting HR: {value:.0f} bpm." if value else "Resting HR: unavailable."
+
+
+def _stress_line(data: Any) -> str:
+    if not isinstance(data, dict):
+        return "Stress: unavailable."
+    avg = _first_number(data, ["avgStressLevel", "averageStressLevel", "overallStressLevel"])
+    max_value = _first_number(data, ["maxStressLevel"])
+    if avg and max_value:
+        return f"Stress: avg {avg:.0f}, max {max_value:.0f}."
+    if avg:
+        return f"Stress: avg {avg:.0f}."
+    return "Stress: available, no summary fields found."
+
+
+def _body_battery_line(data: Any, stats: Any) -> str:
+    if isinstance(stats, dict):
+        latest = _first_number(stats, ["bodyBatteryMostRecentValue"])
+        high = _first_number(stats, ["bodyBatteryHighestValue"])
+        low = _first_number(stats, ["bodyBatteryLowestValue"])
+        if latest is not None and high is not None and low is not None:
+            return f"Body Battery: latest {latest:.0f}, high {high:.0f}, low {low:.0f}."
+
+    if not isinstance(data, list):
+        return "Body Battery: unavailable."
+    values = []
+    for day in data:
+        if isinstance(day, dict):
+            values.extend(day.get("bodyBatteryValuesArray") or [])
+    scores = [
+        row[1]
+        for row in values
+        if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], int | float)
+    ]
+    if not scores:
+        return "Body Battery: available, no summary fields found."
+    return f"Body Battery: latest {scores[-1]:.0f}, high {max(scores):.0f}, low {min(scores):.0f}."
+
+
+def _training_readiness_line(data: Any) -> str:
+    if isinstance(data, list):
+        data = _latest_dict(data)
+    if not isinstance(data, dict):
+        return "Training readiness: unavailable."
+    score = _first_number(data, ["score", "trainingReadinessScore"])
+    level = _first_string(data, ["level", "feedbackLong", "feedbackPhrase"])
+    if score and level:
+        return f"Training readiness: {score:.0f}, {level}."
+    if score:
+        return f"Training readiness: {score:.0f}."
+    if level:
+        return f"Training readiness: {level}."
+    return "Training readiness: available, no summary fields found."
+
+
+def _training_status_line(data: Any) -> str:
+    if not isinstance(data, dict):
+        return "Training status: unavailable."
+    latest = _nested_first(data, [["mostRecentTrainingStatus", "latestTrainingStatusData"]])
+    if isinstance(latest, dict):
+        latest = _latest_dict(list(latest.values()))
+        status = _first_string(latest, ["trainingStatusFeedbackPhrase", "acwrStatus"])
+        if status:
+            return f"Training status: {_humanize_status(status)}."
+
+    status = _nested_first(
+        data,
+        [
+            ["mostRecentTrainingStatus", "trainingStatus"],
+            ["mostRecentTrainingStatus", "trainingStatusFeedbackPhrase"],
+            ["trainingStatus"],
+            ["trainingStatusFeedbackPhrase"],
+        ],
+    )
+    return (
+        f"Training status: {_humanize_status(status)}."
+        if status
+        else "Training status: available, no summary fields found."
+    )
+
+
+def _vo2_line(data: Any) -> str:
+    if isinstance(data, list):
+        data = _latest_dict(data)
+    if not isinstance(data, dict):
+        return "VO2 max: unavailable."
+    value = _nested_first(
+        data,
+        [
+            ["generic", "vo2MaxPreciseValue"],
+            ["generic", "vo2MaxValue"],
+            ["vo2MaxPreciseValue"],
+            ["vo2MaxValue"],
+        ],
+    )
+    return f"VO2 max: {value:.1f}." if isinstance(value, int | float) else "VO2 max: unavailable."
+
+
+def _duration(seconds: float) -> str:
+    seconds = int(seconds)
+    hours, remainder = divmod(seconds, 3600)
+    minutes = remainder // 60
+    return f"{hours}h {minutes:02d}m"
+
+
+def _first_number(data: dict[str, Any], keys: list[str]) -> float | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, int | float):
+            return float(value)
+    return None
+
+
+def _first_string(data: dict[str, Any], keys: list[str]) -> str | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _nested_first(data: dict[str, Any], paths: list[list[str]]) -> Any:
+    for path in paths:
+        current: Any = data
+        for key in path:
+            if not isinstance(current, dict):
+                current = None
+                break
+            current = current.get(key)
+        if current is not None and current != "":
+            return current
+    return None
+
+
+def _latest_dict(items: list[Any]) -> dict[str, Any]:
+    dicts = [item for item in items if isinstance(item, dict)]
+    if not dicts:
+        return {}
+    return sorted(
+        dicts,
+        key=lambda item: str(
+            item.get("timestampLocal")
+            or item.get("timestamp")
+            or item.get("calendarDate")
+            or item.get("date")
+            or ""
+        ),
+    )[-1]
+
+
+def _humanize_status(value: Any) -> str:
+    if not isinstance(value, str):
+        return str(value)
+    return value.replace("_", " ").title()

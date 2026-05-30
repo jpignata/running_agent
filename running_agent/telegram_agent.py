@@ -10,6 +10,13 @@ from typing import Any
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
 from .auth import load_env_file, require_env
 from .coach_log import append_run_result
+from .daily_checkin import (
+    daily_workout_checkin,
+    has_completed_run_for_date,
+    has_planned_workout_for_date,
+    mark_daily_checkin_sent,
+    should_send_daily_checkin,
+)
 from .event_log import log_event
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
@@ -55,6 +62,7 @@ class TelegramRunningAgent:
 
         while True:
             self._handle_telegram_updates()
+            self._send_daily_checkin_if_due()
             self._send_sunday_plan_if_due()
             if time.monotonic() >= next_strava_check:
                 self._notify_new_runs()
@@ -221,10 +229,7 @@ class TelegramRunningAgent:
             log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
         except RuntimeError as error:
             note = _last_run_fallback_note(last_run, error)
-        self._send_message(
-            target_chat_id,
-            f"Last run summary:\n{activity_headline(detailed_run)}\n\n{note}",
-        )
+        self._send_message(target_chat_id, f"{activity_headline(detailed_run)}\n\n{note}")
 
     def send_run_summary_for_date(
         self,
@@ -337,6 +342,46 @@ class TelegramRunningAgent:
         )
         self._send_message(self.allowed_chat_id, plan)
         mark_sunday_plan_sent(now, self.state)
+        _save_state(self.state, self.state_path)
+
+    def _send_daily_checkin_if_due(self) -> None:
+        if not self.allowed_chat_id:
+            return
+        now = datetime.now().astimezone()
+        if not should_send_daily_checkin(now, self.state):
+            return
+        if not has_planned_workout_for_date(now.date()):
+            log_event(
+                "debug",
+                {"message": "daily_checkin_skipped_no_plan", "date": now.date().isoformat()},
+            )
+            mark_daily_checkin_sent(now, self.state)
+            _save_state(self.state, self.state_path)
+            return
+        if has_completed_run_for_date(self.strava, now.date()):
+            log_event(
+                "debug",
+                {"message": "daily_checkin_skipped_run_completed", "date": now.date().isoformat()},
+            )
+            mark_daily_checkin_sent(now, self.state)
+            _save_state(self.state, self.state_path)
+            return
+
+        log_event(
+            "debug",
+            {"message": "daily_checkin_start", "date": now.date().isoformat()},
+        )
+        checkin = daily_workout_checkin(
+            self.strava,
+            target_date=now.date(),
+            lookback_days=7,
+        )
+        log_event(
+            "debug",
+            {"message": "daily_checkin_done", "date": now.date().isoformat()},
+        )
+        self._send_message(self.allowed_chat_id, checkin)
+        mark_daily_checkin_sent(now, self.state)
         _save_state(self.state, self.state_path)
 
     def _seed_seen_activities(self) -> None:

@@ -20,6 +20,7 @@ def coaching_reply(
     weekly_plan: str | None = None,
     training_goal: str | None = None,
     coach_log: str | None = None,
+    garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
 ) -> str:
     load_env_file()
@@ -46,6 +47,8 @@ def coaching_reply(
         prompt_parts.extend(["", "Athlete-provided overall training goal:", training_goal])
     if coach_log:
         prompt_parts.extend(["", "Recent coach log:", coach_log])
+    if garmin_context:
+        prompt_parts.extend(["", "Garmin readiness context:", garmin_context])
     if conversation:
         prior = "\n".join(f"{item['role']}: {item['content']}" for item in conversation[-8:])
         prompt_parts.extend(["", "Recent Telegram conversation:", prior])

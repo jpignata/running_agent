@@ -113,8 +113,8 @@ Then message the bot on Telegram. It supports:
 - Any other message - chat with the coach using recent Strava context
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
-note when a new run appears, and sends one next-week plan idea on Sunday evening. Change
-the polling interval with:
+note when a new run appears, sends one morning workout check-in after 5:30am, and sends
+one next-week plan idea on Sunday evening. Change the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -123,6 +123,9 @@ python -m running_agent telegram --poll-seconds 120 --days 28
 When a new run syncs, the bot appends a compact local coach-log entry to `.coach_log.jsonl`
 with the matched planned workout and completed run headline. This file is ignored by git and
 used as context for future plan suggestions.
+
+The morning check-in uses Garmin readiness context when `GARMIN_EMAIL` and `GARMIN_PASSWORD`
+are configured, plus today's matched plan and the last week of runs.
 
 For a quick demo without waiting for the bot loop, send a latest-run summary directly:
 
@@ -174,7 +177,9 @@ Or set it in Telegram:
 - Athlete-provided weekly plan context
 - Athlete-provided overall training goal context
 - Local coach log of planned-versus-completed runs
+- Garmin readiness context for morning workout check-ins
 - New-run monitoring with a short post-run coaching note
+- Daily 5:30am workout check-ins
 - Sunday evening next-week plan suggestions
 
 ## Tests

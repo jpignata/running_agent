@@ -3,7 +3,12 @@ name = "running-agent"
 version = "0.1.0"
 description = "Local Strava workout feedback agent for marathon training."
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "garminconnect>=0.2.34",
+]
+
+[tool.setuptools.packages.find]
+include = ["running_agent*"]
 
 [tool.ruff]
 line-length = 100

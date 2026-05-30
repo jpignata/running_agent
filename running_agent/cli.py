@@ -10,6 +10,7 @@ from pathlib import Path
 from .activity_format import activity_headline, detailed_activity_context
 from .auth import build_authorization_url
 from .feedback import summarize_training
+from .garmin_context import garmin_readiness_context
 from .goal_store import save_training_goal, training_goal_context
 from .plan_store import save_weekly_plan, weekly_plan_context
 from .plan_suggestion import next_week_start, suggest_next_week_plan
@@ -33,6 +34,11 @@ def _main() -> int:
     subparsers.add_parser("auth-url", help="Print the Strava OAuth authorization URL.")
 
     subparsers.add_parser("me", help="Verify Strava authentication and print athlete details.")
+
+    subparsers.add_parser(
+        "garmin-context",
+        help="Print a compact Garmin readiness context for coaching.",
+    )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
     exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
@@ -184,6 +190,10 @@ def _main() -> int:
         print(f"Authenticated as: {name or 'Unknown athlete'}")
         if city:
             print(f"Location: {city}")
+        return 0
+
+    if args.command == "garmin-context":
+        print(garmin_readiness_context())
         return 0
 
     if args.command == "recent":
