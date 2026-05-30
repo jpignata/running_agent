@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 
 TELEGRAM_API_BASE = "https://api.telegram.org"
 MAX_MESSAGE_LENGTH = 3900
-SEND_MESSAGE_TIMEOUT_SECONDS = 10
+SEND_MESSAGE_TIMEOUT_SECONDS = 5
 
 
 class TelegramClient:
