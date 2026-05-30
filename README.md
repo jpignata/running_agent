@@ -59,7 +59,26 @@ python -m running_agent run-detail 2026-05-27
 python -m running_agent run-summary 2026-05-27
 ```
 
-## Step 2: Connect Telegram
+## Step 2: Connect Garmin
+
+Garmin Connect is optional, but it gives the coach recovery context for morning workout
+check-ins. Add your Garmin credentials to `.env`:
+
+```bash
+GARMIN_EMAIL=you@example.com
+GARMIN_PASSWORD=your-garmin-password
+```
+
+Then verify the read-only readiness context:
+
+```bash
+python -m running_agent garmin-context
+```
+
+The first run may prompt for a Garmin MFA code. Garmin tokens are cached under
+`~/.garminconnect`.
+
+## Step 3: Connect Telegram
 
 Create a bot with Telegram's `@BotFather`, copy the bot token, and add it to `.env`:
 
@@ -113,8 +132,9 @@ Then message the bot on Telegram. It supports:
 - Any other message - chat with the coach using recent Strava context
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
-note when a new run appears, sends one morning workout check-in after 5:30am, and sends
-one next-week plan idea on Sunday evening. Change the polling interval with:
+note when a new run appears, sends one morning workout check-in after 5:30am when today's
+weekly plan has a matched workout that has not already been completed, and sends one
+next-week plan idea on Sunday evening. Change the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -124,8 +144,10 @@ When a new run syncs, the bot appends a compact local coach-log entry to `.coach
 with the matched planned workout and completed run headline. This file is ignored by git and
 used as context for future plan suggestions.
 
-The morning check-in uses Garmin readiness context when `GARMIN_EMAIL` and `GARMIN_PASSWORD`
-are configured, plus today's matched plan and the last week of runs.
+The morning check-in uses Garmin readiness context when configured, plus today's matched
+plan, the last week of runs, the coach log, and your overall goal. If there is no workout
+scheduled for the day or Strava already has a completed run for that date, the bot sends
+nothing.
 
 For a quick demo without waiting for the bot loop, send a latest-run summary directly:
 
@@ -135,7 +157,7 @@ python -m running_agent send-run-summary 2026-05-27
 python -m running_agent suggest-plan
 ```
 
-## Step 3: Add A Weekly Plan
+## Step 4: Add A Weekly Plan
 
 Save a plain-text weekly plan so the coach can compare completed Strava runs against what
 you intended to do:
@@ -151,7 +173,7 @@ You can also paste the plan into Telegram:
 /setplan Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
 ```
 
-## Step 4: Add An Overall Goal
+## Step 5: Add An Overall Goal
 
 Save the larger goal so the coach can interpret workouts in context:
 
@@ -179,7 +201,7 @@ Or set it in Telegram:
 - Local coach log of planned-versus-completed runs
 - Garmin readiness context for morning workout check-ins
 - New-run monitoring with a short post-run coaching note
-- Daily 5:30am workout check-ins
+- Daily 5:30am workout check-ins for planned, not-yet-completed workout days
 - Sunday evening next-week plan suggestions
 
 ## Tests
