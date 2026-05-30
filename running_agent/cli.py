@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import time
 import traceback
 from datetime import date, datetime
@@ -98,6 +99,11 @@ def _main() -> int:
         "--no-restart",
         action="store_true",
         help="Disable the restart-on-crash supervisor.",
+    )
+    telegram.add_argument(
+        "--debug-log",
+        action="store_true",
+        help="Print internal debug log events to stdout.",
     )
 
     last_run = subparsers.add_parser(
@@ -231,6 +237,8 @@ def _main() -> int:
         return 0
 
     if args.command == "telegram":
+        if args.debug_log:
+            os.environ["RUNNING_AGENT_DEBUG_LOG"] = "1"
         if args.no_restart:
             agent = TelegramRunningAgent(poll_seconds=args.poll_seconds, lookback_days=args.days)
             agent.run_forever()

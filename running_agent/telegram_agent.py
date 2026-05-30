@@ -10,6 +10,7 @@ from typing import Any
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
 from .auth import load_env_file, require_env
 from .coach_log import append_run_result
+from .event_log import log_event
 from .feedback import summarize_training
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
@@ -61,7 +62,9 @@ class TelegramRunningAgent:
 
     def _handle_telegram_updates(self) -> None:
         offset = self.state.get("telegram_update_offset")
+        log_event("debug", {"message": "telegram_get_updates_start", "offset": offset})
         updates = self.telegram.get_updates(offset=offset, timeout=25)
+        log_event("debug", {"message": "telegram_get_updates_done", "count": len(updates)})
         for update in updates:
             self.state["telegram_update_offset"] = int(update["update_id"]) + 1
             message = update.get("message") or {}
@@ -72,6 +75,7 @@ class TelegramRunningAgent:
                 continue
             if not self._chat_allowed(chat_id):
                 continue
+            log_event("rx", {"chat_id": chat_id, "text": text})
             self._handle_message(chat_id, text)
         _save_state(self.state, self.state_path)
 
@@ -81,7 +85,7 @@ class TelegramRunningAgent:
         if not self.allowed_chat_id:
             self.allowed_chat_id = str(chat_id)
             self.state["telegram_chat_id"] = str(chat_id)
-            self.telegram.send_message(
+            self._send_message(
                 chat_id,
                 "You are connected. I will use this Telegram chat for running-coach updates.",
             )
@@ -89,13 +93,16 @@ class TelegramRunningAgent:
 
     def _handle_message(self, chat_id: int, text: str) -> None:
         command = text.split()[0].lower()
+        log_event(
+            "debug", {"message": "handle_message_start", "chat_id": chat_id, "command": command}
+        )
         try:
             if command in {"/start", "/help"}:
-                self.telegram.send_message(chat_id, _help_text())
+                self._send_message(chat_id, _help_text())
             elif command == "/ping":
-                self.telegram.send_message(chat_id, "Pong!")
+                self._send_message(chat_id, "Pong!")
             elif command in {"/recent", "/summary"}:
-                self.telegram.send_message(chat_id, self._training_summary())
+                self._send_message(chat_id, self._training_summary())
             elif command in {"/last", "/last_run"}:
                 self.send_last_run_summary(chat_id=chat_id)
             elif command == "/run":
@@ -103,23 +110,42 @@ class TelegramRunningAgent:
             elif command == "/suggestplan":
                 self.send_next_week_plan(chat_id=chat_id)
             elif command == "/plan":
-                self.telegram.send_message(chat_id, weekly_plan_context())
+                self._send_message(chat_id, weekly_plan_context())
             elif command == "/setplan":
                 self._set_weekly_plan_from_message(chat_id, text)
             elif command == "/goal":
-                self.telegram.send_message(chat_id, training_goal_context())
+                self._send_message(chat_id, training_goal_context())
             elif command == "/setgoal":
                 self._set_training_goal_from_message(chat_id, text)
             elif command == "/check":
                 self._notify_new_runs(force_chat_id=chat_id)
             else:
-                self.telegram.send_message(chat_id, self._coach_reply(text))
+                self._send_message(chat_id, self._coach_reply(text))
         except RuntimeError as error:
-            self.telegram.send_message(chat_id, f"Something failed while coaching: {error}")
+            self._send_message(chat_id, f"Something failed while coaching: {error}")
+        log_event(
+            "debug", {"message": "handle_message_done", "chat_id": chat_id, "command": command}
+        )
+
+    def _send_message(self, chat_id: int | str, text: str) -> None:
+        log_event(
+            "debug", {"message": "telegram_send_start", "chat_id": chat_id, "chars": len(text)}
+        )
+        self.telegram.send_message(chat_id, text)
+        log_event("tx", {"chat_id": chat_id, "text": text})
+        log_event(
+            "debug", {"message": "telegram_send_done", "chat_id": chat_id, "chars": len(text)}
+        )
 
     def _coach_reply(self, text: str) -> str:
+        log_event("debug", {"message": "coach_reply_recent_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
+        log_event(
+            "debug",
+            {"message": "coach_reply_recent_activities_done", "count": len(activities)},
+        )
         summary = summarize_training(activities, days=self.lookback_days)
+        log_event("debug", {"message": "coach_reply_openai_start"})
         reply = coaching_reply(
             text,
             training_summary=summary,
@@ -128,6 +154,7 @@ class TelegramRunningAgent:
             training_goal=training_goal_context(),
             conversation=self.conversation,
         )
+        log_event("debug", {"message": "coach_reply_openai_done", "chars": len(reply)})
         self.conversation.extend(
             [
                 {"role": "athlete", "content": text},
@@ -138,7 +165,12 @@ class TelegramRunningAgent:
         return reply
 
     def _training_summary(self) -> str:
+        log_event("debug", {"message": "training_summary_recent_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
+        log_event(
+            "debug",
+            {"message": "training_summary_recent_activities_done", "count": len(activities)},
+        )
         return summarize_training(activities, days=self.lookback_days)
 
     def send_last_run_summary(self, chat_id: int | str | None = None) -> None:
@@ -148,12 +180,24 @@ class TelegramRunningAgent:
                 "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
             )
 
+        log_event("debug", {"message": "last_run_recent_activities_start"})
         activities = self.strava.recent_activities(days=max(self.lookback_days, 90))
+        log_event("debug", {"message": "last_run_recent_activities_done", "count": len(activities)})
+        log_event("debug", {"message": "last_run_lookup_start"})
         last_run = self.strava.latest_run(days=max(self.lookback_days, 90))
+        log_event("debug", {"message": "last_run_lookup_done", "found": bool(last_run)})
         if not last_run:
-            self.telegram.send_message(target_chat_id, "No recent Strava runs found.")
+            self._send_message(target_chat_id, "No recent Strava runs found.")
             return
+        log_event(
+            "debug",
+            {"message": "last_run_detail_start", "activity_id": last_run.get("id")},
+        )
         detailed_run = self.strava.detailed_activity(last_run["id"])
+        log_event(
+            "debug",
+            {"message": "last_run_detail_done", "activity_id": last_run.get("id")},
+        )
 
         prompt = (
             "Summarize this athlete's most recent Strava run for Telegram. Include the core "
@@ -162,6 +206,7 @@ class TelegramRunningAgent:
             "next step. Keep it concise and coach-like."
         )
         try:
+            log_event("debug", {"message": "last_run_openai_start"})
             note = coaching_reply(
                 prompt,
                 training_summary=summarize_training(activities, days=self.lookback_days),
@@ -173,9 +218,10 @@ class TelegramRunningAgent:
                 training_goal=training_goal_context(),
                 conversation=self.conversation,
             )
+            log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
         except RuntimeError as error:
             note = _last_run_fallback_note(last_run, error)
-        self.telegram.send_message(
+        self._send_message(
             target_chat_id,
             f"Last run summary:\n{activity_headline(detailed_run)}\n\n{note}",
         )
@@ -192,13 +238,21 @@ class TelegramRunningAgent:
                 "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
             )
         target_date = datetime.strptime(date_text, "%Y-%m-%d").date()
+        log_event(
+            "debug",
+            {"message": "run_summary_start", "chat_id": target_chat_id, "date": date_text},
+        )
         summary = run_summary_for_date(
             self.strava,
             target_date,
             search_days=search_days,
             lookback_days=self.lookback_days,
         )
-        self.telegram.send_message(target_chat_id, summary)
+        log_event(
+            "debug",
+            {"message": "run_summary_done", "chat_id": target_chat_id, "date": date_text},
+        )
+        self._send_message(target_chat_id, summary)
 
     def send_next_week_plan(self, chat_id: int | str | None = None) -> None:
         target_chat_id = chat_id or self.allowed_chat_id
@@ -207,42 +261,58 @@ class TelegramRunningAgent:
                 "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
             )
         target_week_start = next_week_start(datetime.now().astimezone().date())
+        log_event(
+            "debug",
+            {
+                "message": "suggest_plan_start",
+                "chat_id": target_chat_id,
+                "week_start": target_week_start.isoformat(),
+            },
+        )
         plan = suggest_next_week_plan(
             self.strava,
             target_week_start=target_week_start,
             lookback_days=max(self.lookback_days, 42),
         )
-        self.telegram.send_message(target_chat_id, plan)
+        log_event(
+            "debug",
+            {
+                "message": "suggest_plan_done",
+                "chat_id": target_chat_id,
+                "week_start": target_week_start.isoformat(),
+            },
+        )
+        self._send_message(target_chat_id, plan)
 
     def _send_run_summary_from_message(self, chat_id: int | str, text: str) -> None:
         date_text = text[len("/run") :].strip()
         if not date_text:
-            self.telegram.send_message(chat_id, "Send a date like:\n/run 2026-05-27")
+            self._send_message(chat_id, "Send a date like:\n/run 2026-05-27")
             return
         self.send_run_summary_for_date(date_text, chat_id=chat_id)
 
     def _set_weekly_plan_from_message(self, chat_id: int | str, text: str) -> None:
         plan_text = text[len("/setplan") :].strip()
         if not plan_text.strip():
-            self.telegram.send_message(
+            self._send_message(
                 chat_id,
                 "Send the plan after the command, like:\n/setplan\nMon easy 5\nTue workout",
             )
             return
         save_weekly_plan(plan_text)
-        self.telegram.send_message(chat_id, "Saved this week's plan. I will use it in coaching.")
+        self._send_message(chat_id, "Saved this week's plan. I will use it in coaching.")
 
     def _set_training_goal_from_message(self, chat_id: int | str, text: str) -> None:
         goal_text = text[len("/setgoal") :].strip()
         if not goal_text.strip():
-            self.telegram.send_message(
+            self._send_message(
                 chat_id,
                 "Send the goal after the command, like:\n"
                 "/setgoal Boston Marathon on Oct 12, target 3:20, stay healthy.",
             )
             return
         save_training_goal(goal_text)
-        self.telegram.send_message(chat_id, "Saved your training goal. I will use it in coaching.")
+        self._send_message(chat_id, "Saved your training goal. I will use it in coaching.")
 
     def _send_sunday_plan_if_due(self) -> None:
         if not self.allowed_chat_id:
@@ -252,19 +322,29 @@ class TelegramRunningAgent:
             return
 
         target_week_start = next_week_start(now.date())
+        log_event(
+            "debug",
+            {"message": "sunday_plan_start", "week_start": target_week_start.isoformat()},
+        )
         plan = suggest_next_week_plan(
             self.strava,
             target_week_start=target_week_start,
             lookback_days=max(self.lookback_days, 42),
         )
-        self.telegram.send_message(self.allowed_chat_id, plan)
+        log_event(
+            "debug",
+            {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
+        )
+        self._send_message(self.allowed_chat_id, plan)
         mark_sunday_plan_sent(now, self.state)
         _save_state(self.state, self.state_path)
 
     def _seed_seen_activities(self) -> None:
         if self.state.get("seen_activity_ids"):
             return
+        log_event("debug", {"message": "seed_seen_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
+        log_event("debug", {"message": "seed_seen_activities_done", "count": len(activities)})
         self.state["seen_activity_ids"] = [
             activity["id"] for activity in activities if "id" in activity
         ]
@@ -275,6 +355,10 @@ class TelegramRunningAgent:
         if not chat_id:
             return
 
+        log_event(
+            "debug",
+            {"message": "notify_new_runs_start", "chat_id": chat_id, "forced": bool(force_chat_id)},
+        )
         activities = self.strava.recent_activities(days=self.lookback_days)
         seen = set(self.state.get("seen_activity_ids", []))
         new_runs = [
@@ -286,14 +370,24 @@ class TelegramRunningAgent:
             activity["id"] for activity in activities if "id" in activity
         ]
         _save_state(self.state, self.state_path)
+        log_event(
+            "debug",
+            {
+                "message": "notify_new_runs_done",
+                "activity_count": len(activities),
+                "new_run_count": len(new_runs),
+            },
+        )
 
         if not new_runs:
             if force_chat_id:
-                self.telegram.send_message(chat_id, "No new Strava runs since my last check.")
+                self._send_message(chat_id, "No new Strava runs since my last check.")
             return
 
         for run in reversed(new_runs):
+            log_event("debug", {"message": "new_run_detail_start", "activity_id": run.get("id")})
             detailed_run = self.strava.detailed_activity(run["id"])
+            log_event("debug", {"message": "new_run_detail_done", "activity_id": run.get("id")})
             append_run_result(detailed_run)
             prompt = (
                 "A new Strava run just synced. Give a short post-run coaching note with one "
@@ -301,6 +395,7 @@ class TelegramRunningAgent:
                 "it is present."
             )
             summary = summarize_training(activities, days=self.lookback_days)
+            log_event("debug", {"message": "new_run_openai_start", "activity_id": run.get("id")})
             note = coaching_reply(
                 prompt,
                 training_summary=summary,
@@ -312,7 +407,8 @@ class TelegramRunningAgent:
                 training_goal=training_goal_context(),
                 conversation=self.conversation,
             )
-            self.telegram.send_message(
+            log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
+            self._send_message(
                 chat_id,
                 f"New run synced:\n{activity_headline(detailed_run)}\n\n{note}",
             )

@@ -93,6 +93,12 @@ For debugging, run without the supervisor:
 python -m running_agent telegram --no-restart
 ```
 
+To print internal debug events in addition to received/sent message lines:
+
+```bash
+python -m running_agent telegram --debug-log
+```
+
 Then message the bot on Telegram. It supports:
 
 - `/recent` - summarize recent Strava run training
