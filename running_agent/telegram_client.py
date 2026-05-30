@@ -7,6 +7,7 @@ from urllib.request import Request, urlopen
 
 TELEGRAM_API_BASE = "https://api.telegram.org"
 MAX_MESSAGE_LENGTH = 3900
+SEND_MESSAGE_TIMEOUT_SECONDS = 10
 
 
 class TelegramClient:
@@ -20,7 +21,7 @@ class TelegramClient:
         }
         if offset is not None:
             payload["offset"] = offset
-        return self._post("getUpdates", payload).get("result", [])
+        return self._post("getUpdates", payload, timeout_seconds=timeout + 10).get("result", [])
 
     def send_message(self, chat_id: int | str, text: str) -> None:
         for chunk in _message_chunks(text):
@@ -31,9 +32,15 @@ class TelegramClient:
                     "text": chunk,
                     "disable_web_page_preview": True,
                 },
+                timeout_seconds=SEND_MESSAGE_TIMEOUT_SECONDS,
             )
 
-    def _post(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post(
+        self,
+        method: str,
+        payload: dict[str, Any],
+        timeout_seconds: int = SEND_MESSAGE_TIMEOUT_SECONDS,
+    ) -> dict[str, Any]:
         data = json.dumps(payload).encode("utf-8")
         request = Request(
             f"{self.base_url}/{method}",
@@ -42,9 +49,7 @@ class TelegramClient:
             method="POST",
         )
         try:
-            with urlopen(
-                request, timeout=max(int(payload.get("timeout", 30)) + 10, 30)
-            ) as response:
+            with urlopen(request, timeout=timeout_seconds) as response:
                 body = json.loads(response.read().decode("utf-8"))
         except HTTPError as error:
             body = error.read().decode("utf-8")

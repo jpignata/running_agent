@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
 
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
 from .auth import load_env_file, require_env
@@ -35,6 +37,12 @@ from .telegram_client import TelegramClient
 
 STATE_PATH = Path(".running_agent_state.json")
 DEFAULT_LOOKBACK_DAYS = 21
+TRANSIENT_ERRORS = (
+    TimeoutError,
+    socket.timeout,
+    ConnectionError,
+    URLError,
+)
 
 
 class TelegramRunningAgent:
@@ -62,12 +70,18 @@ class TelegramRunningAgent:
         next_strava_check = time.monotonic() + self.poll_seconds
 
         while True:
-            self._handle_telegram_updates()
-            self._send_daily_checkin_if_due()
-            self._send_sunday_plan_if_due()
-            if time.monotonic() >= next_strava_check:
-                self._notify_new_runs()
-                next_strava_check = time.monotonic() + self.poll_seconds
+            try:
+                self._handle_telegram_updates()
+                self._send_daily_checkin_if_due()
+                self._send_sunday_plan_if_due()
+                if time.monotonic() >= next_strava_check:
+                    self._notify_new_runs()
+                    next_strava_check = time.monotonic() + self.poll_seconds
+            except KeyboardInterrupt:
+                raise
+            except TRANSIENT_ERRORS as error:
+                log_event("debug", {"message": "transient_loop_error", "error": repr(error)})
+                time.sleep(5)
 
     def _handle_telegram_updates(self) -> None:
         offset = self.state.get("telegram_update_offset")
