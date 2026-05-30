@@ -24,7 +24,7 @@ def daily_workout_checkin(
 ) -> str:
     activities = client.recent_activities(days=lookback_days)
     weekly_plan = weekly_plan_context_for_date(target_date)
-    garmin_context = _garmin_context(garmin_context_provider)
+    garmin_context = current_garmin_context(garmin_context_provider)
     prompt = (
         f"Write a morning workout check-in for {target_date.isoformat()} for Telegram. "
         "Use today's matched plan, this week's recent runs, Garmin readiness context, coach log, "
@@ -72,7 +72,7 @@ def has_planned_workout_for_date(target_date: date) -> bool:
     return planned_workout_for_date(target_date) is not None
 
 
-def _garmin_context(provider: Callable[[], str] | None) -> str:
+def current_garmin_context(provider: Callable[[], str] | None = None) -> str:
     try:
         return provider() if provider else garmin_readiness_context()
     except RuntimeError as error:

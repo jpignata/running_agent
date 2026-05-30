@@ -11,6 +11,7 @@ from .activity_format import activity_headline, detailed_activity_context, recen
 from .auth import load_env_file, require_env
 from .coach_log import append_run_result
 from .daily_checkin import (
+    current_garmin_context,
     daily_workout_checkin,
     has_completed_run_for_date,
     has_planned_workout_for_date,
@@ -224,6 +225,7 @@ class TelegramRunningAgent:
                 ),
                 weekly_plan=weekly_plan_context_for_date(_activity_date(detailed_run)),
                 training_goal=training_goal_context(),
+                garmin_context=current_garmin_context(),
                 conversation=self.conversation,
             )
             log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
@@ -450,6 +452,7 @@ class TelegramRunningAgent:
                 ),
                 weekly_plan=weekly_plan_context_for_date(_activity_date(detailed_run)),
                 training_goal=training_goal_context(),
+                garmin_context=current_garmin_context(),
                 conversation=self.conversation,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
