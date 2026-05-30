@@ -76,6 +76,7 @@ Then verify the read-only readiness context:
 
 ```bash
 python -m running_agent garmin-context
+python -m running_agent garmin-weekly-context
 ```
 
 The first run may prompt for a Garmin MFA code. Garmin tokens are cached under
@@ -137,7 +138,7 @@ Then message the bot on Telegram. It supports:
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am when today's
 weekly plan has a matched workout that has not already been completed, and sends one
-next-week plan idea on Sunday evening. Change the polling interval with:
+Sunday evening review plus next-week plan idea. Change the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -157,6 +158,7 @@ For a quick demo without waiting for the bot loop, send a latest-run summary dir
 ```bash
 python -m running_agent send-last-run
 python -m running_agent send-run-summary 2026-05-27
+python -m running_agent weekly-review --no-log
 python -m running_agent suggest-plan
 ```
 
@@ -205,7 +207,7 @@ Or set it in Telegram:
 - Garmin readiness context for morning workout check-ins
 - New-run monitoring with a short post-run coaching note
 - Daily 5:30am workout check-ins for planned, not-yet-completed workout days
-- Sunday evening next-week plan suggestions
+- Sunday evening weekly reviews and next-week plan suggestions
 
 ## Tests
 

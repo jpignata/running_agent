@@ -10,13 +10,14 @@ from pathlib import Path
 from .activity_format import activity_headline, detailed_activity_context
 from .auth import build_authorization_url
 from .feedback import summarize_training
-from .garmin_context import garmin_readiness_context
+from .garmin_context import garmin_readiness_context, garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
 from .plan_store import save_weekly_plan, weekly_plan_context
 from .plan_suggestion import next_week_start, suggest_next_week_plan
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_agent import TelegramRunningAgent
+from .weekly_review import current_week_start, review_week
 
 
 def main() -> int:
@@ -38,6 +39,17 @@ def _main() -> int:
     subparsers.add_parser(
         "garmin-context",
         help="Print a compact Garmin readiness context for coaching.",
+    )
+
+    garmin_weekly = subparsers.add_parser(
+        "garmin-weekly-context",
+        help="Print a compact Garmin recovery trend context for planning.",
+    )
+    garmin_weekly.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="Number of Garmin days to summarize.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
@@ -145,6 +157,20 @@ def _main() -> int:
         help="Target Monday for the suggested plan, formatted YYYY-MM-DD.",
     )
 
+    weekly_review = subparsers.add_parser(
+        "weekly-review",
+        help="Print and log a review of the current training week.",
+    )
+    weekly_review.add_argument(
+        "--week-start",
+        help="Target Monday for the week to review, formatted YYYY-MM-DD.",
+    )
+    weekly_review.add_argument(
+        "--no-log",
+        action="store_true",
+        help="Do not append the review to the local coach log.",
+    )
+
     set_plan = subparsers.add_parser(
         "set-plan", help="Save a weekly training plan from a text file."
     )
@@ -194,6 +220,10 @@ def _main() -> int:
 
     if args.command == "garmin-context":
         print(garmin_readiness_context())
+        return 0
+
+    if args.command == "garmin-weekly-context":
+        print(garmin_weekly_context(days=args.days))
         return 0
 
     if args.command == "recent":
@@ -286,6 +316,16 @@ def _main() -> int:
                 lookback_days=args.days,
             )
         )
+        return 0
+
+    if args.command == "weekly-review":
+        week_start = (
+            datetime.strptime(args.week_start, "%Y-%m-%d").date()
+            if args.week_start
+            else current_week_start(datetime.now().astimezone().date())
+        )
+        client = StravaClient()
+        print(review_week(client, week_start=week_start, log_review=not args.no_log))
         return 0
 
     if args.command == "set-plan":

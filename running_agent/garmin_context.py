@@ -37,6 +37,8 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
 
     readiness_scores: list[float] = []
     readiness_levels: list[str] = []
+    hrv_values: list[float] = []
+    hrv_statuses: list[str] = []
     resting_hrs: list[float] = []
     stress_avgs: list[float] = []
     body_battery_lows: list[float] = []
@@ -51,6 +53,23 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
             readiness_scores.append(score)
         if level:
             readiness_levels.append(_humanize_status(level))
+
+        hrv = _data(snapshot, "hrv")
+        if isinstance(hrv, dict):
+            hrv_value = _nested_first(
+                hrv,
+                [
+                    ["hrvSummary", "lastNightAvg"],
+                    ["hrvSummary", "weeklyAvg"],
+                    ["lastNightAvg"],
+                    ["weeklyAvg"],
+                ],
+            )
+            hrv_status = _nested_first(hrv, [["hrvSummary", "status"], ["status"]])
+            if isinstance(hrv_value, int | float):
+                hrv_values.append(float(hrv_value))
+            if isinstance(hrv_status, str) and hrv_status.strip():
+                hrv_statuses.append(_humanize_status(hrv_status))
 
         heart_rates = _data(snapshot, "heart_rates")
         stats = _data(snapshot, "stats")
@@ -96,6 +115,14 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
     else:
         lines.append("Training readiness: unavailable.")
 
+    if hrv_values:
+        line = f"HRV: avg {_mean(hrv_values):.0f} ms, latest {hrv_values[-1]:.0f} ms"
+        if hrv_statuses:
+            line += f" ({hrv_statuses[-1]})"
+        lines.append(line + ".")
+    else:
+        lines.append("HRV: unavailable.")
+
     if resting_hrs:
         lines.append(
             f"Resting HR: avg {_mean(resting_hrs):.0f} bpm, latest {resting_hrs[-1]:.0f} bpm."
@@ -108,7 +135,8 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
         lines.append(
             "Body Battery: "
             f"avg daily low {_mean(body_battery_lows):.0f}, "
-            f"days below 40 {sum(value < 40 for value in body_battery_lows)}."
+            f"latest daily low {body_battery_lows[-1]:.0f}; "
+            "compare against the athlete's usual range before treating this as a red flag."
         )
     if sleep_hours:
         lines.append(

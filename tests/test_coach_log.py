@@ -6,7 +6,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from running_agent.coach_log import append_run_result, coach_log_context, read_coach_log
+from running_agent.coach_log import (
+    append_run_result,
+    append_week_review,
+    coach_log_context,
+    read_coach_log,
+)
 
 METERS_PER_MILE = 1609.344
 
@@ -64,6 +69,22 @@ class CoachLogTest(unittest.TestCase):
         path.write_text(json.dumps({"type": "note", "text": "hello"}) + "\n\n", encoding="utf-8")
 
         self.assertEqual(read_coach_log(path), [{"type": "note", "text": "hello"}])
+
+    def test_append_week_review_records_review_and_context(self) -> None:
+        path = _temp_path()
+
+        entry = append_week_review(
+            week_start="2026-05-25",
+            week_end="2026-05-31",
+            summary="Good consistency; keep next week controlled.",
+            path=path,
+        )
+
+        self.assertEqual(entry["type"], "week_reviewed")
+        self.assertEqual(entry["week_start"], "2026-05-25")
+        context = coach_log_context(path)
+        self.assertIn("week 2026-05-25 to 2026-05-31", context)
+        self.assertIn("Good consistency", context)
 
 
 def _temp_path() -> Path:

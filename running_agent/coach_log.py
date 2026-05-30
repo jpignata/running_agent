@@ -36,6 +36,23 @@ def append_coach_log(entry: dict[str, Any], path: Path = COACH_LOG_PATH) -> None
     path.chmod(0o600)
 
 
+def append_week_review(
+    week_start: str,
+    week_end: str,
+    summary: str,
+    path: Path = COACH_LOG_PATH,
+) -> dict[str, Any]:
+    entry = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "type": "week_reviewed",
+        "week_start": week_start,
+        "week_end": week_end,
+        "summary": summary.strip(),
+    }
+    append_coach_log(entry, path=path)
+    return entry
+
+
 def read_coach_log(path: Path = COACH_LOG_PATH) -> list[dict[str, Any]]:
     if not path.exists():
         return []
@@ -62,6 +79,12 @@ def coach_log_context(path: Path = COACH_LOG_PATH, limit: int = 8) -> str:
                 f"{entry.get('run_date', 'unknown date')}: "
                 f"planned: {entry.get('planned_workout', '-')}; "
                 f"completed: {entry.get('completed_run', '-')}"
+            )
+        elif entry.get("type") == "week_reviewed":
+            lines.append(
+                "- "
+                f"week {entry.get('week_start', '?')} to {entry.get('week_end', '?')}: "
+                f"{entry.get('summary', '')}"
             )
         else:
             lines.append(

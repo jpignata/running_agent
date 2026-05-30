@@ -106,6 +106,8 @@ class GarminContextTest(unittest.TestCase):
                     "2026-05-24",
                     readiness=32,
                     level="LOW",
+                    hrv=41,
+                    hrv_status="LOW",
                     rhr=47,
                     stress=44,
                     battery_low=28,
@@ -116,6 +118,8 @@ class GarminContextTest(unittest.TestCase):
                     "2026-05-25",
                     readiness=62,
                     level="MODERATE",
+                    hrv=46,
+                    hrv_status="BALANCED",
                     rhr=44,
                     stress=31,
                     battery_low=42,
@@ -126,6 +130,8 @@ class GarminContextTest(unittest.TestCase):
                     "2026-05-26",
                     readiness=38,
                     level="LOW",
+                    hrv=43,
+                    hrv_status="LOW",
                     rhr=46,
                     stress=41,
                     battery_low=35,
@@ -137,9 +143,11 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Garmin recovery context, last 3 days:", context)
         self.assertIn("Training readiness: avg 44, low days 2, latest 38 (Low).", context)
+        self.assertIn("HRV: avg 43 ms, latest 43 ms (Low).", context)
         self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
         self.assertIn("Stress: avg 39, high-stress days 2.", context)
-        self.assertIn("Body Battery: avg daily low 35, days below 40 2.", context)
+        self.assertIn("Body Battery: avg daily low 35, latest daily low 35", context)
+        self.assertIn("compare against the athlete's usual range", context)
         self.assertIn("Sleep: avg 6.1h, short nights 2.", context)
         self.assertIn("VO2 max: latest 52.0.", context)
 
@@ -148,6 +156,8 @@ def _snapshot(
     date: str,
     readiness: int,
     level: str,
+    hrv: int,
+    hrv_status: str,
     rhr: int,
     stress: int,
     battery_low: int,
@@ -159,6 +169,10 @@ def _snapshot(
         "training_readiness": {
             "available": True,
             "data": [{"timestampLocal": f"{date}T07:00:00", "score": readiness, "level": level}],
+        },
+        "hrv": {
+            "available": True,
+            "data": {"hrvSummary": {"lastNightAvg": hrv, "status": hrv_status}},
         },
         "heart_rates": {"available": True, "data": {"restingHeartRate": rhr}},
         "stats": {
