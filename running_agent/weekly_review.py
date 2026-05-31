@@ -32,14 +32,19 @@ def review_week(
     garmin_context = safe_garmin_weekly_context(days=7)
     prompt = (
         f"Review the athlete's training week from {week_start.isoformat()} through "
-        f"{week_end.isoformat()} for use before suggesting next week's plan. Compare the saved "
-        "weekly plan with what was completed, note mileage, quality sessions, long run, missed "
-        "or extra work, and Garmin recovery patterns. Use detailed lap context when it is "
+        f"{week_end.isoformat()} for use before suggesting next week's plan. Write like a real "
+        "coach texting the athlete, not like a report. Start with a natural sentence such as "
+        "'You had a great week,' 'This was a solid week,' or 'This was a challenging week,' "
+        "based on the data. Do not use a title, section headers, markdown, or label-style "
+        "phrases like 'Takeaway:' or 'By weekday:'. Compare the saved weekly plan with what "
+        "was completed, note mileage, quality sessions, long run, missed or extra work, and "
+        "Garmin recovery patterns. Use detailed lap context when it is "
         "provided for structured workouts, tempos, races, or long runs. Interpret Garmin data "
         "against the week: low readiness after quality work can be normal, while repeated poor "
         "sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, or failed "
         "workouts may indicate recovery debt. End with one concise coaching takeaway that should "
-        "guide next week's plan. Keep it plain text and under 220 words."
+        "guide next week's plan, but phrase it conversationally. Keep it plain text and under "
+        "220 words."
     )
 
     try:
@@ -62,7 +67,7 @@ def review_week(
             summary=review,
         )
 
-    return f"Weekly review for {week_start.isoformat()} through {week_end.isoformat()}:\n\n{review}"
+    return review
 
 
 def current_week_start(today: date) -> date:

@@ -78,14 +78,15 @@ class PlanSuggestionTest(unittest.TestCase):
             lookback_days=42,
         )
 
-        self.assertIn("Next week plan idea for 2026-06-01:", plan)
-        self.assertIn("Monday: Easy", plan)
+        self.assertEqual(plan, "Monday: Easy\nTuesday: Workout")
         self.assertEqual(client.requested_days, 42)
         kwargs = coaching_reply.call_args.kwargs
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("2026-06-01 through 2026-06-07", prompt)
         self.assertIn("current or just-finished plan", prompt)
         self.assertIn("Do not copy it forward", prompt)
+        self.assertIn("Write like a real coach texting the athlete", prompt)
+        self.assertIn("Do not use a title, section headers", prompt)
         self.assertIn("Garmin recovery context", prompt)
         self.assertIn("generic absolute thresholds", prompt)
         self.assertIn("low readiness after hard training as potentially normal", prompt)
@@ -93,6 +94,9 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertIn("athlete-specific profile and coach log", prompt)
         self.assertIn("appropriately challenging", prompt)
         self.assertIn("5-10%", prompt)
+        self.assertIn("8% above the just-finished week's completed mileage", prompt)
+        self.assertIn("If last week was 38 miles", prompt)
+        self.assertIn("do not write ranges that could exceed the cap", prompt)
         self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
         self.assertIn("Easy Run: 5.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Weekly context")

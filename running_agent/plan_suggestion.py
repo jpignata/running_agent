@@ -27,7 +27,10 @@ def suggest_next_week_plan(
     target_week_end = target_week_start + timedelta(days=6)
     prompt = (
         "Suggest a new training plan idea for the upcoming week, "
-        f"{target_week_start.isoformat()} through {target_week_end.isoformat()}. "
+        f"{target_week_start.isoformat()} through {target_week_end.isoformat()}. Write like a "
+        "real coach texting the athlete, not like a formal plan document. Do not use a title, "
+        "section headers, markdown, or labels like 'Why this setup:'. Start with a brief "
+        "conversational bridge from the week review into the plan. "
         "The weekly plan below is the current or just-finished plan. Use it only as context for "
         "what the athlete was supposed to do recently. Do not copy it forward as the new plan. "
         "Adapt the next week based on recent Strava training, how the current plan appears to "
@@ -39,10 +42,16 @@ def suggest_next_week_plan(
         "have actually mattered for this athlete. "
         "Make the plan appropriately challenging for the goal when recent execution supports it, "
         "while keeping progression sensible. Weekly volume increases should usually stay around "
-        "5-10%, and hard days should be balanced with easy or recovery days. "
-        "Keep the plan specific and practical. "
-        "Include each day Monday through Sunday. Include a short rationale, but do not claim "
-        "the plan has been saved."
+        "5-10%, and hard days should be balanced with easy or recovery days. Estimate the "
+        "athlete's completed mileage from the just-finished week before proposing daily mileage. "
+        "The proposed week's total should not exceed about 8% above the just-finished week's "
+        "completed mileage unless the athlete explicitly asks for a bigger jump. If last week "
+        "was 38 miles, keep the proposed total at 41 miles or less. Make the daily mileage add "
+        "up to that cap; do not write ranges that could exceed the cap when summed. "
+        "Keep the plan specific and practical. Include each day Monday through Sunday, but write "
+        "the days as natural plain-text lines instead of headers. Include the rationale in the "
+        "flow of the message, and do not claim the plan has been saved. Do not end with an offer "
+        "to make another version or add exact paces."
     )
 
     try:
@@ -58,7 +67,7 @@ def suggest_next_week_plan(
     except RuntimeError as error:
         note = _fallback_plan_note(error)
 
-    return f"Next week plan idea for {target_week_start.isoformat()}:\n\n{note}"
+    return note
 
 
 def should_send_sunday_plan(now: datetime, state: dict[str, Any]) -> bool:

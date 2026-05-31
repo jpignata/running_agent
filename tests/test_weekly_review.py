@@ -39,11 +39,13 @@ class WeeklyReviewTest(unittest.TestCase):
             week_start=datetime(2026, 5, 25).date(),
         )
 
-        self.assertIn("Weekly review for 2026-05-25 through 2026-05-31:", review)
-        self.assertIn("Good week. Keep it controlled.", review)
+        self.assertEqual(review, "Good week. Keep it controlled.")
         prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("2026-05-25 through 2026-05-31", prompt)
+        self.assertIn("Write like a real coach texting the athlete", prompt)
+        self.assertIn("Do not use a title, section headers", prompt)
+        self.assertIn("By weekday", prompt)
         self.assertIn("low readiness after quality work can be normal", prompt)
         self.assertIn("recovery debt", prompt)
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
