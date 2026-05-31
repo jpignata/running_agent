@@ -7,6 +7,8 @@ from urllib.request import Request, urlopen
 
 TELEGRAM_API_BASE = "https://api.telegram.org"
 MAX_MESSAGE_LENGTH = 3900
+GET_UPDATES_TIMEOUT_SECONDS = 5
+GET_UPDATES_HTTP_BUFFER_SECONDS = 5
 SEND_MESSAGE_TIMEOUT_SECONDS = 5
 
 
@@ -14,14 +16,22 @@ class TelegramClient:
     def __init__(self, bot_token: str):
         self.base_url = f"{TELEGRAM_API_BASE}/bot{bot_token}"
 
-    def get_updates(self, offset: int | None = None, timeout: int = 25) -> list[dict[str, Any]]:
+    def get_updates(
+        self,
+        offset: int | None = None,
+        timeout: int = GET_UPDATES_TIMEOUT_SECONDS,
+    ) -> list[dict[str, Any]]:
         payload: dict[str, Any] = {
             "timeout": timeout,
             "allowed_updates": ["message"],
         }
         if offset is not None:
             payload["offset"] = offset
-        return self._post("getUpdates", payload, timeout_seconds=timeout + 10).get("result", [])
+        return self._post(
+            "getUpdates",
+            payload,
+            timeout_seconds=timeout + GET_UPDATES_HTTP_BUFFER_SECONDS,
+        ).get("result", [])
 
     def send_message(self, chat_id: int | str, text: str) -> None:
         for chunk in _message_chunks(text):
