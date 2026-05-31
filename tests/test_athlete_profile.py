@@ -4,7 +4,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from running_agent.athlete_profile import athlete_profile_context
+from running_agent.athlete_profile import (
+    append_coaching_preference,
+    athlete_profile_context,
+)
 
 
 class AthleteProfileTest(unittest.TestCase):
@@ -26,6 +29,18 @@ class AthleteProfileTest(unittest.TestCase):
             context = athlete_profile_context(Path(handle.name))
 
         self.assertEqual(context, "Custom athlete note")
+
+    def test_append_coaching_preference_adds_note_section(self) -> None:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=True) as handle:
+            path = Path(handle.name)
+            handle.write("Existing profile")
+            handle.flush()
+
+            context = append_coaching_preference("I prefer effort-based workout guidance.", path)
+
+        self.assertIn("Existing profile", context)
+        self.assertIn("User-stated coaching notes:", context)
+        self.assertIn("I prefer effort-based workout guidance.", context)
 
 
 if __name__ == "__main__":

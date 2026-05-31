@@ -10,6 +10,10 @@ from typing import Any
 from urllib.error import URLError
 
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
+from .athlete_profile import (
+    append_coaching_preference,
+    athlete_profile_context,
+)
 from .auth import load_env_file, require_env
 from .coach_log import append_run_result
 from .coach_time import coach_now, coach_today
@@ -142,6 +146,10 @@ class TelegramRunningAgent:
                 self._send_message(chat_id, training_goal_context())
             elif command == "/setgoal":
                 self._set_training_goal_from_message(chat_id, text)
+            elif command in {"/preferences", "/profile"}:
+                self._send_message(chat_id, athlete_profile_context())
+            elif command in {"/preference", "/note"}:
+                self._save_coaching_preference_from_message(chat_id, text, command)
             elif command == "/check":
                 self._notify_new_runs(force_chat_id=chat_id)
             else:
@@ -337,6 +345,25 @@ class TelegramRunningAgent:
         save_training_goal(goal_text)
         self._send_message(chat_id, "Saved your training goal. I will use it in coaching.")
 
+    def _save_coaching_preference_from_message(
+        self,
+        chat_id: int | str,
+        text: str,
+        command: str,
+    ) -> None:
+        preference_text = text[len(command) :].strip()
+        if not preference_text:
+            self._send_message(
+                chat_id,
+                "Send the coaching preference after the command, like:\n"
+                "/preference I prefer workouts by effort when Garmin readiness is low.",
+            )
+            return
+        append_coaching_preference(preference_text)
+        self._send_message(
+            chat_id, "Saved that coaching preference. I will use it in future coaching."
+        )
+
     def _send_sunday_plan_if_due(self) -> None:
         if not self.allowed_chat_id:
             return
@@ -496,8 +523,12 @@ def _help_text() -> str:
         "/setplan <plan> - save this week's plan\n"
         "/goal - show the current overall training goal\n"
         "/setgoal <goal> - save your overall training goal\n"
+        "/preferences - show remembered coaching notes\n"
+        "/preference <note> - explicitly save a coaching note\n"
         "/check - check Strava for newly synced runs\n"
-        "/help - show this help"
+        "/help - show this help\n\n"
+        "You can also say things like 'remember that I prefer long runs on Saturday' and I will "
+        "decide whether to save that as future coaching context."
     )
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 ATHLETE_PROFILE_PATH = Path(".athlete_profile.txt")
@@ -19,3 +20,22 @@ def athlete_profile_context(path: Path = ATHLETE_PROFILE_PATH) -> str:
     if not text:
         return DEFAULT_ATHLETE_PROFILE.strip()
     return text
+
+
+def append_coaching_preference(
+    preference_text: str,
+    path: Path = ATHLETE_PROFILE_PATH,
+) -> str:
+    preference_text = preference_text.strip()
+    if not preference_text:
+        raise RuntimeError("Coaching preference text cannot be empty.")
+
+    profile = athlete_profile_context(path)
+    if "User-stated coaching notes:" not in profile:
+        profile = f"{profile}\n\nUser-stated coaching notes:"
+
+    timestamp = datetime.now(timezone.utc).date().isoformat()
+    profile = f"{profile.rstrip()}\n- {timestamp}: {preference_text}\n"
+    path.write_text(profile, encoding="utf-8")
+    path.chmod(0o600)
+    return profile.strip()

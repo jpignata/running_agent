@@ -6,13 +6,35 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from .athlete_profile import athlete_profile_context
+from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .auth import load_env_file
 from .coach_time import coach_now
 from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.4-mini"
+REMEMBER_NOTE_TOOL = {
+    "type": "function",
+    "name": "remember_coaching_note",
+    "description": (
+        "Store a durable coaching note about the athlete for future coaching. Use this when "
+        "the athlete explicitly states a preference, constraint, recurring issue, important "
+        "context, or something they ask you to remember. Do not store ordinary one-off questions "
+        "or sensitive medical details."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "note": {
+                "type": "string",
+                "description": "A concise note to remember for future coaching.",
+            }
+        },
+        "required": ["note"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
 
 
 def coaching_reply(
@@ -87,13 +109,74 @@ def coaching_reply(
             "when pain, illness, or injury risk comes up."
         ),
         "input": "\n".join(prompt_parts),
+        "tools": [REMEMBER_NOTE_TOOL],
+        "tool_choice": "auto",
         "max_output_tokens": 650,
     }
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
+    response = _handle_tool_calls(response, payload, api_key)
     text = _extract_output_text(response)
     if not text:
         raise RuntimeError("OpenAI response did not include text output.")
     return text.strip()
+
+
+def _handle_tool_calls(
+    response: dict[str, Any],
+    original_payload: dict[str, Any],
+    api_key: str,
+) -> dict[str, Any]:
+    tool_outputs = []
+    for call in _function_calls(response):
+        if call.get("name") != "remember_coaching_note":
+            continue
+        note = _tool_argument(call, "note")
+        if not note:
+            continue
+        append_coaching_preference(note)
+        tool_outputs.append(
+            {
+                "type": "function_call_output",
+                "call_id": call["call_id"],
+                "output": json.dumps({"saved": True}),
+            }
+        )
+
+    if not tool_outputs:
+        return response
+
+    followup_payload = {
+        "model": original_payload["model"],
+        "instructions": original_payload["instructions"],
+        "input": tool_outputs,
+        "max_output_tokens": original_payload.get("max_output_tokens", 650),
+    }
+    if response.get("id"):
+        followup_payload["previous_response_id"] = response["id"]
+    return _post_json(OPENAI_RESPONSES_URL, followup_payload, api_key)
+
+
+def _function_calls(response: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in response.get("output", [])
+        if item.get("type") == "function_call" and isinstance(item.get("call_id"), str)
+    ]
+
+
+def _tool_argument(call: dict[str, Any], name: str) -> str | None:
+    arguments = call.get("arguments")
+    if not isinstance(arguments, str):
+        return None
+    try:
+        parsed = json.loads(arguments)
+    except json.JSONDecodeError:
+        return None
+    value = parsed.get(name)
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:

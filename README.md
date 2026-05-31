@@ -132,8 +132,14 @@ Then message the bot on Telegram. It supports:
 - `/setplan <plan>` - save this week's plan
 - `/goal` - show the current overall training goal
 - `/setgoal <goal>` - save your overall training goal
+- `/preferences` - show remembered coaching notes and preferences
+- `/preference <note>` - explicitly save a coaching note
 - `/check` - check for newly synced Strava runs now
 - Any other message - chat with the coach using recent Strava context
+
+The coach can also remember natural-language notes when chatting. For example, if you say
+`remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
+store that in `.athlete_profile.txt`, and use it in future coaching.
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
