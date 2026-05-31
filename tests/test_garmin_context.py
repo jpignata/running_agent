@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
 
+from running_agent.garmin_client import GarminClient
 from running_agent.garmin_context import (
     format_garmin_readiness_context,
     format_garmin_weekly_context,
@@ -78,6 +80,57 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Sleep: unavailable.", context)
         self.assertIn("Missing Garmin fields: sleep: sleep failed", context)
+
+    def test_format_garmin_readiness_context_labels_fallback_vo2max_date(self) -> None:
+        context = format_garmin_readiness_context(
+            {
+                "date": "2026-05-30",
+                "vo2max": {
+                    "available": True,
+                    "date": "2026-05-24",
+                    "fallback_for_date": "2026-05-30",
+                    "data": [{"generic": {"vo2MaxPreciseValue": 55.3}}],
+                },
+            }
+        )
+
+        self.assertIn("VO2 max: latest from 2026-05-24: 55.3.", context)
+
+    def test_garmin_client_falls_back_to_recent_vo2max_measurement(self) -> None:
+        client = GarminClient.__new__(GarminClient)
+        client.api = _FakeGarminApi(
+            vo2max_by_date={
+                "2026-05-30": [],
+                "2026-05-29": [],
+                "2026-05-28": [{"generic": {"vo2MaxPreciseValue": 55.3}}],
+            }
+        )
+
+        snapshot = client.readiness_snapshot(
+            target_date=date(2026, 5, 30),
+            vo2max_lookback_days=3,
+        )
+
+        self.assertEqual(snapshot["vo2max"]["date"], "2026-05-28")
+        self.assertEqual(snapshot["vo2max"]["fallback_for_date"], "2026-05-30")
+        self.assertEqual(snapshot["vo2max"]["data"][0]["generic"]["vo2MaxPreciseValue"], 55.3)
+
+    def test_garmin_client_can_disable_vo2max_fallback(self) -> None:
+        client = GarminClient.__new__(GarminClient)
+        client.api = _FakeGarminApi(
+            vo2max_by_date={
+                "2026-05-30": [],
+                "2026-05-29": [{"generic": {"vo2MaxPreciseValue": 55.3}}],
+            }
+        )
+
+        snapshot = client.readiness_snapshot(
+            target_date=date(2026, 5, 30),
+            vo2max_lookback_days=0,
+        )
+
+        self.assertEqual(snapshot["vo2max"]["data"], [])
+        self.assertNotIn("fallback_for_date", snapshot["vo2max"])
 
     def test_sleep_duration_falls_back_to_sleep_stages(self) -> None:
         context = format_garmin_readiness_context(
@@ -190,6 +243,32 @@ def _snapshot(
         },
         "vo2max": {"available": True, "data": [{"generic": {"vo2MaxPreciseValue": vo2}}]},
     }
+
+
+class _FakeGarminApi:
+    def __init__(self, vo2max_by_date: dict[str, list]):
+        self.vo2max_by_date = vo2max_by_date
+
+    def get_stats(self, date_text: str) -> dict:
+        return {}
+
+    def get_heart_rates(self, date_text: str) -> dict:
+        return {}
+
+    def get_sleep_data(self, date_text: str) -> dict:
+        return {}
+
+    def get_hrv_data(self, date_text: str) -> dict:
+        return {}
+
+    def get_stress_data(self, date_text: str) -> dict:
+        return {}
+
+    def get_body_battery(self, start_date_text: str, end_date_text: str) -> list:
+        return []
+
+    def get_max_metrics(self, date_text: str) -> list:
+        return self.vo2max_by_date.get(date_text, [])
 
 
 if __name__ == "__main__":

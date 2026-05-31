@@ -18,7 +18,10 @@ def garmin_weekly_context(client: GarminClient | None = None, days: int = 7) -> 
     client = client or GarminClient()
     today = date.today()
     snapshots = [
-        client.readiness_snapshot(target_date=today - timedelta(days=offset))
+        client.readiness_snapshot(
+            target_date=today - timedelta(days=offset),
+            vo2max_lookback_days=0,
+        )
         for offset in reversed(range(days))
     ]
     return format_garmin_weekly_context(snapshots)
@@ -176,7 +179,14 @@ def format_garmin_readiness_context(snapshot: dict[str, Any]) -> str:
 def _data(snapshot: dict[str, Any], key: str) -> Any:
     value = snapshot.get(key)
     if isinstance(value, dict) and value.get("available"):
-        return value.get("data")
+        data = value.get("data")
+        if key == "vo2max" and value.get("fallback_for_date"):
+            if isinstance(data, dict):
+                data = dict(data)
+                data["_source_date"] = value.get("date")
+            elif isinstance(data, list):
+                data = {"values": data, "_source_date": value.get("date")}
+        return data
     return None
 
 
@@ -314,6 +324,9 @@ def _vo2_line(data: Any) -> str:
     value = _vo2_value(data)
     if value is None:
         return "VO2 max: unavailable."
+    source_date = data.get("_source_date") if isinstance(data, dict) else None
+    if source_date:
+        return f"VO2 max: latest from {source_date}: {value:.1f}."
     return f"VO2 max: {value:.1f}."
 
 
@@ -338,6 +351,8 @@ def _sleep_seconds(data: Any) -> float | None:
 def _vo2_value(data: Any) -> float | None:
     if isinstance(data, list):
         data = _latest_dict(data)
+    if isinstance(data, dict) and isinstance(data.get("values"), list):
+        data = _latest_dict(data["values"])
     if not isinstance(data, dict):
         return None
     value = _nested_first(

@@ -14,7 +14,11 @@ class GarminClient:
         self.tokenstore = tokenstore
         self.api = self._authenticate()
 
-    def readiness_snapshot(self, target_date: date | None = None) -> dict[str, Any]:
+    def readiness_snapshot(
+        self,
+        target_date: date | None = None,
+        vo2max_lookback_days: int = 30,
+    ) -> dict[str, Any]:
         target_date = target_date or date.today()
         date_text = target_date.isoformat()
         yesterday_text = (target_date - timedelta(days=1)).isoformat()
@@ -34,7 +38,7 @@ class GarminClient:
             ),
             "training_readiness": self._optional_call("get_training_readiness", date_text),
             "training_status": self._optional_call("get_training_status", date_text),
-            "vo2max": self._optional_call("get_max_metrics", date_text),
+            "vo2max": self._safe_recent_vo2max(target_date, lookback_days=vo2max_lookback_days),
         }
 
     def _authenticate(self):
@@ -72,3 +76,39 @@ class GarminClient:
             return {"available": True, "data": method(*args)}
         except Exception as error:
             return {"available": False, "error": f"{name} failed: {error}"}
+
+    def _safe_recent_vo2max(self, target_date: date, lookback_days: int) -> dict[str, Any]:
+        method = getattr(self.api, "get_max_metrics", None)
+        if not method:
+            return {"available": False, "error": "get_max_metrics is not available."}
+
+        first_result = None
+        for offset in range(max(lookback_days, 0) + 1):
+            vo2max_date = target_date - timedelta(days=offset)
+            result = self._safe_call("get_max_metrics", method, vo2max_date.isoformat())
+            if first_result is None:
+                first_result = result
+            if _has_vo2max(result.get("data")):
+                if offset:
+                    result["date"] = vo2max_date.isoformat()
+                    result["fallback_for_date"] = target_date.isoformat()
+                return result
+        return first_result or {
+            "available": False,
+            "error": "get_max_metrics failed: no attempts made",
+        }
+
+
+def _has_vo2max(data: Any) -> bool:
+    if isinstance(data, list):
+        return any(_has_vo2max(item) for item in data)
+    if not isinstance(data, dict):
+        return False
+    generic = data.get("generic")
+    if isinstance(generic, dict) and any(
+        isinstance(generic.get(key), int | float) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
+    ):
+        return True
+    return any(
+        isinstance(data.get(key), int | float) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
+    )
