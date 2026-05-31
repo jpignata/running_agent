@@ -5,6 +5,8 @@ from typing import Any
 
 from .garmin_client import GarminClient
 
+NUMERIC_TYPES = (int, float)
+
 
 def garmin_readiness_context(
     client: GarminClient | None = None, target_date: date | None = None
@@ -69,7 +71,7 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
                 ],
             )
             hrv_status = _nested_first(hrv, [["hrvSummary", "status"], ["status"]])
-            if isinstance(hrv_value, int | float):
+            if isinstance(hrv_value, NUMERIC_TYPES):
                 hrv_values.append(float(hrv_value))
             if isinstance(hrv_status, str) and hrv_status.strip():
                 hrv_statuses.append(_humanize_status(hrv_status))
@@ -271,7 +273,7 @@ def _body_battery_line(data: Any, stats: Any) -> str:
     scores = [
         row[1]
         for row in values
-        if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], int | float)
+        if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], NUMERIC_TYPES)
     ]
     if not scores:
         return "Body Battery: available, no summary fields found."
@@ -364,7 +366,7 @@ def _vo2_value(data: Any) -> float | None:
             ["vo2MaxValue"],
         ],
     )
-    return float(value) if isinstance(value, int | float) else None
+    return float(value) if isinstance(value, NUMERIC_TYPES) else None
 
 
 def _body_battery_low(data: Any, stats: Any) -> float | None:
@@ -381,7 +383,7 @@ def _body_battery_low(data: Any, stats: Any) -> float | None:
     scores = [
         row[1]
         for row in values
-        if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], int | float)
+        if isinstance(row, list) and len(row) >= 2 and isinstance(row[1], NUMERIC_TYPES)
     ]
     return min(scores) if scores else None
 
@@ -396,7 +398,7 @@ def _duration(seconds: float) -> str:
 def _first_number(data: dict[str, Any], keys: list[str]) -> float | None:
     for key in keys:
         value = data.get(key)
-        if isinstance(value, int | float):
+        if isinstance(value, NUMERIC_TYPES):
             return float(value)
     return None
 

@@ -7,6 +7,7 @@ from typing import Any
 from .auth import load_env_file, require_env
 
 GARMIN_TOKENSTORE = Path.home() / ".garminconnect"
+NUMERIC_TYPES = (int, float)
 
 
 class GarminClient:
@@ -106,9 +107,10 @@ def _has_vo2max(data: Any) -> bool:
         return False
     generic = data.get("generic")
     if isinstance(generic, dict) and any(
-        isinstance(generic.get(key), int | float) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
+        isinstance(generic.get(key), NUMERIC_TYPES)
+        for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
     ):
         return True
     return any(
-        isinstance(data.get(key), int | float) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
+        isinstance(data.get(key), NUMERIC_TYPES) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
     )

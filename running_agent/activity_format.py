@@ -7,6 +7,7 @@ from typing import Any
 from .workout_classifier import workout_classification_context
 
 METERS_PER_MILE = 1609.344
+NUMERIC_TYPES = (int, float)
 
 
 def miles(activity: dict[str, Any]) -> float:
@@ -20,7 +21,7 @@ def activity_headline(activity: dict[str, Any]) -> str:
     pace = _pace_per_mile(distance, moving_time)
     date = _friendly_date(activity.get("start_date_local") or activity.get("start_date"))
     hr = activity.get("average_heartrate")
-    hr_note = f", avg HR {hr:.0f}" if isinstance(hr, int | float) else ""
+    hr_note = f", avg HR {hr:.0f}" if isinstance(hr, NUMERIC_TYPES) else ""
     return f"{name}: {distance:.2f} mi on {date}, {pace}{hr_note}"
 
 
@@ -102,7 +103,7 @@ def _run_detail_lines(activity: dict[str, Any]) -> list[str]:
     ]
     high = activity.get("elev_high")
     low = activity.get("elev_low")
-    if isinstance(high, int | float) and isinstance(low, int | float):
+    if isinstance(high, NUMERIC_TYPES) and isinstance(low, NUMERIC_TYPES):
         details.append(f"- Elevation range: {_feet(low)} to {_feet(high)}")
     details.extend(
         [
@@ -198,19 +199,19 @@ def _seconds_per_mile(distance_miles: float, moving_time_seconds: int) -> int | 
 
 
 def _feet(value: Any) -> str:
-    if isinstance(value, int | float):
+    if isinstance(value, NUMERIC_TYPES):
         return f"{value * 3.28084:.0f} ft"
     return "-"
 
 
 def _heart_rate(value: Any) -> str:
-    if isinstance(value, int | float):
+    if isinstance(value, NUMERIC_TYPES):
         return f"{value:.0f} bpm"
     return "-"
 
 
 def _cadence(value: Any) -> str:
-    if isinstance(value, int | float):
+    if isinstance(value, NUMERIC_TYPES):
         return f"{value:.1f} spm"
     return "-"
 
