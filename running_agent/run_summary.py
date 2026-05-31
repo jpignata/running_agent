@@ -35,7 +35,9 @@ def run_summary_for_date(
         "Use lap-by-lap data to identify workout structure and pacing when this was a quality "
         "or structured session. If it was an easy or steady aerobic run, keep the lap analysis "
         "light. Compare against the matching weekly plan day when available, and give one "
-        "practical next step."
+        "practical next step. If Garmin context is available through the shared coach prompt, "
+        "use it as supporting context only; do not treat low readiness after a hard effort as "
+        "automatically concerning."
     )
 
     try:

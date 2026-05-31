@@ -44,6 +44,8 @@ class WeeklyReviewTest(unittest.TestCase):
         prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("2026-05-25 through 2026-05-31", prompt)
+        self.assertIn("low readiness after quality work can be normal", prompt)
+        self.assertIn("recovery debt", prompt)
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["coach_log"], "Coach log")

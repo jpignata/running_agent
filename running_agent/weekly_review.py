@@ -35,9 +35,11 @@ def review_week(
         f"{week_end.isoformat()} for use before suggesting next week's plan. Compare the saved "
         "weekly plan with what was completed, note mileage, quality sessions, long run, missed "
         "or extra work, and Garmin recovery patterns. Use detailed lap context when it is "
-        "provided for structured workouts, tempos, races, or long runs. End with one concise "
-        "coaching takeaway that should guide next week's plan. Keep it plain text and under "
-        "220 words."
+        "provided for structured workouts, tempos, races, or long runs. Interpret Garmin data "
+        "against the week: low readiness after quality work can be normal, while repeated poor "
+        "sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, or failed "
+        "workouts may indicate recovery debt. End with one concise coaching takeaway that should "
+        "guide next week's plan. Keep it plain text and under 220 words."
     )
 
     try:
@@ -131,6 +133,6 @@ def _fallback_week_review(
         f"AI weekly review was unavailable ({error}).\n\n"
         f"{summarize_training(activities, days=7)}\n\n"
         f"{garmin_context}\n\n"
-        "Coaching takeaway: keep next week conservative unless recovery and recent execution "
-        "both look clearly strong."
+        "Coaching takeaway: make next week appropriately challenging if recovery and recent "
+        "execution support it, while keeping progression controlled."
     )

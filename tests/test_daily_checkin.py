@@ -84,6 +84,8 @@ class DailyCheckinTest(unittest.TestCase):
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("2026-05-30", prompt)
         self.assertIn("today's matched plan", prompt)
+        self.assertIn("Do not downgrade the plan based on one Garmin metric alone", prompt)
+        self.assertIn("execution adjustments first", prompt)
         self.assertIn("Reviewed 1 runs over the last 7 days.", kwargs["training_summary"])
         self.assertIn("Easy Run: 5.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Matched plan for today")

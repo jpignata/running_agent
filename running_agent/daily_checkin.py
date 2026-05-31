@@ -29,9 +29,13 @@ def daily_workout_checkin(
         f"Write a morning workout check-in for {target_date.isoformat()} for Telegram. "
         "Use today's matched plan, this week's recent runs, Garmin readiness context, coach log, "
         "and the overall goal. Tell the athlete what to do in today's workout, how hard to run "
-        "it, and anything to watch out for. If Garmin readiness looks poor, suggest a conservative "
-        "adjustment. If the plan is missing or ambiguous, say so and give a sensible default. "
-        "Keep it concise and practical. Do not claim the plan was saved or changed."
+        "it, and anything to watch out for. Interpret Garmin readiness in relation to recent "
+        "training: low readiness after a hard workout, long run, or race can be normal. Do not "
+        "downgrade the plan based on one Garmin metric alone. Prefer execution adjustments first, "
+        "such as easing into the warmup, capping effort, or adding stop conditions. Recommend "
+        "changing the workout only when multiple fatigue signals align with recent training or "
+        "coach log context. If the plan is missing or ambiguous, say so and give a sensible "
+        "default. Keep it concise and practical. Do not claim the plan was saved or changed."
     )
 
     try:
@@ -88,6 +92,7 @@ def _fallback_daily_checkin(
         f"AI check-in was unavailable ({error}).\n\n"
         f"{weekly_plan}\n\n"
         f"{garmin_context}\n\n"
-        "Basic read: follow the planned workout conservatively. If Garmin readiness, sleep, "
-        "or soreness looks poor, keep the run easy or shorten it rather than forcing intensity."
+        "Basic read: follow the planned workout with appropriate challenge. Treat Garmin readiness "
+        "as context, not a verdict. If multiple fatigue signals line up or you feel bad in the "
+        "warmup, keep the run easy or shorten it rather than forcing intensity."
     )

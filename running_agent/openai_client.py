@@ -7,7 +7,9 @@ from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from .athlete_profile import athlete_profile_context
 from .auth import load_env_file
+from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -40,6 +42,13 @@ def coaching_reply(
         "",
         "Recent runs:",
         recent_runs,
+        "",
+        "Athlete-specific profile:",
+        athlete_profile_context(),
+        "",
+        GARMIN_COACHING_RUBRIC,
+        "",
+        TRAINING_PROGRESSION_RUBRIC,
     ]
     if weekly_plan:
         prompt_parts.extend(["", "Athlete-provided weekly plan:", weekly_plan])
@@ -67,7 +76,11 @@ def coaching_reply(
             "over-analyze individual laps; use laps only as secondary context for pacing, drift, "
             "or obvious anomalies. "
             "Use the overall training goal to frame tradeoffs, priorities, and how aggressive "
-            "the athlete should be. Prefer conservative training advice. "
+            "the athlete should be. Aim for appropriately challenging training within sound "
+            "progression guardrails, and distinguish normal training fatigue from recovery debt. "
+            "Garmin readiness, Body Battery, HRV, stress, sleep, resting HR, and VO2 max are "
+            "context to interpret alongside the plan, recent workload, and athlete-specific "
+            "profile; do not let one generic Garmin label override the training plan by itself. "
             "Write in plain text for Telegram. Do not use Markdown formatting, including "
             "asterisk bold, headings, tables, or bullet symbols that require Markdown rendering. "
             "Do not diagnose injuries or give medical certainty; recommend rest or a clinician "
