@@ -11,7 +11,6 @@ htmlcov/
 .DS_Store
 .strava_tokens.json
 .running_agent_state.json
-.running_agent_events.jsonl
 .weekly_plan.json
 .training_goal.json
 .athlete_profile.txt
