@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .activity_format import activity_headline, detailed_activity_context
 from .auth import build_authorization_url
+from .coach_time import coach_today
 from .feedback import summarize_training
 from .garmin_context import garmin_readiness_context, garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
@@ -306,7 +307,7 @@ def _main() -> int:
         target_week_start = (
             datetime.strptime(args.week_start, "%Y-%m-%d").date()
             if args.week_start
-            else next_week_start(datetime.now().astimezone().date())
+            else next_week_start(coach_today())
         )
         client = StravaClient()
         print(
@@ -322,7 +323,7 @@ def _main() -> int:
         week_start = (
             datetime.strptime(args.week_start, "%Y-%m-%d").date()
             if args.week_start
-            else current_week_start(datetime.now().astimezone().date())
+            else current_week_start(coach_today())
         )
         client = StravaClient()
         print(review_week(client, week_start=week_start, log_review=not args.no_log))
@@ -374,8 +375,8 @@ def _run_telegram_with_restarts(
 def _activity_date(activity: dict) -> date:
     value = activity.get("start_date_local") or activity.get("start_date")
     if not value:
-        return datetime.now().astimezone().date()
+        return coach_today()
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
-        return datetime.now().astimezone().date()
+        return coach_today()

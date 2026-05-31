@@ -5,6 +5,7 @@ from typing import Any
 
 from .activity_format import recent_runs_context
 from .coach_log import coach_log_context
+from .coach_time import in_coach_time
 from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import training_goal_context
@@ -61,12 +62,14 @@ def suggest_next_week_plan(
 
 
 def should_send_sunday_plan(now: datetime, state: dict[str, Any]) -> bool:
+    now = in_coach_time(now)
     if now.weekday() != SUNDAY or now.hour < SUNDAY_PLAN_HOUR:
         return False
     return state.get(PLAN_STATE_KEY) != next_week_start(now.date()).isoformat()
 
 
 def mark_sunday_plan_sent(now: datetime, state: dict[str, Any]) -> None:
+    now = in_coach_time(now)
     state[PLAN_STATE_KEY] = next_week_start(now.date()).isoformat()
 
 

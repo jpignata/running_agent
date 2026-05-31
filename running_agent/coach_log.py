@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .activity_format import activity_headline
+from .coach_time import coach_today
 from .plan_store import planned_workout_for_date
 
 COACH_LOG_PATH = Path(".coach_log.jsonl")
@@ -98,8 +99,8 @@ def coach_log_context(path: Path = COACH_LOG_PATH, limit: int = 8) -> str:
 def _activity_date(activity: dict[str, Any]):
     value = activity.get("start_date_local") or activity.get("start_date")
     if not value:
-        return datetime.now().astimezone().date()
+        return coach_today()
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
-        return datetime.now().astimezone().date()
+        return coach_today()

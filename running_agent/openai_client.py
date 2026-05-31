@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from .athlete_profile import athlete_profile_context
 from .auth import load_env_file
+from .coach_time import coach_now
 from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -32,7 +32,7 @@ def coaching_reply(
 
     prompt_parts = [
         "Current local date:",
-        datetime.now().astimezone().strftime("%A, %B %-d, %Y"),
+        coach_now().strftime("%A, %B %-d, %Y"),
         "",
         "The athlete asked:",
         message,

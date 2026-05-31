@@ -18,8 +18,8 @@ METERS_PER_MILE = 1609.344
 class PlanSuggestionTest(unittest.TestCase):
     def test_sunday_plan_trigger_only_after_sunday_evening_once_per_week(self) -> None:
         state: dict[str, str] = {}
-        sunday_afternoon = datetime(2026, 5, 31, 17, 59, tzinfo=timezone.utc)
-        sunday_evening = datetime(2026, 5, 31, 18, 0, tzinfo=timezone.utc)
+        sunday_afternoon = datetime(2026, 5, 31, 21, 59, tzinfo=timezone.utc)
+        sunday_evening = datetime(2026, 5, 31, 22, 0, tzinfo=timezone.utc)
 
         self.assertFalse(should_send_sunday_plan(sunday_afternoon, state))
         self.assertTrue(should_send_sunday_plan(sunday_evening, state))
@@ -28,6 +28,14 @@ class PlanSuggestionTest(unittest.TestCase):
 
         self.assertEqual(state[PLAN_STATE_KEY], "2026-06-01")
         self.assertFalse(should_send_sunday_plan(sunday_evening, state))
+
+    def test_sunday_plan_trigger_uses_est_in_winter(self) -> None:
+        state: dict[str, str] = {}
+        sunday_afternoon = datetime(2026, 1, 4, 22, 59, tzinfo=timezone.utc)
+        sunday_evening = datetime(2026, 1, 4, 23, 0, tzinfo=timezone.utc)
+
+        self.assertFalse(should_send_sunday_plan(sunday_afternoon, state))
+        self.assertTrue(should_send_sunday_plan(sunday_evening, state))
 
     def test_next_week_start_returns_following_monday(self) -> None:
         self.assertEqual(next_week_start(datetime(2026, 5, 31).date()).isoformat(), "2026-06-01")

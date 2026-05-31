@@ -136,9 +136,10 @@ Then message the bot on Telegram. It supports:
 - Any other message - chat with the coach using recent Strava context
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
-note when a new run appears, sends one morning workout check-in after 5:30am when today's
-weekly plan has a matched workout that has not already been completed, and sends one
-Sunday evening review plus next-week plan idea. Change the polling interval with:
+note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
+today's weekly plan has a matched workout that has not already been completed, and sends
+one Sunday evening review plus next-week plan idea after 6:00pm Eastern. Change the polling
+interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -206,8 +207,8 @@ Or set it in Telegram:
 - Local coach log of planned-versus-completed runs
 - Garmin readiness context for morning workout check-ins
 - New-run monitoring with a short post-run coaching note
-- Daily 5:30am workout check-ins for planned, not-yet-completed workout days
-- Sunday evening weekly reviews and next-week plan suggestions
+- Daily 5:30am Eastern workout check-ins for planned, not-yet-completed workout days
+- Sunday evening weekly reviews and next-week plan suggestions after 6:00pm Eastern
 
 ## Tests
 

@@ -5,6 +5,7 @@ from typing import Any, Callable
 
 from .activity_format import recent_runs_context
 from .coach_log import coach_log_context
+from .coach_time import in_coach_time
 from .feedback import summarize_training
 from .garmin_context import garmin_readiness_context
 from .goal_store import training_goal_context
@@ -55,12 +56,14 @@ def daily_workout_checkin(
 
 
 def should_send_daily_checkin(now: datetime, state: dict[str, Any]) -> bool:
+    now = in_coach_time(now)
     if now.time() < DAILY_CHECKIN_TIME:
         return False
     return state.get(DAILY_CHECKIN_STATE_KEY) != now.date().isoformat()
 
 
 def mark_daily_checkin_sent(now: datetime, state: dict[str, Any]) -> None:
+    now = in_coach_time(now)
     state[DAILY_CHECKIN_STATE_KEY] = now.date().isoformat()
 
 

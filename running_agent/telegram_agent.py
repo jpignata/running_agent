@@ -12,6 +12,7 @@ from urllib.error import URLError
 from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
 from .auth import load_env_file, require_env
 from .coach_log import append_run_result
+from .coach_time import coach_now, coach_today
 from .daily_checkin import (
     current_garmin_context,
     daily_workout_checkin,
@@ -282,7 +283,7 @@ class TelegramRunningAgent:
             raise RuntimeError(
                 "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
             )
-        target_week_start = next_week_start(datetime.now().astimezone().date())
+        target_week_start = next_week_start(coach_today())
         log_event(
             "debug",
             {
@@ -339,7 +340,7 @@ class TelegramRunningAgent:
     def _send_sunday_plan_if_due(self) -> None:
         if not self.allowed_chat_id:
             return
-        now = datetime.now().astimezone()
+        now = coach_now()
         if not should_send_sunday_plan(now, self.state):
             return
 
@@ -369,7 +370,7 @@ class TelegramRunningAgent:
     def _send_daily_checkin_if_due(self) -> None:
         if not self.allowed_chat_id:
             return
-        now = datetime.now().astimezone()
+        now = coach_now()
         if not should_send_daily_checkin(now, self.state):
             return
         if not has_planned_workout_for_date(now.date()):
@@ -520,11 +521,11 @@ def _last_run_fallback_note(run: dict[str, Any], error: RuntimeError) -> str:
 def _activity_date(activity: dict[str, Any]):
     value = activity.get("start_date_local") or activity.get("start_date")
     if not value:
-        return datetime.now().astimezone().date()
+        return coach_today()
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
-        return datetime.now().astimezone().date()
+        return coach_today()
 
 
 def _load_state(path: Path) -> dict[str, Any]:

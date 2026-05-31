@@ -19,8 +19,8 @@ METERS_PER_MILE = 1609.344
 class DailyCheckinTest(unittest.TestCase):
     def test_daily_checkin_trigger_only_after_530_once_per_day(self) -> None:
         state: dict[str, str] = {}
-        before = datetime(2026, 5, 30, 5, 29, tzinfo=timezone.utc)
-        at_time = datetime(2026, 5, 30, 5, 30, tzinfo=timezone.utc)
+        before = datetime(2026, 5, 30, 9, 29, tzinfo=timezone.utc)
+        at_time = datetime(2026, 5, 30, 9, 30, tzinfo=timezone.utc)
 
         self.assertFalse(should_send_daily_checkin(before, state))
         self.assertTrue(should_send_daily_checkin(at_time, state))
@@ -29,6 +29,14 @@ class DailyCheckinTest(unittest.TestCase):
 
         self.assertEqual(state[DAILY_CHECKIN_STATE_KEY], "2026-05-30")
         self.assertFalse(should_send_daily_checkin(at_time, state))
+
+    def test_daily_checkin_trigger_uses_est_in_winter(self) -> None:
+        state: dict[str, str] = {}
+        before = datetime(2026, 1, 3, 10, 29, tzinfo=timezone.utc)
+        at_time = datetime(2026, 1, 3, 10, 30, tzinfo=timezone.utc)
+
+        self.assertFalse(should_send_daily_checkin(before, state))
+        self.assertTrue(should_send_daily_checkin(at_time, state))
 
     def test_has_completed_run_for_date_checks_strava_date(self) -> None:
         client = _FakeStravaClient([])
