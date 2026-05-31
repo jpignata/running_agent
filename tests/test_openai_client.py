@@ -31,6 +31,13 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("Do not recommend downgrading", payload["input"])
         self.assertIn("appropriately challenging training", payload["instructions"])
         self.assertIn("do not let one generic Garmin label override", payload["instructions"])
+        self.assertIn("durable coaching preference", payload["instructions"])
+        self.assertIn("I generally", payload["instructions"])
+        self.assertIn("briefly acknowledge", payload["instructions"])
+        self.assertIn(
+            "quality sessions on Wednesdays or long runs on Saturdays",
+            payload["tools"][0]["description"],
+        )
         self.assertEqual(payload["tools"][0]["name"], "remember_coaching_note")
         self.assertEqual(payload["tool_choice"], "auto")
 

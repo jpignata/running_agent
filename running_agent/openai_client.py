@@ -20,7 +20,8 @@ REMEMBER_NOTE_TOOL = {
         "Store a durable coaching note about the athlete for future coaching. Use this when "
         "the athlete explicitly states a preference, constraint, recurring issue, important "
         "context, or something they ask you to remember. Do not store ordinary one-off questions "
-        "or sensitive medical details."
+        "or sensitive medical details. For example, if the athlete says they prefer quality "
+        "sessions on Wednesdays or long runs on Saturdays, store that preference."
     ),
     "parameters": {
         "type": "object",
@@ -103,6 +104,13 @@ def coaching_reply(
             "Garmin readiness, Body Battery, HRV, stress, sleep, resting HR, and VO2 max are "
             "context to interpret alongside the plan, recent workload, and athlete-specific "
             "profile; do not let one generic Garmin label override the training plan by itself. "
+            "When the athlete states a durable coaching preference, constraint, recurring "
+            "pattern, or asks you to remember something, call remember_coaching_note before "
+            "answering. Examples include preferred workout days, long-run days, scheduling "
+            "constraints, recurring recovery issues, and coaching style preferences. Treat "
+            "general statements like 'I prefer...', 'I usually...', 'I generally...', and "
+            "'keep in mind...' as likely memory candidates when they will help future coaching. "
+            "After storing a note, briefly acknowledge it in the normal coaching reply. "
             "Write in plain text for Telegram. Do not use Markdown formatting, including "
             "asterisk bold, headings, tables, or bullet symbols that require Markdown rendering. "
             "Do not diagnose injuries or give medical certainty; recommend rest or a clinician "
