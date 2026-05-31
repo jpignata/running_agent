@@ -356,7 +356,7 @@ def _run_telegram_with_restarts(
     lookback_days: int,
     restart_delay: int,
 ) -> None:
-    print("Running Telegram coach with restart-on-crash enabled. " "Press Ctrl+C to stop.")
+    print("Running Telegram coach with restart-on-crash enabled. Press Ctrl+C to stop.")
     while True:
         try:
             agent = TelegramRunningAgent(poll_seconds=poll_seconds, lookback_days=lookback_days)
