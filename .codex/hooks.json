@@ -1,0 +1,17 @@
+{
+  "description": "Run Python autoformatting after Codex edits files.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .codex/hooks/autoformat.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

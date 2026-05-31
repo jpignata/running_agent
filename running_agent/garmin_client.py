@@ -107,8 +107,7 @@ def _has_vo2max(data: Any) -> bool:
         return False
     generic = data.get("generic")
     if isinstance(generic, dict) and any(
-        isinstance(generic.get(key), NUMERIC_TYPES)
-        for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
+        isinstance(generic.get(key), NUMERIC_TYPES) for key in ["vo2MaxPreciseValue", "vo2MaxValue"]
     ):
         return True
     return any(
