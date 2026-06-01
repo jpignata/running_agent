@@ -72,7 +72,7 @@ class TelegramTransport:
         while True:
             try:
                 self._handle_telegram_updates()
-                self._deliver_scheduled_messages(run_new_check=False)
+                self._deliver_messages(self.coach.tick())
                 if time.monotonic() >= next_strava_check:
                     self._deliver_messages(self.coach.check_new_runs(force=False))
                     next_strava_check = time.monotonic() + self.poll_seconds
@@ -134,68 +134,13 @@ class TelegramTransport:
         for message in messages:
             self._send_message(target_chat_id, message)
 
-    def _deliver_scheduled_messages(self, run_new_check: bool = True) -> None:
+    def _deliver_scheduled_messages(self) -> None:
         if not self.allowed_chat_id:
             return
-        if run_new_check:
-            messages = self.coach.tick()
-        else:
-            self.coach.refresh_garmin_cache_if_due()
-            messages = []
-            daily = self.coach.daily_checkin_if_due()
-            if daily:
-                messages.append(daily)
-            sunday = self.coach.sunday_plan_if_due()
-            if sunday:
-                messages.append(sunday)
-        self._deliver_messages(messages)
+        self._deliver_messages(self.coach.tick())
 
     def _save_state(self) -> None:
         save_agent_state(self.state, self.state_path)
-
-    # Compatibility wrappers while callers/tests move to CoachAgent.
-    def _handle_message(self, chat_id: int, text: str) -> None:
-        self._deliver_messages(self.coach.handle_message(text), chat_id=chat_id)
-
-    def _coach_reply(self, text: str) -> str:
-        return self.coach.coach_reply(text)
-
-    def _training_summary(self) -> str:
-        return self.coach.training_summary()
-
-    def send_last_run_summary(self, chat_id: int | str | None = None) -> None:
-        self._deliver_messages([self.coach.last_run_summary()], chat_id=chat_id)
-
-    def send_run_summary_for_date(
-        self,
-        date_text: str,
-        chat_id: int | str | None = None,
-        search_days: int = 120,
-    ) -> None:
-        self._deliver_messages(
-            [self.coach.run_summary_for_date(date_text, search_days=search_days)],
-            chat_id=chat_id,
-        )
-
-    def send_next_week_plan(self, chat_id: int | str | None = None) -> None:
-        self._deliver_messages([self.coach.next_week_plan()], chat_id=chat_id)
-
-    def _send_sunday_plan_if_due(self) -> None:
-        if not self.allowed_chat_id:
-            return
-        message = self.coach.sunday_plan_if_due()
-        if message:
-            self._send_message(self.allowed_chat_id, message)
-
-    def _send_daily_checkin_if_due(self) -> None:
-        if not self.allowed_chat_id:
-            return
-        message = self.coach.daily_checkin_if_due()
-        if message:
-            self._send_message(self.allowed_chat_id, message)
-
-    def _refresh_garmin_cache_if_due(self) -> None:
-        self.coach.refresh_garmin_cache_if_due()
 
     def _seed_seen_activities(self) -> None:
         self.coach.seed_seen_activities()

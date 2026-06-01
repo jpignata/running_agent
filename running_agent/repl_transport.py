@@ -24,9 +24,6 @@ class ReplTransport:
                 continue
             if text.lower() in {"/quit", "/exit"}:
                 return
-            if text.lower() == "/tick":
-                self._print_messages(self.coach.tick() or ["No scheduled messages due."])
-                continue
 
             self._print_messages(self.coach.handle_message(text))
 

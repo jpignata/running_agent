@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from running_agent.coach_agent import CoachAgent
 
+METERS_PER_MILE = 1609.344
+
 
 class CoachAgentTest(unittest.TestCase):
     def test_handle_message_returns_replies_without_transport(self) -> None:
@@ -24,13 +26,173 @@ class CoachAgentTest(unittest.TestCase):
         )
 
         self.assertEqual(agent.tick(), [])
-        self.assertEqual(state["seen_activity_ids"], [])
-        self.assertEqual(saves, [{"seen_activity_ids": []}])
+        self.assertEqual(state, {})
+        self.assertEqual(saves, [])
+
+    @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
+    @patch(
+        "running_agent.coach_agent.coaching_reply",
+        return_value="Nice work on that 5-mile run.",
+    )
+    def test_last_run_summary_passes_current_garmin_context(
+        self,
+        coaching_reply,
+        _current_garmin_context,
+    ) -> None:
+        run = _run(1, "Easy Run", "2026-05-30T06:00:00Z")
+        agent = CoachAgent(
+            strava_client=_FakeStrava(activities=[run], latest=run, detailed={1: run})
+        )
+
+        note = agent.last_run_summary()
+
+        self.assertEqual(note, "Nice work on that 5-mile run.")
+        self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
+        prompt = coaching_reply.call_args.args[0]
+        self.assertIn("natural post-run coaching text", prompt)
+        self.assertIn("Do not use a title, header", prompt)
+
+    @patch("running_agent.coach_agent.append_run_result")
+    @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
+    @patch(
+        "running_agent.coach_agent.coaching_reply",
+        return_value="Nice work on that workout.",
+    )
+    def test_new_run_summary_passes_current_garmin_context(
+        self,
+        coaching_reply,
+        _current_garmin_context,
+        _append_run_result,
+    ) -> None:
+        run = _run(2, "Workout", "2026-05-30T06:00:00Z")
+        agent = CoachAgent(
+            strava_client=_FakeStrava(activities=[run], latest=run, detailed={2: run}),
+            state={"seen_activity_ids": []},
+        )
+
+        messages = agent.check_new_runs(force=True)
+
+        self.assertEqual(messages, ["Nice work on that workout."])
+        self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
+        prompt = coaching_reply.call_args.args[0]
+        self.assertIn("natural post-run coaching text", prompt)
+        self.assertIn("New run synced", prompt)
+
+    @patch("running_agent.coach_agent.coach_now")
+    @patch("running_agent.coach_agent.has_planned_workout_for_date", return_value=False)
+    @patch(
+        "running_agent.coach_agent.weekly_coaching_message",
+        return_value="You had a great week. Here is next week.",
+    )
+    def test_tick_uses_integrated_weekly_coaching_message(
+        self,
+        weekly_coaching_message,
+        _has_planned_workout_for_date,
+        coach_now,
+    ) -> None:
+        coach_now.return_value = datetime(2026, 5, 31, 18, 0)
+        state: dict = {}
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+        )
+
+        messages = agent.tick()
+
+        self.assertEqual(messages, ["You had a great week. Here is next week."])
+        weekly_coaching_message.assert_called_once()
+        kwargs = weekly_coaching_message.call_args.kwargs
+        self.assertEqual(kwargs["week_start"].isoformat(), "2026-05-25")
+        self.assertEqual(kwargs["target_week_start"].isoformat(), "2026-06-01")
+        self.assertEqual(kwargs["lookback_days"], 42)
+        self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
+
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    def test_garmin_cache_refresh_runs_once_per_day(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_garmin_cache_if_due()
+        agent.refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_called_once_with(days=45)
+        self.assertEqual(state["last_garmin_refresh_attempt_date"], "2026-06-01")
+        self.assertEqual(state["last_garmin_refresh_date"], "2026-06-01")
+
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots", side_effect=RuntimeError("nope"))
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    def test_garmin_cache_refresh_failure_is_not_retried_until_tomorrow(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_garmin_cache_if_due()
+        agent.refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_called_once_with(days=45)
+        self.assertEqual(state["last_garmin_refresh_attempt_date"], "2026-06-01")
+        self.assertEqual(state["last_garmin_refresh_error"], "nope")
+        self.assertNotIn("last_garmin_refresh_date", state)
+
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 4, 59))
+    def test_garmin_cache_refresh_waits_until_morning(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_not_called()
+        self.assertNotIn("last_garmin_refresh_attempt_date", state)
 
 
 class _FakeStrava:
+    def __init__(
+        self,
+        activities: list[dict] | None = None,
+        latest: dict | None = None,
+        detailed: dict[int, dict] | None = None,
+    ):
+        self.activities = activities or []
+        self.latest = latest or {}
+        self.detailed = detailed or {}
+
     def recent_activities(self, days: int) -> list[dict]:
+        return self.activities
+
+    def latest_run(self, days: int) -> dict:
+        return self.latest
+
+    def detailed_activity(self, activity_id: int) -> dict:
+        return self.detailed[activity_id]
+
+    def runs_on_date(self, _target_date, search_days: int = 14) -> list[dict]:
         return []
+
+
+def _run(activity_id: int, name: str, start_date_local: str) -> dict:
+    return {
+        "id": activity_id,
+        "type": "Run",
+        "name": name,
+        "distance": 5 * METERS_PER_MILE,
+        "moving_time": 40 * 60,
+        "elapsed_time": 40 * 60,
+        "start_date_local": start_date_local,
+        "laps": [],
+    }
 
 
 if __name__ == "__main__":

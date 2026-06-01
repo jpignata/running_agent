@@ -73,7 +73,6 @@ class CoachAgent:
         sunday = self.sunday_plan_if_due()
         if sunday:
             messages.append(sunday)
-        messages.extend(self.check_new_runs(force=False))
         return messages
 
     def seed_seen_activities(self) -> None:
