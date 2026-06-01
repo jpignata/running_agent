@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .storage_paths import WEEKLY_PLAN_PATH, prepare_parent
+from .storage import read_json_file, write_json_file
+from .storage_paths import WEEKLY_PLAN_PATH
 from .time_format import human_datetime
 
 PLAN_PATH = WEEKLY_PLAN_PATH
@@ -41,16 +41,12 @@ def save_weekly_plan(plan_text: str, path: Path = PLAN_PATH) -> dict[str, Any]:
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "text": plan_text,
     }
-    prepare_parent(path)
-    path.write_text(json.dumps(plan, indent=2, sort_keys=True), encoding="utf-8")
-    path.chmod(0o600)
+    write_json_file(path, plan)
     return plan
 
 
 def load_weekly_plan(path: Path = PLAN_PATH) -> dict[str, Any] | None:
-    if not path.exists():
-        return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return read_json_file(path, default=None)
 
 
 def weekly_plan_context(path: Path = PLAN_PATH) -> str:

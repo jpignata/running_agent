@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import socket
 import time
@@ -40,7 +39,8 @@ from .plan_suggestion import (
     suggest_next_week_plan,
 )
 from .run_summary import run_summary_for_date
-from .storage_paths import STATE_PATH, prepare_parent
+from .storage import read_json_file, write_json_file
+from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
 from .telegram_client import TelegramClient
 from .weekly_review import current_week_start, weekly_coaching_message
@@ -595,12 +595,9 @@ def _activity_date(activity: dict[str, Any]):
 
 
 def _load_state(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    state = read_json_file(path, default={})
+    return state if isinstance(state, dict) else {}
 
 
 def _save_state(state: dict[str, Any], path: Path) -> None:
-    prepare_parent(path)
-    path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
-    path.chmod(0o600)
+    write_json_file(path, state)

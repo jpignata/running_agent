@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -8,7 +7,8 @@ from typing import Any
 from .activity_format import activity_headline
 from .coach_time import coach_today
 from .plan_store import planned_workout_for_date
-from .storage_paths import COACH_LOG_PATH, prepare_parent
+from .storage import append_jsonl, read_jsonl
+from .storage_paths import COACH_LOG_PATH
 
 
 def append_run_result(
@@ -30,10 +30,7 @@ def append_run_result(
 
 
 def append_coach_log(entry: dict[str, Any], path: Path = COACH_LOG_PATH) -> None:
-    prepare_parent(path)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, sort_keys=True) + "\n")
-    path.chmod(0o600)
+    append_jsonl(path, entry)
 
 
 def append_week_review(
@@ -54,16 +51,7 @@ def append_week_review(
 
 
 def read_coach_log(path: Path = COACH_LOG_PATH) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-
-    entries: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        entries.append(json.loads(line))
-    return entries
+    return read_jsonl(path)
 
 
 def coach_log_context(path: Path = COACH_LOG_PATH, limit: int = 8) -> str:

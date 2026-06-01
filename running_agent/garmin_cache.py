@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import json
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
 from .garmin_client import GarminClient
-from .storage_paths import GARMIN_SNAPSHOTS_PATH, prepare_parent
+from .storage import read_json_file, write_json_file
+from .storage_paths import GARMIN_SNAPSHOTS_PATH
 
 DEFAULT_RETENTION_DAYS = 90
 
@@ -47,12 +47,7 @@ def cached_garmin_snapshots(
 
 
 def load_garmin_snapshots(path: Path = GARMIN_SNAPSHOTS_PATH) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {}
+    data = read_json_file(path, default={}, suppress_errors=True)
     return data if isinstance(data, dict) else {}
 
 
@@ -60,8 +55,7 @@ def save_garmin_snapshots(
     snapshots: dict[str, Any],
     path: Path = GARMIN_SNAPSHOTS_PATH,
 ) -> None:
-    prepare_parent(path)
-    path.write_text(json.dumps(snapshots, indent=2, sort_keys=True) + "\n")
+    write_json_file(path, snapshots, trailing_newline=True)
 
 
 def _date_range(end_date: date, days: int) -> list[date]:

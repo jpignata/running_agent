@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from urllib.parse import urlencode
+
+from .storage import read_json_file, write_json_file
 
 STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
 DEFAULT_REDIRECT_URI = "http://localhost/exchange_token"
@@ -52,8 +53,7 @@ def build_authorization_url(scope: str = "read,activity:read_all") -> str:
 
 
 def save_tokens(token_data: dict, path: Path = TOKEN_PATH) -> None:
-    path.write_text(json.dumps(token_data, indent=2, sort_keys=True), encoding="utf-8")
-    path.chmod(0o600)
+    write_json_file(path, token_data)
 
 
 def load_tokens(path: Path = TOKEN_PATH) -> dict:
@@ -62,4 +62,4 @@ def load_tokens(path: Path = TOKEN_PATH) -> dict:
             "No Strava token file found. Run `python -m running_agent auth-url` and "
             "`python -m running_agent exchange-code YOUR_CODE` first."
         )
-    return json.loads(path.read_text(encoding="utf-8"))
+    return read_json_file(path)
