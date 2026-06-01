@@ -30,12 +30,9 @@ def append_coaching_preference(
     if not preference_text:
         raise RuntimeError("Coaching preference text cannot be empty.")
 
-    profile = athlete_profile_context(path)
-    if "User-stated coaching notes:" not in profile:
-        profile = f"{profile}\n\nUser-stated coaching notes:"
-
+    profile = athlete_profile_context(path).rstrip()
     timestamp = datetime.now(timezone.utc).date().isoformat()
-    profile = f"{profile.rstrip()}\n- {timestamp}: {preference_text}\n"
+    profile = f"{profile}\n- {timestamp}: {preference_text}\n"
     prepare_parent(path)
     path.write_text(profile, encoding="utf-8")
     path.chmod(0o600)

@@ -30,16 +30,16 @@ class AthleteProfileTest(unittest.TestCase):
 
         self.assertEqual(context, "Custom athlete note")
 
-    def test_append_coaching_preference_adds_note_section(self) -> None:
+    def test_append_coaching_preference_adds_note_under_existing_profile(self) -> None:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=True) as handle:
             path = Path(handle.name)
-            handle.write("Existing profile")
+            handle.write("Athlete-specific coaching notes:\n- Existing profile")
             handle.flush()
 
             context = append_coaching_preference("I prefer effort-based workout guidance.", path)
 
-        self.assertIn("Existing profile", context)
-        self.assertIn("User-stated coaching notes:", context)
+        self.assertIn("- Existing profile", context)
+        self.assertNotIn("User-stated coaching notes:", context)
         self.assertIn("I prefer effort-based workout guidance.", context)
 
 
