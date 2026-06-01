@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-ATHLETE_PROFILE_PATH = Path(".athlete_profile.txt")
+from .storage_paths import ATHLETE_PROFILE_PATH, prepare_parent
 
 DEFAULT_ATHLETE_PROFILE = """Athlete-specific coaching notes:
 - Body Battery below 40 can be normal for this athlete and is not automatically concerning.
@@ -36,6 +36,7 @@ def append_coaching_preference(
 
     timestamp = datetime.now(timezone.utc).date().isoformat()
     profile = f"{profile.rstrip()}\n- {timestamp}: {preference_text}\n"
+    prepare_parent(path)
     path.write_text(profile, encoding="utf-8")
     path.chmod(0o600)
     return profile.strip()

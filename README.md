@@ -91,7 +91,7 @@ TELEGRAM_BOT_TOKEN=123456:your-telegram-bot-token
 ```
 
 Optionally set `TELEGRAM_CHAT_ID` if you already know the chat ID. If you leave it blank,
-the first Telegram chat to message the bot is saved in `.running_agent_state.json`.
+the first Telegram chat to message the bot is saved in `.data/state.json`.
 
 For natural coaching replies, add an OpenAI API key:
 
@@ -148,11 +148,11 @@ Then message the bot on Telegram. It supports:
 
 The coach can also remember natural-language notes when chatting. For example, if you say
 `remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
-store that in `.athlete_profile.txt`, and use it in future coaching.
+store that in `.data/athlete_profile.txt`, and use it in future coaching.
 
 The same model-tool pattern is available for goals. If you say something like
 `my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
-`.training_goal.json` so future coaching uses the updated target.
+`.data/training_goal.json` so future coaching uses the updated target.
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
@@ -164,7 +164,7 @@ interval with:
 python -m running_agent telegram --poll-seconds 120 --days 28
 ```
 
-When a new run syncs, the bot appends a compact local coach-log entry to `.coach_log.jsonl`
+When a new run syncs, the bot appends a compact local coach-log entry to `.data/coach_log.jsonl`
 with the matched planned workout and completed run headline. This file is ignored by git and
 used as context for future plan suggestions.
 

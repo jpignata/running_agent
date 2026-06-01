@@ -8,8 +8,7 @@ from typing import Any
 from .activity_format import activity_headline
 from .coach_time import coach_today
 from .plan_store import planned_workout_for_date
-
-COACH_LOG_PATH = Path(".coach_log.jsonl")
+from .storage_paths import COACH_LOG_PATH, prepare_parent
 
 
 def append_run_result(
@@ -31,7 +30,7 @@ def append_run_result(
 
 
 def append_coach_log(entry: dict[str, Any], path: Path = COACH_LOG_PATH) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    prepare_parent(path)
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry, sort_keys=True) + "\n")
     path.chmod(0o600)

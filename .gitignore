@@ -9,10 +9,6 @@ __pycache__/
 .coverage
 htmlcov/
 .DS_Store
+.data/
 .strava_tokens.json
-.running_agent_state.json
-.weekly_plan.json
-.training_goal.json
-.athlete_profile.txt
-.coach_log.jsonl
 strava-activity-*.json

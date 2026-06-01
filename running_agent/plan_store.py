@@ -6,9 +6,10 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .storage_paths import WEEKLY_PLAN_PATH, prepare_parent
 from .time_format import human_datetime
 
-PLAN_PATH = Path(".weekly_plan.json")
+PLAN_PATH = WEEKLY_PLAN_PATH
 WEEKDAYS = {
     "mon": "Monday",
     "monday": "Monday",
@@ -40,6 +41,7 @@ def save_weekly_plan(plan_text: str, path: Path = PLAN_PATH) -> dict[str, Any]:
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "text": plan_text,
     }
+    prepare_parent(path)
     path.write_text(json.dumps(plan, indent=2, sort_keys=True), encoding="utf-8")
     path.chmod(0o600)
     return plan

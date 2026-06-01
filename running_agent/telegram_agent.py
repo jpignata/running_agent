@@ -37,11 +37,11 @@ from .plan_suggestion import (
     suggest_next_week_plan,
 )
 from .run_summary import run_summary_for_date
+from .storage_paths import STATE_PATH, prepare_parent
 from .strava_client import StravaClient
 from .telegram_client import TelegramClient
 from .weekly_review import current_week_start, weekly_coaching_message
 
-STATE_PATH = Path(".running_agent_state.json")
 DEFAULT_LOOKBACK_DAYS = 21
 TRANSIENT_ERRORS = (
     TimeoutError,
@@ -569,5 +569,6 @@ def _load_state(path: Path) -> dict[str, Any]:
 
 
 def _save_state(state: dict[str, Any], path: Path) -> None:
+    prepare_parent(path)
     path.write_text(json.dumps(state, indent=2, sort_keys=True), encoding="utf-8")
     path.chmod(0o600)

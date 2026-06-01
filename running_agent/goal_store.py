@@ -5,9 +5,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .storage_paths import TRAINING_GOAL_PATH, prepare_parent
 from .time_format import human_datetime
 
-GOAL_PATH = Path(".training_goal.json")
+GOAL_PATH = TRAINING_GOAL_PATH
 
 
 def save_training_goal(goal_text: str, path: Path = GOAL_PATH) -> dict[str, Any]:
@@ -19,6 +20,7 @@ def save_training_goal(goal_text: str, path: Path = GOAL_PATH) -> dict[str, Any]
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "text": goal_text,
     }
+    prepare_parent(path)
     path.write_text(json.dumps(goal, indent=2, sort_keys=True), encoding="utf-8")
     path.chmod(0o600)
     return goal
