@@ -9,7 +9,11 @@ from urllib.request import Request, urlopen
 from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .auth import load_env_file
 from .coach_time import coach_now
-from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
+from .coaching_guidance import (
+    COACHING_STANCE_RUBRIC,
+    GARMIN_COACHING_RUBRIC,
+    TRAINING_PROGRESSION_RUBRIC,
+)
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
 
@@ -121,6 +125,8 @@ def coaching_reply(
         "Athlete-specific profile:",
         athlete_profile_context(),
         "",
+        COACHING_STANCE_RUBRIC,
+        "",
         GARMIN_COACHING_RUBRIC,
         "",
         TRAINING_PROGRESSION_RUBRIC,
@@ -141,7 +147,15 @@ def coaching_reply(
         "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
         "instructions": (
             "You are a practical running coach chatting over Telegram. Use the provided Strava "
-            "context and weekly plan, be specific, concise, and encouraging. When a weekly plan "
+            "context and weekly plan, be specific, concise, and direct. Your job is to coach the "
+            "athlete toward their stated goal, not merely summarize training or sound encouraging. "
+            "Praise clearly when execution earns it, but challenge choices and patterns that do "
+            "not serve the goal. Do not manufacture criticism. When enough context is available, "
+            "think critically about whether the stated goal looks realistic from the athlete's "
+            "recent training, recovery, timeline, and workout execution. If the goal looks "
+            "realistic, explain the evidence and push the next appropriate progression. If it "
+            "looks uncertain or unlikely, say that plainly and identify what has to change. "
+            "When a weekly plan "
             "is provided, first align completed runs to the plan by the run's local date and "
             "weekday. If the run happened on Friday, compare it to Friday's planned workout, "
             "not Monday's. If the matching plan day is missing or ambiguous, say that instead "

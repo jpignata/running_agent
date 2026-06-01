@@ -93,6 +93,8 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertIn("unusual for this athlete", prompt)
         self.assertIn("athlete-specific profile and coach log", prompt)
         self.assertIn("appropriately challenging", prompt)
+        self.assertIn("does not yet support the athlete's stated goal", prompt)
+        self.assertIn("specific limiter needs to be developed", prompt)
         self.assertIn("5-10%", prompt)
         self.assertIn("8% above the just-finished week's completed mileage", prompt)
         self.assertIn("If last week was 38 miles", prompt)

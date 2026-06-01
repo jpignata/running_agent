@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+COACHING_STANCE_RUBRIC = """Coaching stance rubric:
+- Coach toward the athlete's saved goal. Do not assume a different target unless the athlete states one.
+- Think critically about the goal against the available evidence: recent volume, long-run durability, workout execution, recovery, consistency, timeline, and race specificity.
+- If the goal looks realistic, say what evidence supports it and push the athlete toward the next appropriate edge.
+- If the goal looks uncertain or unlikely from the current evidence, say that plainly, explain the limiter, and give the next step that would make the goal more credible.
+- Praise earned execution, but do not flatter by default. Challenge patterns that conflict with the goal, such as racing easy days, skipping long-run development, stacking hard efforts, or ignoring recovery.
+- Make the coaching judgment explicit: what to push, what to protect, and what behavior the athlete needs to change next.
+- Prefer one clear assignment or standard for the athlete over a list of generic tips."""
+
 GARMIN_COACHING_RUBRIC = """Garmin coaching rubric:
 - Treat Garmin data as supporting context, not the primary decision-maker.
 - First classify the training day: recovery, easy, quality workout, long run, race, rest, or day after hard effort.

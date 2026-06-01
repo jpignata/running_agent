@@ -42,9 +42,10 @@ def review_week(
         "provided for structured workouts, tempos, races, or long runs. Interpret Garmin data "
         "against the week: low readiness after quality work can be normal, while repeated poor "
         "sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, or failed "
-        "workouts may indicate recovery debt. End with one concise coaching takeaway that should "
-        "guide next week's plan, but phrase it conversationally. Keep it plain text and under "
-        "220 words."
+        "workouts may indicate recovery debt. Include a clear coaching judgment about whether "
+        "the week made the stated goal more credible, exposed a limiter, or left the goal status "
+        "unchanged. End with one concise coaching takeaway that should guide next week's plan, "
+        "but phrase it conversationally. Keep it plain text and under 220 words."
     )
 
     try:
@@ -97,6 +98,8 @@ def weekly_coaching_message(
         "Compare the saved weekly plan with what was completed, including mileage, quality "
         "sessions, long run, missed or extra work, and Garmin recovery patterns. Use detailed "
         "lap context when provided for structured workouts, tempos, races, or long runs. "
+        "Make a clear coaching judgment about whether the recent evidence supports the stated "
+        "goal, makes it uncertain, or exposes a specific limiter that next week should address. "
         "Then transition naturally into a specific Monday-through-Sunday plan. The plan must "
         "respect progression: estimate the just-finished week's completed mileage, cap next "
         "week at about 8% above that unless the athlete explicitly asked for more, and make "
