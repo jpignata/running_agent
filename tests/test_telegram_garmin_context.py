@@ -21,7 +21,10 @@ class TelegramGarminContextTest(unittest.TestCase):
     @patch("running_agent.telegram_agent.StravaClient", return_value=None)
     @patch("running_agent.telegram_agent.log_event")
     @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin context")
-    @patch("running_agent.telegram_agent.coaching_reply", return_value="Nice work.")
+    @patch(
+        "running_agent.telegram_agent.coaching_reply",
+        return_value="Nice work on that 5-mile run.",
+    )
     def test_last_run_summary_passes_current_garmin_context(
         self,
         coaching_reply,
@@ -41,7 +44,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         agent.send_last_run_summary(chat_id=123)
 
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
-        self.assertIn("Easy Run: 5.00 mi", agent.telegram.messages[0])
+        prompt = coaching_reply.call_args.args[0]
+        self.assertIn("natural post-run coaching text", prompt)
+        self.assertIn("Do not use a title, header", prompt)
+        self.assertEqual(agent.telegram.messages[0], "Nice work on that 5-mile run.")
 
     @patch.dict(
         "os.environ",
@@ -53,7 +59,10 @@ class TelegramGarminContextTest(unittest.TestCase):
     @patch("running_agent.telegram_agent.append_run_result")
     @patch("running_agent.telegram_agent.log_event")
     @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin context")
-    @patch("running_agent.telegram_agent.coaching_reply", return_value="Post-run note.")
+    @patch(
+        "running_agent.telegram_agent.coaching_reply",
+        return_value="Nice work on that workout.",
+    )
     def test_new_run_summary_passes_current_garmin_context(
         self,
         coaching_reply,
@@ -72,7 +81,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         agent._notify_new_runs(force_chat_id=123)
 
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
-        self.assertIn("New run synced:", agent.telegram.messages[0])
+        prompt = coaching_reply.call_args.args[0]
+        self.assertIn("natural post-run coaching text", prompt)
+        self.assertIn("New run synced", prompt)
+        self.assertEqual(agent.telegram.messages[0], "Nice work on that workout.")
 
     @patch.dict(
         "os.environ",

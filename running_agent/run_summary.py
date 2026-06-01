@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from .activity_format import activity_headline, detailed_activity_context
+from .activity_format import detailed_activity_context
 from .feedback import summarize_training
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
@@ -31,13 +31,15 @@ def run_summary_for_date(
     detailed = client.detailed_activity(activity["id"])
     recent_activities = client.recent_activities(days=max(lookback_days, 21))
     prompt = (
-        f"Summarize this Strava run from {target_date.strftime('%A, %B %-d, %Y')} for Telegram. "
-        "Use lap-by-lap data to identify workout structure and pacing when this was a quality "
-        "or structured session. If it was an easy or steady aerobic run, keep the lap analysis "
-        "light. Compare against the matching weekly plan day when available, and give one "
-        "practical next step. If Garmin context is available through the shared coach prompt, "
-        "use it as supporting context only; do not treat low readiness after a hard effort as "
-        "automatically concerning."
+        f"Write a natural post-run coaching text for Telegram about this Strava run from "
+        f"{target_date.strftime('%A, %B %-d, %Y')}. Do not use a title, header, markdown, or "
+        "label-style opener. Start like a coach reacting to the workout, with the core run "
+        "facts woven into the first sentence. Use lap-by-lap data to identify workout "
+        "structure and pacing when this was a quality or structured session. If it was an easy "
+        "or steady aerobic run, keep the lap analysis light. Compare against the matching "
+        "weekly plan day when available, and give one practical next step. If Garmin context is "
+        "available through the shared coach prompt, use it as supporting context only; do not "
+        "treat low readiness after a hard effort as automatically concerning."
     )
 
     try:
@@ -51,7 +53,7 @@ def run_summary_for_date(
     except RuntimeError as error:
         note = _fallback_summary(detailed, error)
 
-    parts = [f"Run summary for {target_date.isoformat()}:", activity_headline(detailed)]
+    parts = []
     if selected_note:
         parts.append(selected_note)
     parts.append(note)

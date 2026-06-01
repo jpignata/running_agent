@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 
-from .activity_format import activity_headline, detailed_activity_context, recent_runs_context
+from .activity_format import detailed_activity_context, recent_runs_context
 from .athlete_profile import (
     append_coaching_preference,
     athlete_profile_context,
@@ -233,10 +233,12 @@ class TelegramRunningAgent:
         )
 
         prompt = (
-            "Summarize this athlete's most recent Strava run for Telegram. Include the core "
-            "workout facts, use the lap-by-lap data to identify workout structure and pacing, "
+            "Write a natural post-run coaching text for Telegram about this athlete's most "
+            "recent Strava run. Do not use a title, header, markdown, or label-style opener. "
+            "Start like a coach reacting to the workout, with the core run facts woven into "
+            "the first sentence. Use lap-by-lap data to identify workout structure and pacing, "
             "compare against the matching weekly plan day when available, and give one practical "
-            "next step. Keep it concise and coach-like."
+            "next step. Keep it concise and conversational."
         )
         try:
             log_event("debug", {"message": "last_run_openai_start"})
@@ -255,7 +257,7 @@ class TelegramRunningAgent:
             log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
         except RuntimeError as error:
             note = _last_run_fallback_note(last_run, error)
-        self._send_message(target_chat_id, f"{activity_headline(detailed_run)}\n\n{note}")
+        self._send_message(target_chat_id, note)
 
     def send_run_summary_for_date(
         self,
@@ -481,9 +483,11 @@ class TelegramRunningAgent:
             log_event("debug", {"message": "new_run_detail_done", "activity_id": run.get("id")})
             append_run_result(detailed_run)
             prompt = (
-                "A new Strava run just synced. Give a short post-run coaching note with one "
-                "thing that went well and one sensible next step. Use the lap-by-lap data when "
-                "it is present."
+                "A new Strava run just synced. Write a natural post-run coaching text for "
+                "Telegram. Do not use a title, header, markdown, or label-style opener like "
+                "'New run synced.' Start like a coach reacting to the workout, with the core "
+                "run facts woven into the first sentence. Include one thing that went well and "
+                "one sensible next step. Use the lap-by-lap data when it is present."
             )
             summary = summarize_training(activities, days=self.lookback_days)
             log_event("debug", {"message": "new_run_openai_start", "activity_id": run.get("id")})
@@ -500,10 +504,7 @@ class TelegramRunningAgent:
                 conversation=self.conversation,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
-            self._send_message(
-                chat_id,
-                f"New run synced:\n{activity_headline(detailed_run)}\n\n{note}",
-            )
+            self._send_message(chat_id, note)
 
 
 def _help_text() -> str:
