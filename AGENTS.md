@@ -9,11 +9,13 @@ summaries.
 ## Principles
 
 - Keep it dependency-light. Prefer Python stdlib unless there is a strong reason.
-- Preserve privacy: never commit `.env`, Strava tokens, Telegram chat state, weekly
-  plan, training goal, or exported Strava activity JSON.
+- Preserve privacy: never commit `.env`, Strava tokens, `.data/`, or exported
+  Strava activity JSON.
 - Favor simple deterministic heuristics before asking the model to infer everything.
 - Telegram output should be plain text, not Markdown.
 - Treat Strava, Telegram, and OpenAI clients as integration boundaries.
+- Logs should go to stdout only; do not add disk event logs.
+- Scheduled coaching behavior uses `America/New_York`, not the host timezone.
 
 ## Testing
 
@@ -25,6 +27,18 @@ summaries.
   assembly, and fallback behavior.
 - Keep tests fast and dependency-free. If there's a strong reason, let's discuss first.
 
+## Setup
+
+- Activate the project virtualenv before running commands:
+
+```bash
+source .venv/bin/activate
+```
+
+- After activation, use `python` for project commands. If `python` is not available,
+  fix the shell/virtualenv setup rather than changing project docs or examples to
+  use `.venv/bin/python` or `python3`.
+
 ## Useful Commands
 
 ```bash
@@ -32,11 +46,19 @@ python -m unittest discover -s tests
 python -m compileall running_agent tests
 python -m running_agent run-detail 2026-05-27
 python -m running_agent run-summary 2026-05-27
+python -m running_agent repl
 python -m running_agent telegram
 ```
 
 ## Data Model Notes
 
+- Non-secret local app data lives under `.data/`:
+  - `.data/state.json`
+  - `.data/weekly_plan.json`
+  - `.data/training_goal.json`
+  - `.data/athlete_profile.txt`
+  - `.data/coach_log.jsonl`
+- Keep `.env` and `.strava_tokens.json` separate from `.data/`.
 - Weekly plans are plain text, but parsed by weekday.
 - Races should be explicitly marked in the weekly plan, for example `Saturday 5K race`.
 - Structured workouts can be natural runner shorthand, for example
@@ -49,6 +71,13 @@ python -m running_agent telegram
   run summaries.
 - Lap data matters most for structured workouts, tempos, races, and quality days.
 - For easy runs, avoid over-analyzing laps.
+- Telegram messages should feel like natural coach texts, not reports.
+- Avoid robot-y headers such as `New run synced:`, `Run summary for`, or
+  `Weekly review:`.
+- Sunday weekly messages should be one integrated review-plus-plan note, not two
+  pasted model outputs.
+- Use model tools for remembering coaching notes, updating goals, and saving weekly
+  plans; do not add brittle hard-coded phrase detection unless explicitly requested.
 
 ## Safety
 
