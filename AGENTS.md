@@ -72,11 +72,10 @@ python -m running_agent telegram
   run summaries.
 - Lap data matters most for structured workouts, tempos, races, and quality days.
 - For easy runs, avoid over-analyzing laps.
-- Telegram messages should feel like natural coach texts, not reports.
-- Avoid robot-y headers such as `New run synced:`, `Run summary for`, or
-  `Weekly review:`.
-- Sunday weekly messages should be one integrated review-plus-plan note, not two
-  pasted model outputs.
+- Telegram messages should feel like natural, coherent coach texts rather than
+  report-style output.
+- Combine related coaching context into one readable message instead of stitching
+  together separate sections or model outputs.
 - Use model tools for remembering coaching notes, updating goals, and saving weekly
   plans; do not add brittle hard-coded phrase detection unless explicitly requested.
 
