@@ -9,7 +9,39 @@ as after a workout to summarize the results.
 
 Built with Codex.
 
-## Step 1: Connect Strava
+## Details
+
+### Runtime Behavior
+
+When `python -m running_agent telegram` is running, the bot:
+
+- Polls Telegram for chat messages and slash commands.
+- Checks Strava on the configured interval for newly synced runs.
+- Sends a natural post-run coaching note when a new run appears.
+- Refreshes the Garmin snapshot cache once per day after 5:00am Eastern.
+- Sends one morning workout check-in after 5:30am Eastern when today's saved plan has
+  a workout and Strava does not already show a completed run for the day.
+- Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
+  Eastern.
+
+### Coaching Context
+
+The coach builds replies from local context instead of treating each message as isolated:
+
+- Recent Strava runs, including detailed laps when they matter, such as workouts, races,
+  and long runs.
+- The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
+- The saved training goal in `.data/training_goal.json`.
+- Athlete-specific notes in `.data/athlete_profile.txt`.
+- The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
+  run outcomes.
+- Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for
+  sleep, resting heart rate, HRV, stress, Body Battery low, and training readiness.
+- Short in-process conversation history while the bot is running.
+
+## Setup
+
+### Step 1: Connect Strava
 
 Create a Strava API app at https://www.strava.com/settings/api.
 
@@ -49,7 +81,7 @@ Verify the connection:
 python -m running_agent me
 ```
 
-## Step 2: Connect Garmin
+### Step 2: Connect Garmin
 
 Garmin Connect is optional, but it gives the coach recovery context for morning workout
 check-ins. Add your Garmin credentials to `.env`:
@@ -67,7 +99,7 @@ and stores them in `.data/garmin_snapshots.json`. Garmin commands and coaching p
 that local cache for daily context and athlete baseline ranges instead of refetching the
 full baseline on every request.
 
-## Step 3: Connect Telegram
+### Step 3: Connect Telegram
 
 Create a bot with Telegram's `@BotFather`, copy the bot token, and add it to `.env`:
 
@@ -167,7 +199,7 @@ plan, the last week of runs, the coach log, and your overall goal. If there is n
 scheduled for the day or Strava already has a completed run for that date, the bot sends
 nothing.
 
-## Step 4: Add A Weekly Plan
+### Step 4: Add A Weekly Plan
 
 Send the plan in Telegram or the local REPL so the coach can compare completed Strava runs
 against what you intended to do:
@@ -179,7 +211,7 @@ against what you intended to do:
 You can also use natural language, for example `here is my plan for next week...`; the model
 may call its plan-saving tool and rewrite it into the saved weekly plan format.
 
-## Step 5: Add An Overall Goal
+### Step 5: Add An Overall Goal
 
 Set the larger goal in Telegram or the local REPL so the coach can interpret workouts in
 context:
@@ -190,34 +222,6 @@ context:
 
 You can also state the goal naturally, for example `my main goal is Chicago on Oct 11,
 target 3:20`; the model may call its goal-update tool and rewrite the saved goal.
-
-## Runtime Behavior
-
-When `python -m running_agent telegram` is running, the bot:
-
-- Polls Telegram for chat messages and slash commands.
-- Checks Strava on the configured interval for newly synced runs.
-- Sends a natural post-run coaching note when a new run appears.
-- Refreshes the Garmin snapshot cache once per day after 5:00am Eastern.
-- Sends one morning workout check-in after 5:30am Eastern when today's saved plan has
-  a workout and Strava does not already show a completed run for the day.
-- Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
-  Eastern.
-
-## Coaching Context
-
-The coach builds replies from local context instead of treating each message as isolated:
-
-- Recent Strava runs, including detailed laps when they matter, such as workouts, races,
-  and long runs.
-- The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
-- The saved training goal in `.data/training_goal.json`.
-- Athlete-specific notes in `.data/athlete_profile.txt`.
-- The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
-  run outcomes.
-- Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for
-  sleep, resting heart rate, HRV, stress, Body Battery low, and training readiness.
-- Short in-process conversation history while the bot is running.
 
 ## Tests
 
