@@ -1,9 +1,11 @@
 # Running Agent
 
-A local system for automated running coaching toward race goals.
+A system for automated running coaching toward race goals.
 
 It uses training and recovery data from sources like Strava and Garmin to review workouts,
-adjust advice, and suggest what to do next.
+adjust advice, and suggest what to do next. An athlete interacts with the system via
+Telegram through a conversational interface. The system also sends scheduled messages such
+as after a workout to summarize the results.
 
 Built with Codex.
 
