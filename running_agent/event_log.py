@@ -5,9 +5,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 DEBUG_STDOUT_ENV = "RUNNING_AGENT_DEBUG_LOG"
+QUIET_STDOUT_ENV = "RUNNING_AGENT_QUIET_LOG"
 
 
 def log_event(event_type: str, fields: dict[str, Any]) -> None:
+    if _quiet_stdout_enabled():
+        return
     timestamp = datetime.now(timezone.utc).isoformat()
     entry = {
         "timestamp": timestamp,
@@ -33,3 +36,7 @@ def _line_value(value: Any) -> str:
 
 def _debug_stdout_enabled() -> bool:
     return os.environ.get(DEBUG_STDOUT_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _quiet_stdout_enabled() -> bool:
+    return os.environ.get(QUIET_STDOUT_ENV, "").strip().lower() in {"1", "true", "yes", "on"}

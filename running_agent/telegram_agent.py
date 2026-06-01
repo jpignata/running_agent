@@ -57,16 +57,21 @@ class TelegramRunningAgent:
         poll_seconds: int = 300,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
         state_path: Path = STATE_PATH,
+        strava_client: StravaClient | None = None,
+        telegram_client: TelegramClient | None = None,
+        allowed_chat_id: str | None = None,
     ):
         load_env_file()
         self.poll_seconds = poll_seconds
         self.lookback_days = lookback_days
         self.state_path = state_path
         self.state = _load_state(state_path)
-        self.strava = StravaClient()
-        self.telegram = TelegramClient(require_env("TELEGRAM_BOT_TOKEN"))
-        self.allowed_chat_id = os.environ.get("TELEGRAM_CHAT_ID") or self.state.get(
-            "telegram_chat_id"
+        self.strava = strava_client or StravaClient()
+        self.telegram = telegram_client or TelegramClient(require_env("TELEGRAM_BOT_TOKEN"))
+        self.allowed_chat_id = (
+            allowed_chat_id
+            or os.environ.get("TELEGRAM_CHAT_ID")
+            or self.state.get("telegram_chat_id")
         )
         self.conversation: list[dict[str, str]] = []
 

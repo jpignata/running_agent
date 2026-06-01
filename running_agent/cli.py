@@ -125,6 +125,17 @@ def _main() -> int:
         help="Print internal debug log events to stdout.",
     )
 
+    repl = subparsers.add_parser(
+        "repl",
+        help="Chat with the running coach locally using the Telegram command handler.",
+    )
+    repl.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
+    repl.add_argument(
+        "--debug-log",
+        action="store_true",
+        help="Print internal debug log events and rx/tx log lines.",
+    )
+
     last_run = subparsers.add_parser(
         "send-last-run",
         help="Send a Telegram workout summary for the latest Strava run.",
@@ -315,6 +326,17 @@ def _main() -> int:
             )
         return 0
 
+    if args.command == "repl":
+        if not args.debug_log:
+            os.environ["RUNNING_AGENT_QUIET_LOG"] = "1"
+        agent = TelegramRunningAgent(
+            lookback_days=args.days,
+            telegram_client=_ReplTelegramClient(),
+            allowed_chat_id="repl",
+        )
+        _run_repl(agent)
+        return 0
+
     if args.command == "send-last-run":
         agent = TelegramRunningAgent(lookback_days=args.days)
         agent.send_last_run_summary()
@@ -417,6 +439,36 @@ def _run_telegram_with_restarts(
             traceback.print_exc()
             print(f"Restarting in {restart_delay} seconds...")
             time.sleep(restart_delay)
+
+
+class _ReplTelegramClient:
+    def __init__(self):
+        self.messages: list[str] = []
+
+    def send_message(self, _chat_id: int | str, text: str) -> None:
+        self.messages.append(text)
+
+
+def _run_repl(agent: TelegramRunningAgent) -> None:
+    print("Running local coach REPL. Type /help for commands, /quit to exit.")
+    while True:
+        try:
+            text = input("> ").strip()
+        except EOFError:
+            print()
+            return
+        except KeyboardInterrupt:
+            print()
+            return
+        if not text:
+            continue
+        if text.lower() in {"/quit", "/exit"}:
+            return
+
+        start = len(agent.telegram.messages)
+        agent._handle_message("repl", text)
+        for message in agent.telegram.messages[start:]:
+            print(message)
 
 
 def _activity_date(activity: dict) -> date:

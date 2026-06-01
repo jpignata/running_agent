@@ -122,6 +122,15 @@ To print internal debug events in addition to received/sent message lines:
 python -m running_agent telegram --debug-log
 ```
 
+To test the Telegram-style chat flow locally without sending Telegram messages, use the REPL:
+
+```bash
+python -m running_agent repl
+```
+
+The REPL uses the same command handler as Telegram. Type `/help` to list commands and `/quit`
+to exit. By default it hides rx/tx log lines; add `--debug-log` to see them.
+
 Then message the bot on Telegram. It supports:
 
 - `/recent` - summarize recent Strava run training

@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from running_agent.event_log import DEBUG_STDOUT_ENV, log_event
+from running_agent.event_log import DEBUG_STDOUT_ENV, QUIET_STDOUT_ENV, log_event
 
 
 class EventLogTest(unittest.TestCase):
@@ -27,6 +27,12 @@ class EventLogTest(unittest.TestCase):
             log_event("debug", {"message": "work_start"})
 
         self.assertIn(" debug message=work_start", print_mock.call_args.args[0])
+
+    def test_quiet_event_log_suppresses_stdout(self) -> None:
+        with patch.dict(os.environ, {QUIET_STDOUT_ENV: "1"}), patch("builtins.print") as print_mock:
+            log_event("rx", {"chat_id": 123, "text": "hello"})
+
+        print_mock.assert_not_called()
 
 
 if __name__ == "__main__":
