@@ -11,6 +11,7 @@ from .auth import load_env_file
 from .coach_time import coach_now
 from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
 from .goal_store import save_training_goal
+from .plan_store import save_weekly_plan
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -58,6 +59,31 @@ UPDATE_GOAL_TOOL = {
             }
         },
         "required": ["goal"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+SAVE_WEEKLY_PLAN_TOOL = {
+    "type": "function",
+    "name": "save_weekly_plan",
+    "description": (
+        "Save a complete weekly training plan for future coaching. Use this when the athlete "
+        "provides, revises, or approves a weekly plan, including natural messages like 'here is "
+        "my plan for next week'. Convert the plan into clear plain text with one line for each "
+        "planned day. Preserve runner shorthand such as '2mi WU, 6x400m, CD'. Do not use this "
+        "for casual workout ideas unless the athlete indicates the plan should be saved."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "plan": {
+                "type": "string",
+                "description": (
+                    "The complete weekly plan text to save, ideally with one line per planned day."
+                ),
+            }
+        },
+        "required": ["plan"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -142,13 +168,18 @@ def coaching_reply(
             "Use the current overall training goal context to rewrite a complete updated goal "
             "statement rather than saving only a fragment. After updating the goal, briefly "
             "acknowledge the change in the normal coaching reply. "
+            "When the athlete provides, revises, or approves a weekly training plan to use for "
+            "future coaching, call save_weekly_plan before answering. Rewrite natural plan text "
+            "into a complete plain-text weekly plan with one line per planned day, preserving "
+            "runner shorthand. After saving the plan, briefly acknowledge it in the normal "
+            "coaching reply. "
             "Write in plain text for Telegram. Do not use Markdown formatting, including "
             "asterisk bold, headings, tables, or bullet symbols that require Markdown rendering. "
             "Do not diagnose injuries or give medical certainty; recommend rest or a clinician "
             "when pain, illness, or injury risk comes up."
         ),
         "input": "\n".join(prompt_parts),
-        "tools": [REMEMBER_NOTE_TOOL, UPDATE_GOAL_TOOL],
+        "tools": [REMEMBER_NOTE_TOOL, UPDATE_GOAL_TOOL, SAVE_WEEKLY_PLAN_TOOL],
         "tool_choice": "auto",
         "max_output_tokens": 650,
     }
@@ -171,6 +202,8 @@ def _handle_tool_calls(
             output = _execute_remember_note_tool(call)
         elif call.get("name") == "update_training_goal":
             output = _execute_update_goal_tool(call)
+        elif call.get("name") == "save_weekly_plan":
+            output = _execute_save_weekly_plan_tool(call)
         else:
             continue
         if output:
@@ -203,6 +236,14 @@ def _execute_update_goal_tool(call: dict[str, Any]) -> dict[str, str] | None:
     if not goal:
         return None
     save_training_goal(goal)
+    return _tool_output(call["call_id"], {"saved": True})
+
+
+def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    plan = _tool_argument(call, "plan")
+    if not plan:
+        return None
+    save_weekly_plan(plan)
     return _tool_output(call["call_id"], {"saved": True})
 
 

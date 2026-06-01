@@ -40,8 +40,11 @@ class OpenAIClientTest(unittest.TestCase):
             tools["remember_coaching_note"]["description"],
         )
         self.assertIn("update_training_goal", tools)
+        self.assertIn("save_weekly_plan", tools)
         self.assertIn("durable training goal", payload["instructions"])
         self.assertIn("complete updated goal", payload["instructions"])
+        self.assertIn("weekly training plan", payload["instructions"])
+        self.assertIn("one line per planned day", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
@@ -87,6 +90,60 @@ class OpenAIClientTest(unittest.TestCase):
                 {
                     "type": "function_call_output",
                     "call_id": "call_1",
+                    "output": '{"saved": true}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_weekly_plan")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "save_weekly_plan",
+                        "call_id": "call_plan",
+                        "arguments": (
+                            '{"plan": "Monday 5 easy\\nWednesday 2mi WU, 6x400m, CD\\n'
+                            'Saturday 10 easy"}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "Got it. I saved that plan."},
+        ],
+    )
+    def test_coaching_reply_executes_plan_tool_and_returns_final_reply(
+        self,
+        post_json,
+        save_weekly_plan,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "Here is my plan for next week: Monday 5 easy, Wednesday 6x400, Saturday 10.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Current plan",
+        )
+
+        self.assertEqual(reply, "Got it. I saved that plan.")
+        save_weekly_plan.assert_called_once_with(
+            "Monday 5 easy\nWednesday 2mi WU, 6x400m, CD\nSaturday 10 easy"
+        )
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(followup_payload["previous_response_id"], "resp_1")
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_plan",
                     "output": '{"saved": true}',
                 }
             ],

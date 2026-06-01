@@ -154,6 +154,10 @@ The same model-tool pattern is available for goals. If you say something like
 `my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
 `.data/training_goal.json` so future coaching uses the updated target.
 
+Weekly plans can also be saved through natural chat. If you say something like
+`here is my plan for next week`, the model may rewrite it into the plain-text weekly plan
+format and save it in `.data/weekly_plan.json`.
+
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
 today's weekly plan has a matched workout that has not already been completed, and sends
