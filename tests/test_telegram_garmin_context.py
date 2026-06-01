@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -72,6 +73,44 @@ class TelegramGarminContextTest(unittest.TestCase):
 
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
         self.assertIn("New run synced:", agent.telegram.messages[0])
+
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch("running_agent.telegram_agent._save_state")
+    @patch("running_agent.telegram_agent.log_event")
+    @patch("running_agent.telegram_agent.coach_now")
+    @patch(
+        "running_agent.telegram_agent.weekly_coaching_message",
+        return_value="You had a great week. Here is next week.",
+    )
+    def test_sunday_message_uses_integrated_weekly_coaching_message(
+        self,
+        weekly_coaching_message,
+        coach_now,
+        _log_event,
+        _save_state,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        coach_now.return_value = datetime(2026, 5, 31, 18, 0)
+        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent.telegram = _FakeTelegram()
+        agent.strava = _FakeStrava([], latest={}, detailed={})
+
+        agent._send_sunday_plan_if_due()
+
+        self.assertEqual(agent.telegram.messages, ["You had a great week. Here is next week."])
+        weekly_coaching_message.assert_called_once()
+        kwargs = weekly_coaching_message.call_args.kwargs
+        self.assertEqual(kwargs["week_start"].isoformat(), "2026-05-25")
+        self.assertEqual(kwargs["target_week_start"].isoformat(), "2026-06-01")
+        self.assertEqual(kwargs["lookback_days"], 42)
+        self.assertEqual(agent.state["last_next_week_plan_start"], "2026-06-01")
 
 
 class _FakeStrava:

@@ -70,6 +70,67 @@ def review_week(
     return review
 
 
+def weekly_coaching_message(
+    client: StravaClient,
+    week_start: date,
+    target_week_start: date,
+    lookback_days: int = 42,
+    log_review: bool = True,
+) -> str:
+    week_end = week_start + timedelta(days=6)
+    target_week_end = target_week_start + timedelta(days=6)
+    activities = client.recent_activities(days=lookback_days)
+    recent_runs = recent_runs_context(activities, limit=20)
+    detailed_runs = weekly_quality_detail_context(client, activities, week_start, week_end)
+    if detailed_runs:
+        recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
+    garmin_context = safe_garmin_weekly_context(days=7)
+    prompt = (
+        f"Write one integrated Sunday evening coaching message for Telegram. Review the week "
+        f"from {week_start.isoformat()} through {week_end.isoformat()}, then suggest next "
+        f"week's plan for {target_week_start.isoformat()} through {target_week_end.isoformat()}. "
+        "This should feel like one natural note from a real coach, not two pasted reports. "
+        "Start with a natural read on the week, such as 'You had a great week,' 'This was a "
+        "solid week,' or 'This was a challenging week,' based on the data. Do not use a title, "
+        "section headers, markdown, or label-style phrases like 'Weekly review:', 'Next week:', "
+        "'Takeaway:', 'By weekday:', or 'Why this setup:'. "
+        "Compare the saved weekly plan with what was completed, including mileage, quality "
+        "sessions, long run, missed or extra work, and Garmin recovery patterns. Use detailed "
+        "lap context when provided for structured workouts, tempos, races, or long runs. "
+        "Then transition naturally into a specific Monday-through-Sunday plan. The plan must "
+        "respect progression: estimate the just-finished week's completed mileage, cap next "
+        "week at about 8% above that unless the athlete explicitly asked for more, and make "
+        "the daily mileage add up to that cap. If last week was 38 miles, keep next week at "
+        "41 miles or less. Do not write mileage ranges whose high ends could exceed the cap. "
+        "Use Garmin as recovery context without overreacting to one bad day. Keep hard days "
+        "balanced with easy/recovery days, keep the plan practical, and do not claim it has "
+        "been saved. Do not end with an offer to make another version or add exact paces. "
+        "Keep it plain text, conversational, and concise."
+    )
+
+    try:
+        message = coaching_reply(
+            prompt,
+            training_summary=summarize_training(activities, days=lookback_days),
+            recent_runs=recent_runs,
+            weekly_plan=weekly_plan_context(),
+            training_goal=training_goal_context(),
+            coach_log=coach_log_context(),
+            garmin_context=garmin_context,
+        )
+    except RuntimeError as error:
+        message = _fallback_weekly_coaching_message(activities, garmin_context, error)
+
+    if log_review:
+        append_week_review(
+            week_start=week_start.isoformat(),
+            week_end=week_end.isoformat(),
+            summary=message,
+        )
+
+    return message
+
+
 def current_week_start(today: date) -> date:
     return today - timedelta(days=today.weekday())
 
@@ -140,4 +201,19 @@ def _fallback_week_review(
         f"{garmin_context}\n\n"
         "Coaching takeaway: make next week appropriately challenging if recovery and recent "
         "execution support it, while keeping progression controlled."
+    )
+
+
+def _fallback_weekly_coaching_message(
+    activities: list[dict],
+    garmin_context: str,
+    error: RuntimeError,
+) -> str:
+    return (
+        f"I could not generate the full AI weekly note ({error}), but here is the basic read.\n\n"
+        f"{summarize_training(activities, days=42)}\n\n"
+        f"{garmin_context}\n\n"
+        "For next week, keep the structure controlled: one quality day, one easy aerobic long "
+        "run, and enough recovery around them that the week stays close to recent mileage rather "
+        "than jumping aggressively."
     )

@@ -39,7 +39,7 @@ from .plan_suggestion import (
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_client import TelegramClient
-from .weekly_review import current_week_start, review_week
+from .weekly_review import current_week_start, weekly_coaching_message
 
 STATE_PATH = Path(".running_agent_state.json")
 DEFAULT_LOOKBACK_DAYS = 21
@@ -376,13 +376,9 @@ class TelegramRunningAgent:
             "debug",
             {"message": "sunday_plan_start", "week_start": target_week_start.isoformat()},
         )
-        review = review_week(
+        message = weekly_coaching_message(
             self.strava,
             week_start=current_week_start(now.date()),
-            lookback_days=7,
-        )
-        plan = suggest_next_week_plan(
-            self.strava,
             target_week_start=target_week_start,
             lookback_days=max(self.lookback_days, 42),
         )
@@ -390,7 +386,7 @@ class TelegramRunningAgent:
             "debug",
             {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
         )
-        self._send_message(self.allowed_chat_id, f"{review}\n\n{plan}")
+        self._send_message(self.allowed_chat_id, message)
         mark_sunday_plan_sent(now, self.state)
         _save_state(self.state, self.state_path)
 

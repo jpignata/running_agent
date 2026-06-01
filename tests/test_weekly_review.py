@@ -7,6 +7,7 @@ from unittest.mock import patch
 from running_agent.weekly_review import (
     current_week_start,
     review_week,
+    weekly_coaching_message,
     weekly_quality_detail_context,
 )
 
@@ -69,6 +70,46 @@ class WeeklyReviewTest(unittest.TestCase):
 
         self.assertIn("AI weekly review was unavailable (offline).", review)
         append_week_review.assert_called_once()
+
+    @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
+    @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
+    @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
+    @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch(
+        "running_agent.weekly_review.coaching_reply",
+        return_value="You had a great week. Next week, keep it controlled.",
+    )
+    def test_weekly_coaching_message_combines_review_and_plan(
+        self,
+        coaching_reply,
+        _weekly_plan_context,
+        _training_goal_context,
+        _coach_log_context,
+        _safe_garmin_weekly_context,
+        append_week_review,
+    ) -> None:
+        message = weekly_coaching_message(
+            _FakeStravaClient([_run("Easy Run")]),
+            week_start=datetime(2026, 5, 25).date(),
+            target_week_start=datetime(2026, 6, 1).date(),
+        )
+
+        self.assertEqual(message, "You had a great week. Next week, keep it controlled.")
+        prompt = coaching_reply.call_args.args[0]
+        kwargs = coaching_reply.call_args.kwargs
+        self.assertIn("one integrated Sunday evening coaching message", prompt)
+        self.assertIn("not two pasted reports", prompt)
+        self.assertIn("2026-05-25 through 2026-05-31", prompt)
+        self.assertIn("2026-06-01 through 2026-06-07", prompt)
+        self.assertIn("8% above", prompt)
+        self.assertIn("Do not use a title, section headers", prompt)
+        self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        append_week_review.assert_called_once_with(
+            week_start="2026-05-25",
+            week_end="2026-05-31",
+            summary="You had a great week. Next week, keep it controlled.",
+        )
 
     @patch("running_agent.weekly_review.planned_workout_for_date", return_value="4x1200m + 4x400m")
     def test_weekly_quality_detail_context_fetches_laps_for_planned_workout(

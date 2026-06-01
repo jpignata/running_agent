@@ -18,7 +18,7 @@ from .plan_suggestion import next_week_start, suggest_next_week_plan
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .telegram_agent import TelegramRunningAgent
-from .weekly_review import current_week_start, review_week
+from .weekly_review import current_week_start, review_week, weekly_coaching_message
 
 
 def main() -> int:
@@ -170,6 +170,30 @@ def _main() -> int:
         "--no-log",
         action="store_true",
         help="Do not append the review to the local coach log.",
+    )
+
+    sunday_message = subparsers.add_parser(
+        "sunday-message",
+        help="Print the integrated Sunday weekly review and next-week plan message.",
+    )
+    sunday_message.add_argument(
+        "--week-start",
+        help="Target Monday for the week to review, formatted YYYY-MM-DD.",
+    )
+    sunday_message.add_argument(
+        "--target-week-start",
+        help="Target Monday for the suggested plan, formatted YYYY-MM-DD.",
+    )
+    sunday_message.add_argument(
+        "--days",
+        type=int,
+        default=42,
+        help="Training lookback window in days.",
+    )
+    sunday_message.add_argument(
+        "--no-log",
+        action="store_true",
+        help="Do not append the message to the local coach log.",
     )
 
     set_plan = subparsers.add_parser(
@@ -327,6 +351,29 @@ def _main() -> int:
         )
         client = StravaClient()
         print(review_week(client, week_start=week_start, log_review=not args.no_log))
+        return 0
+
+    if args.command == "sunday-message":
+        week_start = (
+            datetime.strptime(args.week_start, "%Y-%m-%d").date()
+            if args.week_start
+            else current_week_start(coach_today())
+        )
+        target_week_start = (
+            datetime.strptime(args.target_week_start, "%Y-%m-%d").date()
+            if args.target_week_start
+            else next_week_start(week_start)
+        )
+        client = StravaClient()
+        print(
+            weekly_coaching_message(
+                client,
+                week_start=week_start,
+                target_week_start=target_week_start,
+                lookback_days=args.days,
+                log_review=not args.no_log,
+            )
+        )
         return 0
 
     if args.command == "set-plan":
