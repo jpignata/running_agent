@@ -5,9 +5,13 @@ import os
 import time
 import traceback
 
+from .agent_state import load_agent_state, save_agent_state
 from .auth import build_authorization_url
+from .coach_agent import CoachAgent
+from .repl_transport import ReplTransport
+from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
-from .telegram_agent import TelegramRunningAgent
+from .telegram_transport import TelegramTransport
 
 
 def main() -> int:
@@ -59,7 +63,7 @@ def _main() -> int:
 
     repl = subparsers.add_parser(
         "repl",
-        help="Chat with the running coach locally using the Telegram command handler.",
+        help="Chat with the running coach locally.",
     )
     repl.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
     repl.add_argument(
@@ -107,8 +111,8 @@ def _main() -> int:
         if args.debug_log:
             os.environ["RUNNING_AGENT_DEBUG_LOG"] = "1"
         if args.no_restart:
-            agent = TelegramRunningAgent(poll_seconds=args.poll_seconds, lookback_days=args.days)
-            agent.run_forever()
+            transport = TelegramTransport(poll_seconds=args.poll_seconds, lookback_days=args.days)
+            transport.run_forever()
         else:
             _run_telegram_with_restarts(
                 poll_seconds=args.poll_seconds,
@@ -120,12 +124,13 @@ def _main() -> int:
     if args.command == "repl":
         if not args.debug_log:
             os.environ["RUNNING_AGENT_QUIET_LOG"] = "1"
-        agent = TelegramRunningAgent(
+        state = load_agent_state(STATE_PATH)
+        coach = CoachAgent(
             lookback_days=args.days,
-            telegram_client=_ReplTelegramClient(),
-            allowed_chat_id="repl",
+            state=state,
+            save_state=lambda: save_agent_state(state, STATE_PATH),
         )
-        _run_repl(agent)
+        ReplTransport(coach).run()
         return 0
 
     parser.error(f"Unknown command: {args.command}")
@@ -140,8 +145,8 @@ def _run_telegram_with_restarts(
     print("Running Telegram coach with restart-on-crash enabled. Press Ctrl+C to stop.")
     while True:
         try:
-            agent = TelegramRunningAgent(poll_seconds=poll_seconds, lookback_days=lookback_days)
-            agent.run_forever()
+            transport = TelegramTransport(poll_seconds=poll_seconds, lookback_days=lookback_days)
+            transport.run_forever()
         except KeyboardInterrupt:
             print("Stopping Telegram coach.")
             return
@@ -150,33 +155,3 @@ def _run_telegram_with_restarts(
             traceback.print_exc()
             print(f"Restarting in {restart_delay} seconds...")
             time.sleep(restart_delay)
-
-
-class _ReplTelegramClient:
-    def __init__(self):
-        self.messages: list[str] = []
-
-    def send_message(self, _chat_id: int | str, text: str) -> None:
-        self.messages.append(text)
-
-
-def _run_repl(agent: TelegramRunningAgent) -> None:
-    print("Running local coach REPL. Type /help for commands, /quit to exit.")
-    while True:
-        try:
-            text = input("> ").strip()
-        except EOFError:
-            print()
-            return
-        except KeyboardInterrupt:
-            print()
-            return
-        if not text:
-            continue
-        if text.lower() in {"/quit", "/exit"}:
-            return
-
-        start = len(agent.telegram.messages)
-        agent._handle_message("repl", text)
-        for message in agent.telegram.messages[start:]:
-            print(message)

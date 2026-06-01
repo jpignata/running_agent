@@ -1,20 +1,11 @@
 from __future__ import annotations
 
-import os
-import socket
-import time
 from datetime import datetime
 from datetime import time as datetime_time
-from pathlib import Path
-from typing import Any
-from urllib.error import URLError
+from typing import Any, Callable
 
 from .activity_format import detailed_activity_context, recent_runs_context
-from .athlete_profile import (
-    append_coaching_preference,
-    athlete_profile_context,
-)
-from .auth import load_env_file, require_env
+from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .coach_log import append_run_result
 from .coach_time import coach_now, coach_today
 from .daily_checkin import (
@@ -39,152 +30,100 @@ from .plan_suggestion import (
     suggest_next_week_plan,
 )
 from .run_summary import run_summary_for_date
-from .storage import read_json_file, write_json_file
-from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
-from .telegram_client import TelegramClient
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 21
 GARMIN_REFRESH_TIME = datetime_time(5, 0)
-TRANSIENT_ERRORS = (
-    TimeoutError,
-    socket.timeout,
-    ConnectionError,
-    URLError,
-)
 
 
-class TelegramRunningAgent:
+class CoachAgent:
     def __init__(
         self,
-        poll_seconds: int = 300,
         lookback_days: int = DEFAULT_LOOKBACK_DAYS,
-        state_path: Path = STATE_PATH,
         strava_client: StravaClient | None = None,
-        telegram_client: TelegramClient | None = None,
-        allowed_chat_id: str | None = None,
+        state: dict[str, Any] | None = None,
+        save_state: Callable[[], None] | None = None,
     ):
-        load_env_file()
-        self.poll_seconds = poll_seconds
         self.lookback_days = lookback_days
-        self.state_path = state_path
-        self.state = _load_state(state_path)
         self.strava = strava_client or StravaClient()
-        self.telegram = telegram_client or TelegramClient(require_env("TELEGRAM_BOT_TOKEN"))
-        self.allowed_chat_id = (
-            allowed_chat_id
-            or os.environ.get("TELEGRAM_CHAT_ID")
-            or self.state.get("telegram_chat_id")
-        )
+        self.state = state if state is not None else {}
+        self._save_state = save_state or (lambda: None)
         self.conversation: list[dict[str, str]] = []
 
-    def run_forever(self) -> None:
-        self._seed_seen_activities()
-        print("Running Telegram coach. Press Ctrl+C to stop.")
-        next_strava_check = time.monotonic() + self.poll_seconds
-
-        while True:
-            try:
-                self._handle_telegram_updates()
-                self._refresh_garmin_cache_if_due()
-                self._send_daily_checkin_if_due()
-                self._send_sunday_plan_if_due()
-                if time.monotonic() >= next_strava_check:
-                    self._notify_new_runs()
-                    next_strava_check = time.monotonic() + self.poll_seconds
-            except KeyboardInterrupt:
-                raise
-            except TRANSIENT_ERRORS as error:
-                log_event("debug", {"message": "transient_loop_error", "error": repr(error)})
-                time.sleep(5)
-
-    def _handle_telegram_updates(self) -> None:
-        offset = self.state.get("telegram_update_offset")
-        log_event("debug", {"message": "telegram_get_updates_start", "offset": offset})
-        updates = self.telegram.get_updates(offset=offset, timeout=25)
-        log_event("debug", {"message": "telegram_get_updates_done", "count": len(updates)})
-        for update in updates:
-            self.state["telegram_update_offset"] = int(update["update_id"]) + 1
-            message = update.get("message") or {}
-            text = (message.get("text") or "").strip()
-            chat = message.get("chat") or {}
-            chat_id = chat.get("id")
-            if not text or chat_id is None:
-                continue
-            if not self._chat_allowed(chat_id):
-                continue
-            log_event("rx", {"chat_id": chat_id, "text": text})
-            self._handle_message(chat_id, text)
-        _save_state(self.state, self.state_path)
-
-    def _chat_allowed(self, chat_id: int) -> bool:
-        if self.allowed_chat_id and str(chat_id) != str(self.allowed_chat_id):
-            return False
-        if not self.allowed_chat_id:
-            self.allowed_chat_id = str(chat_id)
-            self.state["telegram_chat_id"] = str(chat_id)
-            self._send_message(
-                chat_id,
-                "You are connected. I will use this Telegram chat for running-coach updates.",
-            )
-        return True
-
-    def _handle_message(self, chat_id: int, text: str) -> None:
+    def handle_message(self, text: str) -> list[str]:
+        text = text.strip()
+        if not text:
+            return []
         command = text.split()[0].lower()
-        log_event(
-            "debug", {"message": "handle_message_start", "chat_id": chat_id, "command": command}
-        )
+        log_event("debug", {"message": "coach_handle_message_start", "command": command})
         try:
-            if command in {"/start", "/help"}:
-                self._send_message(chat_id, _help_text())
-            elif command == "/ping":
-                self._send_message(chat_id, "Pong!")
-            elif command in {"/recent", "/summary"}:
-                self._send_message(chat_id, self._training_summary())
-            elif command in {"/last", "/last_run"}:
-                self.send_last_run_summary(chat_id=chat_id)
-            elif command == "/run":
-                self._send_run_summary_from_message(chat_id, text)
-            elif command == "/suggestplan":
-                self.send_next_week_plan(chat_id=chat_id)
-            elif command == "/plan":
-                self._send_message(chat_id, weekly_plan_context())
-            elif command == "/setplan":
-                self._set_weekly_plan_from_message(chat_id, text)
-            elif command == "/goal":
-                self._send_message(chat_id, training_goal_context())
-            elif command == "/setgoal":
-                self._set_training_goal_from_message(chat_id, text)
-            elif command in {"/preferences", "/profile"}:
-                self._send_message(chat_id, athlete_profile_context())
-            elif command in {"/preference", "/note"}:
-                self._save_coaching_preference_from_message(chat_id, text, command)
-            elif command == "/garmin":
-                self._send_message(chat_id, current_garmin_context())
-            elif command in {"/garminweek", "/garmin-week"}:
-                self._send_message(chat_id, safe_garmin_weekly_context(days=7))
-            elif command == "/check":
-                self._notify_new_runs(force_chat_id=chat_id)
-            else:
-                self._send_message(chat_id, self._coach_reply(text))
+            replies = self._handle_message(text, command)
         except RuntimeError as error:
-            self._send_message(chat_id, f"Something failed while coaching: {error}")
-        log_event(
-            "debug", {"message": "handle_message_done", "chat_id": chat_id, "command": command}
-        )
+            replies = [f"Something failed while coaching: {error}"]
+        log_event("debug", {"message": "coach_handle_message_done", "command": command})
+        return replies
 
-    def _send_message(self, chat_id: int | str, text: str) -> None:
-        log_event(
-            "debug", {"message": "telegram_send_start", "chat_id": chat_id, "chars": len(text)}
-        )
-        self.telegram.send_message(chat_id, text)
-        log_event("tx", {"chat_id": chat_id, "text": text})
-        log_event(
-            "debug", {"message": "telegram_send_done", "chat_id": chat_id, "chars": len(text)}
-        )
+    def tick(self) -> list[str]:
+        messages: list[str] = []
+        self.refresh_garmin_cache_if_due()
+        daily = self.daily_checkin_if_due()
+        if daily:
+            messages.append(daily)
+        sunday = self.sunday_plan_if_due()
+        if sunday:
+            messages.append(sunday)
+        messages.extend(self.check_new_runs(force=False))
+        return messages
 
-    def _coach_reply(self, text: str) -> str:
+    def seed_seen_activities(self) -> None:
+        if self.state.get("seen_activity_ids"):
+            return
+        log_event("debug", {"message": "seed_seen_activities_start"})
+        activities = self.strava.recent_activities(days=self.lookback_days)
+        log_event("debug", {"message": "seed_seen_activities_done", "count": len(activities)})
+        self.state["seen_activity_ids"] = [
+            activity["id"] for activity in activities if "id" in activity
+        ]
+        self._save_state()
+
+    def _handle_message(self, text: str, command: str) -> list[str]:
+        if command in {"/start", "/help"}:
+            return [help_text()]
+        if command == "/ping":
+            return ["Pong!"]
+        if command in {"/recent", "/summary"}:
+            return [self.training_summary()]
+        if command in {"/last", "/last_run"}:
+            return [self.last_run_summary()]
+        if command == "/run":
+            return [self._run_summary_from_message(text)]
+        if command == "/suggestplan":
+            return [self.next_week_plan()]
+        if command == "/plan":
+            return [weekly_plan_context()]
+        if command == "/setplan":
+            return [self._set_weekly_plan_from_message(text)]
+        if command == "/goal":
+            return [training_goal_context()]
+        if command == "/setgoal":
+            return [self._set_training_goal_from_message(text)]
+        if command in {"/preferences", "/profile"}:
+            return [athlete_profile_context()]
+        if command in {"/preference", "/note"}:
+            return [self._save_coaching_preference_from_message(text, command)]
+        if command == "/garmin":
+            return [current_garmin_context()]
+        if command in {"/garminweek", "/garmin-week"}:
+            return [safe_garmin_weekly_context(days=7)]
+        if command == "/tick":
+            messages = self.tick()
+            return messages or ["No scheduled messages due."]
+        if command == "/check":
+            return self.check_new_runs(force=True)
+        return [self.coach_reply(text)]
+
+    def coach_reply(self, text: str) -> str:
         log_event("debug", {"message": "coach_reply_recent_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
         log_event(
@@ -211,7 +150,7 @@ class TelegramRunningAgent:
         self.conversation = self.conversation[-12:]
         return reply
 
-    def _training_summary(self) -> str:
+    def training_summary(self) -> str:
         log_event("debug", {"message": "training_summary_recent_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
         log_event(
@@ -220,13 +159,7 @@ class TelegramRunningAgent:
         )
         return summarize_training(activities, days=self.lookback_days)
 
-    def send_last_run_summary(self, chat_id: int | str | None = None) -> None:
-        target_chat_id = chat_id or self.allowed_chat_id
-        if not target_chat_id:
-            raise RuntimeError(
-                "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
-            )
-
+    def last_run_summary(self) -> str:
         log_event("debug", {"message": "last_run_recent_activities_start"})
         activities = self.strava.recent_activities(days=max(self.lookback_days, 90))
         log_event("debug", {"message": "last_run_recent_activities_done", "count": len(activities)})
@@ -234,8 +167,7 @@ class TelegramRunningAgent:
         last_run = self.strava.latest_run(days=max(self.lookback_days, 90))
         log_event("debug", {"message": "last_run_lookup_done", "found": bool(last_run)})
         if not last_run:
-            self._send_message(target_chat_id, "No recent Strava runs found.")
-            return
+            return "No recent Strava runs found."
         log_event(
             "debug",
             {"message": "last_run_detail_start", "activity_id": last_run.get("id")},
@@ -271,50 +203,25 @@ class TelegramRunningAgent:
             log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
         except RuntimeError as error:
             note = _last_run_fallback_note(last_run, error)
-        self._send_message(target_chat_id, note)
+        return note
 
-    def send_run_summary_for_date(
-        self,
-        date_text: str,
-        chat_id: int | str | None = None,
-        search_days: int = 120,
-    ) -> None:
-        target_chat_id = chat_id or self.allowed_chat_id
-        if not target_chat_id:
-            raise RuntimeError(
-                "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
-            )
+    def run_summary_for_date(self, date_text: str, search_days: int = 120) -> str:
         target_date = datetime.strptime(date_text, "%Y-%m-%d").date()
-        log_event(
-            "debug",
-            {"message": "run_summary_start", "chat_id": target_chat_id, "date": date_text},
-        )
+        log_event("debug", {"message": "run_summary_start", "date": date_text})
         summary = run_summary_for_date(
             self.strava,
             target_date,
             search_days=search_days,
             lookback_days=self.lookback_days,
         )
-        log_event(
-            "debug",
-            {"message": "run_summary_done", "chat_id": target_chat_id, "date": date_text},
-        )
-        self._send_message(target_chat_id, summary)
+        log_event("debug", {"message": "run_summary_done", "date": date_text})
+        return summary
 
-    def send_next_week_plan(self, chat_id: int | str | None = None) -> None:
-        target_chat_id = chat_id or self.allowed_chat_id
-        if not target_chat_id:
-            raise RuntimeError(
-                "No Telegram chat is configured yet. Message the bot once, or set TELEGRAM_CHAT_ID."
-            )
+    def next_week_plan(self) -> str:
         target_week_start = next_week_start(coach_today())
         log_event(
             "debug",
-            {
-                "message": "suggest_plan_start",
-                "chat_id": target_chat_id,
-                "week_start": target_week_start.isoformat(),
-            },
+            {"message": "suggest_plan_start", "week_start": target_week_start.isoformat()},
         )
         plan = suggest_next_week_plan(
             self.strava,
@@ -323,69 +230,14 @@ class TelegramRunningAgent:
         )
         log_event(
             "debug",
-            {
-                "message": "suggest_plan_done",
-                "chat_id": target_chat_id,
-                "week_start": target_week_start.isoformat(),
-            },
+            {"message": "suggest_plan_done", "week_start": target_week_start.isoformat()},
         )
-        self._send_message(target_chat_id, plan)
+        return plan
 
-    def _send_run_summary_from_message(self, chat_id: int | str, text: str) -> None:
-        date_text = text[len("/run") :].strip()
-        if not date_text:
-            self._send_message(chat_id, "Send a date like:\n/run 2026-05-27")
-            return
-        self.send_run_summary_for_date(date_text, chat_id=chat_id)
-
-    def _set_weekly_plan_from_message(self, chat_id: int | str, text: str) -> None:
-        plan_text = text[len("/setplan") :].strip()
-        if not plan_text.strip():
-            self._send_message(
-                chat_id,
-                "Send the plan after the command, like:\n/setplan\nMon easy 5\nTue workout",
-            )
-            return
-        save_weekly_plan(plan_text)
-        self._send_message(chat_id, "Saved this week's plan. I will use it in coaching.")
-
-    def _set_training_goal_from_message(self, chat_id: int | str, text: str) -> None:
-        goal_text = text[len("/setgoal") :].strip()
-        if not goal_text.strip():
-            self._send_message(
-                chat_id,
-                "Send the goal after the command, like:\n"
-                "/setgoal Boston Marathon on Oct 12, target 3:20, stay healthy.",
-            )
-            return
-        save_training_goal(goal_text)
-        self._send_message(chat_id, "Saved your training goal. I will use it in coaching.")
-
-    def _save_coaching_preference_from_message(
-        self,
-        chat_id: int | str,
-        text: str,
-        command: str,
-    ) -> None:
-        preference_text = text[len(command) :].strip()
-        if not preference_text:
-            self._send_message(
-                chat_id,
-                "Send the coaching preference after the command, like:\n"
-                "/preference I prefer workouts by effort when Garmin readiness is low.",
-            )
-            return
-        append_coaching_preference(preference_text)
-        self._send_message(
-            chat_id, "Saved that coaching preference. I will use it in future coaching."
-        )
-
-    def _send_sunday_plan_if_due(self) -> None:
-        if not self.allowed_chat_id:
-            return
+    def sunday_plan_if_due(self) -> str | None:
         now = coach_now()
         if not should_send_sunday_plan(now, self.state):
-            return
+            return None
 
         target_week_start = next_week_start(now.date())
         log_event(
@@ -402,51 +254,39 @@ class TelegramRunningAgent:
             "debug",
             {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
         )
-        self._send_message(self.allowed_chat_id, message)
         mark_sunday_plan_sent(now, self.state)
-        _save_state(self.state, self.state_path)
+        self._save_state()
+        return message
 
-    def _send_daily_checkin_if_due(self) -> None:
-        if not self.allowed_chat_id:
-            return
+    def daily_checkin_if_due(self) -> str | None:
         now = coach_now()
         if not should_send_daily_checkin(now, self.state):
-            return
+            return None
         if not has_planned_workout_for_date(now.date()):
             log_event(
                 "debug",
                 {"message": "daily_checkin_skipped_no_plan", "date": now.date().isoformat()},
             )
             mark_daily_checkin_sent(now, self.state)
-            _save_state(self.state, self.state_path)
-            return
+            self._save_state()
+            return None
         if has_completed_run_for_date(self.strava, now.date()):
             log_event(
                 "debug",
                 {"message": "daily_checkin_skipped_run_completed", "date": now.date().isoformat()},
             )
             mark_daily_checkin_sent(now, self.state)
-            _save_state(self.state, self.state_path)
-            return
+            self._save_state()
+            return None
 
-        log_event(
-            "debug",
-            {"message": "daily_checkin_start", "date": now.date().isoformat()},
-        )
-        checkin = daily_workout_checkin(
-            self.strava,
-            target_date=now.date(),
-            lookback_days=7,
-        )
-        log_event(
-            "debug",
-            {"message": "daily_checkin_done", "date": now.date().isoformat()},
-        )
-        self._send_message(self.allowed_chat_id, checkin)
+        log_event("debug", {"message": "daily_checkin_start", "date": now.date().isoformat()})
+        checkin = daily_workout_checkin(self.strava, target_date=now.date(), lookback_days=7)
+        log_event("debug", {"message": "daily_checkin_done", "date": now.date().isoformat()})
         mark_daily_checkin_sent(now, self.state)
-        _save_state(self.state, self.state_path)
+        self._save_state()
+        return checkin
 
-    def _refresh_garmin_cache_if_due(self) -> None:
+    def refresh_garmin_cache_if_due(self) -> None:
         now = coach_now()
         if now.time() < GARMIN_REFRESH_TIME:
             return
@@ -465,28 +305,10 @@ class TelegramRunningAgent:
             self.state["last_garmin_refresh_date"] = today
             self.state.pop("last_garmin_refresh_error", None)
             log_event("debug", {"message": "garmin_refresh_done", "date": today})
-        _save_state(self.state, self.state_path)
+        self._save_state()
 
-    def _seed_seen_activities(self) -> None:
-        if self.state.get("seen_activity_ids"):
-            return
-        log_event("debug", {"message": "seed_seen_activities_start"})
-        activities = self.strava.recent_activities(days=self.lookback_days)
-        log_event("debug", {"message": "seed_seen_activities_done", "count": len(activities)})
-        self.state["seen_activity_ids"] = [
-            activity["id"] for activity in activities if "id" in activity
-        ]
-        _save_state(self.state, self.state_path)
-
-    def _notify_new_runs(self, force_chat_id: int | None = None) -> None:
-        chat_id = force_chat_id or self.allowed_chat_id
-        if not chat_id:
-            return
-
-        log_event(
-            "debug",
-            {"message": "notify_new_runs_start", "chat_id": chat_id, "forced": bool(force_chat_id)},
-        )
+    def check_new_runs(self, force: bool = False) -> list[str]:
+        log_event("debug", {"message": "notify_new_runs_start", "forced": force})
         activities = self.strava.recent_activities(days=self.lookback_days)
         seen = set(self.state.get("seen_activity_ids", []))
         new_runs = [
@@ -497,7 +319,7 @@ class TelegramRunningAgent:
         self.state["seen_activity_ids"] = [
             activity["id"] for activity in activities if "id" in activity
         ]
-        _save_state(self.state, self.state_path)
+        self._save_state()
         log_event(
             "debug",
             {
@@ -508,10 +330,9 @@ class TelegramRunningAgent:
         )
 
         if not new_runs:
-            if force_chat_id:
-                self._send_message(chat_id, "No new Strava runs since my last check.")
-            return
+            return ["No new Strava runs since my last check."] if force else []
 
+        messages = []
         for run in reversed(new_runs):
             log_event("debug", {"message": "new_run_detail_start", "activity_id": run.get("id")})
             detailed_run = self.strava.detailed_activity(run["id"])
@@ -539,10 +360,44 @@ class TelegramRunningAgent:
                 conversation=self.conversation,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
-            self._send_message(chat_id, note)
+            messages.append(note)
+        return messages
+
+    def _run_summary_from_message(self, text: str) -> str:
+        date_text = text[len("/run") :].strip()
+        if not date_text:
+            return "Send a date like:\n/run 2026-05-27"
+        return self.run_summary_for_date(date_text)
+
+    def _set_weekly_plan_from_message(self, text: str) -> str:
+        plan_text = text[len("/setplan") :].strip()
+        if not plan_text.strip():
+            return "Send the plan after the command, like:\n/setplan\nMon easy 5\nTue workout"
+        save_weekly_plan(plan_text)
+        return "Saved this week's plan. I will use it in coaching."
+
+    def _set_training_goal_from_message(self, text: str) -> str:
+        goal_text = text[len("/setgoal") :].strip()
+        if not goal_text.strip():
+            return (
+                "Send the goal after the command, like:\n"
+                "/setgoal Boston Marathon on Oct 12, target 3:20, stay healthy."
+            )
+        save_training_goal(goal_text)
+        return "Saved your training goal. I will use it in coaching."
+
+    def _save_coaching_preference_from_message(self, text: str, command: str) -> str:
+        preference_text = text[len(command) :].strip()
+        if not preference_text:
+            return (
+                "Send the coaching preference after the command, like:\n"
+                "/preference I prefer workouts by effort when Garmin readiness is low."
+            )
+        append_coaching_preference(preference_text)
+        return "Saved that coaching preference. I will use it in future coaching."
 
 
-def _help_text() -> str:
+def help_text() -> str:
     return (
         "Send me any running question and I will answer using your recent Strava context.\n\n"
         "Commands:\n"
@@ -560,6 +415,7 @@ def _help_text() -> str:
         "/garmin - show today's Garmin readiness context\n"
         "/garminweek - show recent Garmin recovery trend\n"
         "/check - check Strava for newly synced runs\n"
+        "/tick - run scheduled checks now\n"
         "/help - show this help\n\n"
         "You can also say things like 'remember that I prefer long runs on Saturday' and I will "
         "decide whether to save that as future coaching context. If you state a durable race "
@@ -592,12 +448,3 @@ def _activity_date(activity: dict[str, Any]):
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
         return coach_today()
-
-
-def _load_state(path: Path) -> dict[str, Any]:
-    state = read_json_file(path, default={})
-    return state if isinstance(state, dict) else {}
-
-
-def _save_state(state: dict[str, Any], path: Path) -> None:
-    write_json_file(path, state)

@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
-from running_agent.telegram_agent import TelegramRunningAgent
+from running_agent.telegram_transport import TelegramTransport
 
 METERS_PER_MILE = 1609.344
 
@@ -17,12 +17,12 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.log_event")
-    @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin context")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.telegram_transport.log_event")
+    @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
     @patch(
-        "running_agent.telegram_agent.coaching_reply",
+        "running_agent.coach_agent.coaching_reply",
         return_value="Nice work on that 5-mile run.",
     )
     def test_last_run_summary_passes_current_garmin_context(
@@ -33,7 +33,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
         agent.strava = _FakeStrava(
             activities=[_run(1, "Easy Run", "2026-05-30T06:00:00Z")],
             latest=_run(1, "Easy Run", "2026-05-30T06:00:00Z"),
@@ -54,13 +54,13 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.append_run_result")
-    @patch("running_agent.telegram_agent.log_event")
-    @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin context")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.coach_agent.append_run_result")
+    @patch("running_agent.telegram_transport.log_event")
+    @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
     @patch(
-        "running_agent.telegram_agent.coaching_reply",
+        "running_agent.coach_agent.coaching_reply",
         return_value="Nice work on that workout.",
     )
     def test_new_run_summary_passes_current_garmin_context(
@@ -73,7 +73,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _telegram_client,
     ) -> None:
         run = _run(2, "Workout", "2026-05-30T06:00:00Z")
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
         agent.state["seen_activity_ids"] = []
         agent.strava = _FakeStrava(activities=[run], latest=run, detailed={2: run})
         agent.telegram = _FakeTelegram()
@@ -91,13 +91,13 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent._save_state")
-    @patch("running_agent.telegram_agent.log_event")
-    @patch("running_agent.telegram_agent.coach_now")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.telegram_transport.save_agent_state")
+    @patch("running_agent.telegram_transport.log_event")
+    @patch("running_agent.coach_agent.coach_now")
     @patch(
-        "running_agent.telegram_agent.weekly_coaching_message",
+        "running_agent.coach_agent.weekly_coaching_message",
         return_value="You had a great week. Here is next week.",
     )
     def test_sunday_message_uses_integrated_weekly_coaching_message(
@@ -110,7 +110,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _telegram_client,
     ) -> None:
         coach_now.return_value = datetime(2026, 5, 31, 18, 0)
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
         agent.telegram = _FakeTelegram()
         agent.strava = _FakeStrava([], latest={}, detailed={})
 
@@ -129,10 +129,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.log_event")
-    @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin today")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.telegram_transport.log_event")
+    @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin today")
     def test_garmin_command_sends_current_context(
         self,
         current_garmin_context,
@@ -140,7 +140,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
         agent.telegram = _FakeTelegram()
 
         agent._handle_message(123, "/garmin")
@@ -153,10 +153,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.log_event")
-    @patch("running_agent.telegram_agent.safe_garmin_weekly_context", return_value="Garmin week")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.telegram_transport.log_event")
+    @patch("running_agent.coach_agent.safe_garmin_weekly_context", return_value="Garmin week")
     def test_garminweek_command_sends_weekly_context(
         self,
         safe_garmin_weekly_context,
@@ -164,7 +164,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
         agent.telegram = _FakeTelegram()
 
         agent._handle_message(123, "/garminweek")
@@ -177,10 +177,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.refresh_garmin_snapshots")
-    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
     def test_garmin_cache_refresh_runs_once_per_day(
         self,
         _coach_now,
@@ -188,7 +188,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
 
         agent._refresh_garmin_cache_if_due()
         agent._refresh_garmin_cache_if_due()
@@ -202,12 +202,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch(
-        "running_agent.telegram_agent.refresh_garmin_snapshots", side_effect=RuntimeError("nope")
-    )
-    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots", side_effect=RuntimeError("nope"))
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
     def test_garmin_cache_refresh_failure_is_not_retried_until_tomorrow(
         self,
         _coach_now,
@@ -215,7 +213,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
 
         agent._refresh_garmin_cache_if_due()
         agent._refresh_garmin_cache_if_due()
@@ -230,10 +228,10 @@ class TelegramGarminContextTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.refresh_garmin_snapshots")
-    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 4, 59))
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 4, 59))
     def test_garmin_cache_refresh_waits_until_morning(
         self,
         _coach_now,
@@ -241,7 +239,7 @@ class TelegramGarminContextTest(unittest.TestCase):
         _strava_client,
         _telegram_client,
     ) -> None:
-        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent = TelegramTransport(state_path=_temp_path())
 
         agent._refresh_garmin_cache_if_due()
 

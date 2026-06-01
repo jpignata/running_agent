@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from running_agent.telegram_agent import TelegramRunningAgent
+from running_agent.telegram_transport import TelegramTransport
 
 
 class TelegramRetryTest(unittest.TestCase):
@@ -14,10 +14,10 @@ class TelegramRetryTest(unittest.TestCase):
         {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
         clear=True,
     )
-    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
-    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
-    @patch("running_agent.telegram_agent.time.sleep")
-    @patch("running_agent.telegram_agent.log_event")
+    @patch("running_agent.telegram_transport.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_transport.StravaClient", return_value=None)
+    @patch("running_agent.telegram_transport.time.sleep")
+    @patch("running_agent.telegram_transport.log_event")
     @patch("builtins.print")
     def test_run_forever_retries_transient_timeout(
         self,
@@ -40,7 +40,7 @@ class TelegramRetryTest(unittest.TestCase):
         )
 
 
-class _RetryProbeAgent(TelegramRunningAgent):
+class _RetryProbeAgent(TelegramTransport):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.update_calls = 0
