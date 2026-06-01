@@ -27,6 +27,7 @@ from .daily_checkin import (
 )
 from .event_log import log_event
 from .feedback import summarize_training
+from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
@@ -155,6 +156,10 @@ class TelegramRunningAgent:
                 self._send_message(chat_id, athlete_profile_context())
             elif command in {"/preference", "/note"}:
                 self._save_coaching_preference_from_message(chat_id, text, command)
+            elif command == "/garmin":
+                self._send_message(chat_id, current_garmin_context())
+            elif command in {"/garminweek", "/garmin-week"}:
+                self._send_message(chat_id, safe_garmin_weekly_context(days=7))
             elif command == "/check":
                 self._notify_new_runs(force_chat_id=chat_id)
             else:
@@ -527,6 +532,8 @@ def _help_text() -> str:
         "/setgoal <goal> - save your overall training goal\n"
         "/preferences - show remembered coaching notes\n"
         "/preference <note> - explicitly save a coaching note\n"
+        "/garmin - show today's Garmin readiness context\n"
+        "/garminweek - show recent Garmin recovery trend\n"
         "/check - check Strava for newly synced runs\n"
         "/help - show this help\n\n"
         "You can also say things like 'remember that I prefer long runs on Saturday' and I will "

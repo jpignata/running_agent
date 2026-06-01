@@ -140,12 +140,14 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
         lines.append(
             "Body Battery: "
             f"avg daily low {_mean(body_battery_lows):.0f}, "
-            f"latest daily low {body_battery_lows[-1]:.0f}; "
-            "compare against the athlete's usual range before treating this as a red flag."
+            f"latest daily low {body_battery_lows[-1]:.0f}."
         )
     if sleep_hours:
         lines.append(
-            f"Sleep: avg {_mean(sleep_hours):.1f}h, short nights {sum(value < 6 for value in sleep_hours)}."
+            "Sleep: "
+            f"avg {_mean(sleep_hours):.1f}h, "
+            f"latest {sleep_hours[-1]:.1f}h, "
+            f"range {min(sleep_hours):.1f}-{max(sleep_hours):.1f}h."
         )
     else:
         lines.append("Sleep: unavailable or no duration fields found.")

@@ -199,9 +199,9 @@ class GarminContextTest(unittest.TestCase):
         self.assertIn("HRV: avg 43 ms, latest 43 ms (Low).", context)
         self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
         self.assertIn("Stress: avg 39, high-stress days 2.", context)
-        self.assertIn("Body Battery: avg daily low 35, latest daily low 35", context)
-        self.assertIn("compare against the athlete's usual range", context)
-        self.assertIn("Sleep: avg 6.1h, short nights 2.", context)
+        self.assertIn("Body Battery: avg daily low 35, latest daily low 35.", context)
+        self.assertIn("Sleep: avg 6.1h, latest 5.8h, range 5.5-7.0h.", context)
+        self.assertNotIn("red flag", context)
         self.assertIn("VO2 max: latest 52.0.", context)
 
 

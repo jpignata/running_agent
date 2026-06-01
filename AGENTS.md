@@ -44,8 +44,8 @@ source .venv/bin/activate
 ```bash
 python -m unittest discover -s tests
 python -m compileall running_agent tests
-python -m running_agent run-detail 2026-05-27
-python -m running_agent run-summary 2026-05-27
+python -m running_agent auth-url
+python -m running_agent me
 python -m running_agent repl
 python -m running_agent telegram
 ```

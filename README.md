@@ -47,21 +47,6 @@ Verify the connection:
 python -m running_agent me
 ```
 
-Fetch recent activities and print early feedback:
-
-```bash
-python -m running_agent recent --days 14
-```
-
-Print the latest Strava run:
-
-```bash
-python -m running_agent latest-run
-python -m running_agent latest-run-detail
-python -m running_agent run-detail 2026-05-27
-python -m running_agent run-summary 2026-05-27
-```
-
 ## Step 2: Connect Garmin
 
 Garmin Connect is optional, but it gives the coach recovery context for morning workout
@@ -72,15 +57,8 @@ GARMIN_EMAIL=you@example.com
 GARMIN_PASSWORD=your-garmin-password
 ```
 
-Then verify the read-only readiness context:
-
-```bash
-python -m running_agent garmin-context
-python -m running_agent garmin-weekly-context
-```
-
-The first run may prompt for a Garmin MFA code. Garmin tokens are cached under
-`~/.garminconnect`.
+The first coaching request that uses Garmin may prompt for a Garmin MFA code. Garmin tokens
+are cached under `~/.garminconnect`.
 
 ## Step 3: Connect Telegram
 
@@ -128,8 +106,8 @@ To test the Telegram-style chat flow locally without sending Telegram messages, 
 python -m running_agent repl
 ```
 
-The REPL uses the same command handler as Telegram. Type `/help` to list commands and `/quit`
-to exit. By default it hides rx/tx log lines; add `--debug-log` to see them.
+The REPL uses the same command handler as Telegram. Type `/help` to list chat commands and
+`/quit` to exit. By default it hides rx/tx log lines; add `--debug-log` to see them.
 
 Then message the bot on Telegram. It supports:
 
@@ -143,6 +121,8 @@ Then message the bot on Telegram. It supports:
 - `/setgoal <goal>` - save your overall training goal
 - `/preferences` - show remembered coaching notes and preferences
 - `/preference <note>` - explicitly save a coaching note
+- `/garmin` - show today's Garmin readiness context
+- `/garminweek` - show recent Garmin recovery trend
 - `/check` - check for newly synced Strava runs now
 - Any other message - chat with the coach using recent Strava context
 
@@ -177,45 +157,29 @@ plan, the last week of runs, the coach log, and your overall goal. If there is n
 scheduled for the day or Strava already has a completed run for that date, the bot sends
 nothing.
 
-For a quick demo without waiting for the bot loop, send a latest-run summary directly:
-
-```bash
-python -m running_agent send-last-run
-python -m running_agent send-run-summary 2026-05-27
-python -m running_agent weekly-review --no-log
-python -m running_agent suggest-plan
-```
-
 ## Step 4: Add A Weekly Plan
 
-Save a plain-text weekly plan so the coach can compare completed Strava runs against what
-you intended to do:
-
-```bash
-python -m running_agent set-plan weekly-plan.txt
-python -m running_agent show-plan
-```
-
-You can also paste the plan into Telegram:
+Send the plan in Telegram or the local REPL so the coach can compare completed Strava runs
+against what you intended to do:
 
 ```text
 /setplan Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
 ```
 
+You can also use natural language, for example `here is my plan for next week...`; the model
+may call its plan-saving tool and rewrite it into the saved weekly plan format.
+
 ## Step 5: Add An Overall Goal
 
-Save the larger goal so the coach can interpret workouts in context:
-
-```bash
-python -m running_agent set-goal "Chicago Marathon on Oct 11, target 3:20, stay healthy."
-python -m running_agent show-goal
-```
-
-Or set it in Telegram:
+Set the larger goal in Telegram or the local REPL so the coach can interpret workouts in
+context:
 
 ```text
 /setgoal Chicago Marathon on Oct 11, target 3:20, stay healthy.
 ```
+
+You can also state the goal naturally, for example `my main goal is Chicago on Oct 11,
+target 3:20`; the model may call its goal-update tool and rewrite the saved goal.
 
 ## What The First Agent Checks
 

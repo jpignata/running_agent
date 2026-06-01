@@ -124,6 +124,54 @@ class TelegramGarminContextTest(unittest.TestCase):
         self.assertEqual(kwargs["lookback_days"], 42)
         self.assertEqual(agent.state["last_next_week_plan_start"], "2026-06-01")
 
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch("running_agent.telegram_agent.log_event")
+    @patch("running_agent.telegram_agent.current_garmin_context", return_value="Garmin today")
+    def test_garmin_command_sends_current_context(
+        self,
+        current_garmin_context,
+        _log_event,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent.telegram = _FakeTelegram()
+
+        agent._handle_message(123, "/garmin")
+
+        self.assertEqual(agent.telegram.messages, ["Garmin today"])
+        current_garmin_context.assert_called_once_with()
+
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch("running_agent.telegram_agent.log_event")
+    @patch("running_agent.telegram_agent.safe_garmin_weekly_context", return_value="Garmin week")
+    def test_garminweek_command_sends_weekly_context(
+        self,
+        safe_garmin_weekly_context,
+        _log_event,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        agent = TelegramRunningAgent(state_path=_temp_path())
+        agent.telegram = _FakeTelegram()
+
+        agent._handle_message(123, "/garminweek")
+
+        self.assertEqual(agent.telegram.messages, ["Garmin week"])
+        safe_garmin_weekly_context.assert_called_once_with(days=7)
+
 
 class _FakeStrava:
     def __init__(self, activities: list[dict], latest: dict, detailed: dict[int, dict]):
