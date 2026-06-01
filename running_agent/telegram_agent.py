@@ -5,6 +5,7 @@ import os
 import socket
 import time
 from datetime import datetime
+from datetime import time as datetime_time
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
@@ -27,6 +28,7 @@ from .daily_checkin import (
 )
 from .event_log import log_event
 from .feedback import summarize_training
+from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
 from .openai_client import coaching_reply
@@ -44,6 +46,7 @@ from .telegram_client import TelegramClient
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 21
+GARMIN_REFRESH_TIME = datetime_time(5, 0)
 TRANSIENT_ERRORS = (
     TimeoutError,
     socket.timeout,
@@ -84,6 +87,7 @@ class TelegramRunningAgent:
         while True:
             try:
                 self._handle_telegram_updates()
+                self._refresh_garmin_cache_if_due()
                 self._send_daily_checkin_if_due()
                 self._send_sunday_plan_if_due()
                 if time.monotonic() >= next_strava_check:
@@ -440,6 +444,27 @@ class TelegramRunningAgent:
         )
         self._send_message(self.allowed_chat_id, checkin)
         mark_daily_checkin_sent(now, self.state)
+        _save_state(self.state, self.state_path)
+
+    def _refresh_garmin_cache_if_due(self) -> None:
+        now = coach_now()
+        if now.time() < GARMIN_REFRESH_TIME:
+            return
+        today = now.date().isoformat()
+        if self.state.get("last_garmin_refresh_attempt_date") == today:
+            return
+
+        log_event("debug", {"message": "garmin_refresh_start", "date": today})
+        self.state["last_garmin_refresh_attempt_date"] = today
+        try:
+            refresh_garmin_snapshots(days=45)
+        except RuntimeError as error:
+            self.state["last_garmin_refresh_error"] = str(error)
+            log_event("debug", {"message": "garmin_refresh_failed", "error": str(error)})
+        else:
+            self.state["last_garmin_refresh_date"] = today
+            self.state.pop("last_garmin_refresh_error", None)
+            log_event("debug", {"message": "garmin_refresh_done", "date": today})
         _save_state(self.state, self.state_path)
 
     def _seed_seen_activities(self) -> None:

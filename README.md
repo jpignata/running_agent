@@ -60,6 +60,11 @@ GARMIN_PASSWORD=your-garmin-password
 The first coaching request that uses Garmin may prompt for a Garmin MFA code. Garmin tokens
 are cached under `~/.garminconnect`.
 
+The Telegram process refreshes recent Garmin snapshots once per day after 5:00am Eastern
+and stores them in `.data/garmin_snapshots.json`. Garmin commands and coaching prompts use
+that local cache for daily context and athlete baseline ranges instead of refetching the
+full baseline on every request.
+
 ## Step 3: Connect Telegram
 
 Create a bot with Telegram's `@BotFather`, copy the bot token, and add it to `.env`:
@@ -141,8 +146,9 @@ format and save it in `.data/weekly_plan.json`.
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
 today's weekly plan has a matched workout that has not already been completed, and sends
-one Sunday evening review plus next-week plan idea after 6:00pm Eastern. Change the polling
-interval with:
+one Sunday evening review plus next-week plan idea after 6:00pm Eastern. It also refreshes
+the Garmin snapshot cache once per day after 5:00am Eastern. Change the polling interval
+with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -192,8 +198,9 @@ target 3:20`; the model may call its goal-update tool and rewrite the saved goal
 - Athlete-provided weekly plan context
 - Athlete-provided overall training goal context
 - Local coach log of planned-versus-completed runs
-- Garmin readiness context for morning workout check-ins
+- Cached Garmin readiness context and baseline ranges for coaching prompts
 - New-run monitoring with a short post-run coaching note
+- Daily Garmin snapshot refresh after 5:00am Eastern
 - Daily 5:30am Eastern workout check-ins for planned, not-yet-completed workout days
 - Sunday evening weekly reviews and next-week plan suggestions after 6:00pm Eastern
 

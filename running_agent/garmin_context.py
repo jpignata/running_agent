@@ -1,32 +1,47 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 from typing import Any
 
+from .garmin_cache import cached_garmin_snapshots, refresh_garmin_snapshots
 from .garmin_client import GarminClient
 
 NUMERIC_TYPES = (int, float)
+DAILY_BASELINE_DAYS = 14
+WEEKLY_BASELINE_DAYS = 45
 
 
 def garmin_readiness_context(
-    client: GarminClient | None = None, target_date: date | None = None
+    client: GarminClient | None = None,
+    target_date: date | None = None,
+    baseline_days: int = DAILY_BASELINE_DAYS,
 ) -> str:
     client = client or GarminClient()
-    snapshot = client.readiness_snapshot(target_date=target_date)
-    return format_garmin_readiness_context(snapshot)
+    target_date = target_date or date.today()
+    snapshots = cached_garmin_snapshots(target_date, 1)
+    baseline_snapshots = cached_garmin_snapshots(target_date, baseline_days)
+    if not snapshots:
+        refresh_garmin_snapshots(client, end_date=target_date, days=max(1, baseline_days))
+        snapshots = cached_garmin_snapshots(target_date, 1)
+        baseline_snapshots = cached_garmin_snapshots(target_date, baseline_days)
+    snapshot = snapshots[-1] if snapshots else client.readiness_snapshot(target_date=target_date)
+    return format_garmin_readiness_context(snapshot, baseline_snapshots=baseline_snapshots)
 
 
-def garmin_weekly_context(client: GarminClient | None = None, days: int = 7) -> str:
+def garmin_weekly_context(
+    client: GarminClient | None = None,
+    days: int = 7,
+    baseline_days: int = WEEKLY_BASELINE_DAYS,
+) -> str:
     client = client or GarminClient()
     today = date.today()
-    snapshots = [
-        client.readiness_snapshot(
-            target_date=today - timedelta(days=offset),
-            vo2max_lookback_days=0,
-        )
-        for offset in reversed(range(days))
-    ]
-    return format_garmin_weekly_context(snapshots)
+    snapshots = cached_garmin_snapshots(today, days)
+    baseline_snapshots = cached_garmin_snapshots(today, baseline_days)
+    if len(snapshots) < days:
+        refresh_garmin_snapshots(client, end_date=today, days=max(days, baseline_days))
+        snapshots = cached_garmin_snapshots(today, days)
+        baseline_snapshots = cached_garmin_snapshots(today, baseline_days)
+    return format_garmin_weekly_context(snapshots, baseline_snapshots=baseline_snapshots)
 
 
 def safe_garmin_weekly_context(days: int = 7) -> str:
@@ -36,7 +51,10 @@ def safe_garmin_weekly_context(days: int = 7) -> str:
         return f"Garmin recovery context unavailable: {error}"
 
 
-def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
+def format_garmin_weekly_context(
+    snapshots: list[dict[str, Any]],
+    baseline_snapshots: list[dict[str, Any]] | None = None,
+) -> str:
     if not snapshots:
         return "Garmin recovery context: no recent Garmin snapshots available."
 
@@ -153,11 +171,17 @@ def format_garmin_weekly_context(snapshots: list[dict[str, Any]]) -> str:
         lines.append("Sleep: unavailable or no duration fields found.")
     if vo2_values:
         lines.append(f"VO2 max: latest {vo2_values[-1]:.1f}.")
+    if baseline_snapshots:
+        lines.append("")
+        lines.append(format_garmin_baseline_context(baseline_snapshots))
 
     return "\n".join(lines)
 
 
-def format_garmin_readiness_context(snapshot: dict[str, Any]) -> str:
+def format_garmin_readiness_context(
+    snapshot: dict[str, Any],
+    baseline_snapshots: list[dict[str, Any]] | None = None,
+) -> str:
     lines = [f"Garmin readiness context for {snapshot.get('date', 'unknown date')}:"]
 
     lines.extend(
@@ -176,8 +200,26 @@ def format_garmin_readiness_context(snapshot: dict[str, Any]) -> str:
     errors = _error_lines(snapshot)
     if errors:
         lines.append("Missing Garmin fields: " + "; ".join(errors))
+    if baseline_snapshots:
+        lines.append("")
+        lines.append(format_garmin_baseline_context(baseline_snapshots))
 
     return "\n".join(line for line in lines if line)
+
+
+def format_garmin_baseline_context(snapshots: list[dict[str, Any]]) -> str:
+    metrics = _baseline_metrics(snapshots)
+    if not metrics:
+        return "Athlete Garmin baseline: unavailable."
+
+    lines = [f"Athlete Garmin baseline, last {len(snapshots)} snapshots:"]
+    _append_baseline_line(lines, "Sleep", metrics.get("sleep_hours"), "h", decimals=1)
+    _append_baseline_line(lines, "Resting HR", metrics.get("resting_hr"), " bpm")
+    _append_baseline_line(lines, "HRV", metrics.get("hrv"), " ms")
+    _append_baseline_line(lines, "Stress", metrics.get("stress"), "")
+    _append_baseline_line(lines, "Body Battery low", metrics.get("body_battery_low"), "")
+    _append_baseline_line(lines, "Training readiness", metrics.get("readiness"), "")
+    return "\n".join(lines)
 
 
 def _data(snapshot: dict[str, Any], key: str) -> Any:
@@ -192,6 +234,82 @@ def _data(snapshot: dict[str, Any], key: str) -> Any:
                 data = {"values": data, "_source_date": value.get("date")}
         return data
     return None
+
+
+def _baseline_metrics(snapshots: list[dict[str, Any]]) -> dict[str, list[float]]:
+    metrics: dict[str, list[float]] = {
+        "sleep_hours": [],
+        "resting_hr": [],
+        "hrv": [],
+        "stress": [],
+        "body_battery_low": [],
+        "readiness": [],
+    }
+    for snapshot in snapshots:
+        sleep_seconds = _sleep_seconds(_data(snapshot, "sleep"))
+        if sleep_seconds is not None:
+            metrics["sleep_hours"].append(sleep_seconds / 3600)
+
+        heart_rates = _data(snapshot, "heart_rates")
+        stats = _data(snapshot, "stats")
+        resting_hr = None
+        if isinstance(heart_rates, dict):
+            resting_hr = _first_number(heart_rates, ["restingHeartRate", "restingHR"])
+        if resting_hr is None and isinstance(stats, dict):
+            resting_hr = _first_number(stats, ["restingHeartRate", "restingHR"])
+        if resting_hr is not None:
+            metrics["resting_hr"].append(resting_hr)
+
+        hrv = _data(snapshot, "hrv")
+        if isinstance(hrv, dict):
+            hrv_value = _nested_first(
+                hrv,
+                [
+                    ["hrvSummary", "lastNightAvg"],
+                    ["hrvSummary", "weeklyAvg"],
+                    ["lastNightAvg"],
+                    ["weeklyAvg"],
+                ],
+            )
+            if isinstance(hrv_value, NUMERIC_TYPES):
+                metrics["hrv"].append(float(hrv_value))
+
+        stress = _data(snapshot, "stress")
+        if isinstance(stress, dict):
+            stress_avg = _first_number(
+                stress,
+                ["avgStressLevel", "averageStressLevel", "overallStressLevel"],
+            )
+            if stress_avg is not None:
+                metrics["stress"].append(stress_avg)
+
+        low_battery = _body_battery_low(_data(snapshot, "body_battery"), stats)
+        if low_battery is not None:
+            metrics["body_battery_low"].append(low_battery)
+
+        readiness = _latest_dict(_as_list(_data(snapshot, "training_readiness")))
+        score = _first_number(readiness, ["score", "trainingReadinessScore"])
+        if score is not None:
+            metrics["readiness"].append(score)
+
+    return {key: values for key, values in metrics.items() if values}
+
+
+def _append_baseline_line(
+    lines: list[str],
+    label: str,
+    values: list[float] | None,
+    unit: str,
+    decimals: int = 0,
+) -> None:
+    if not values:
+        return
+    low, high = _typical_range(values)
+    median = _median(values)
+    lines.append(
+        f"{label}: typical {_format_number(low, decimals)}-{_format_number(high, decimals)}"
+        f"{unit}, median {_format_number(median, decimals)}{unit}."
+    )
 
 
 def _error_lines(snapshot: dict[str, Any]) -> list[str]:
@@ -458,3 +576,32 @@ def _as_list(value: Any) -> list[Any]:
 
 def _mean(values: list[float]) -> float:
     return sum(values) / len(values)
+
+
+def _median(values: list[float]) -> float:
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) / 2
+
+
+def _typical_range(values: list[float]) -> tuple[float, float]:
+    if len(values) < 5:
+        return min(values), max(values)
+    return _percentile(values, 0.10), _percentile(values, 0.90)
+
+
+def _percentile(values: list[float], proportion: float) -> float:
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    position = (len(ordered) - 1) * proportion
+    lower_index = int(position)
+    upper_index = min(lower_index + 1, len(ordered) - 1)
+    fraction = position - lower_index
+    return ordered[lower_index] + (ordered[upper_index] - ordered[lower_index]) * fraction
+
+
+def _format_number(value: float, decimals: int) -> str:
+    return f"{value:.{decimals}f}"

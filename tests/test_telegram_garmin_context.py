@@ -172,6 +172,82 @@ class TelegramGarminContextTest(unittest.TestCase):
         self.assertEqual(agent.telegram.messages, ["Garmin week"])
         safe_garmin_weekly_context.assert_called_once_with(days=7)
 
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch("running_agent.telegram_agent.refresh_garmin_snapshots")
+    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    def test_garmin_cache_refresh_runs_once_per_day(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        agent = TelegramRunningAgent(state_path=_temp_path())
+
+        agent._refresh_garmin_cache_if_due()
+        agent._refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_called_once_with(days=45)
+        self.assertEqual(agent.state["last_garmin_refresh_attempt_date"], "2026-06-01")
+        self.assertEqual(agent.state["last_garmin_refresh_date"], "2026-06-01")
+
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch(
+        "running_agent.telegram_agent.refresh_garmin_snapshots", side_effect=RuntimeError("nope")
+    )
+    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
+    def test_garmin_cache_refresh_failure_is_not_retried_until_tomorrow(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        agent = TelegramRunningAgent(state_path=_temp_path())
+
+        agent._refresh_garmin_cache_if_due()
+        agent._refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_called_once_with(days=45)
+        self.assertEqual(agent.state["last_garmin_refresh_attempt_date"], "2026-06-01")
+        self.assertEqual(agent.state["last_garmin_refresh_error"], "nope")
+        self.assertNotIn("last_garmin_refresh_date", agent.state)
+
+    @patch.dict(
+        "os.environ",
+        {"TELEGRAM_BOT_TOKEN": "token", "TELEGRAM_CHAT_ID": "123"},
+        clear=True,
+    )
+    @patch("running_agent.telegram_agent.TelegramClient", return_value=None)
+    @patch("running_agent.telegram_agent.StravaClient", return_value=None)
+    @patch("running_agent.telegram_agent.refresh_garmin_snapshots")
+    @patch("running_agent.telegram_agent.coach_now", return_value=datetime(2026, 6, 1, 4, 59))
+    def test_garmin_cache_refresh_waits_until_morning(
+        self,
+        _coach_now,
+        refresh_garmin_snapshots,
+        _strava_client,
+        _telegram_client,
+    ) -> None:
+        agent = TelegramRunningAgent(state_path=_temp_path())
+
+        agent._refresh_garmin_cache_if_due()
+
+        refresh_garmin_snapshots.assert_not_called()
+        self.assertNotIn("last_garmin_refresh_attempt_date", agent.state)
+
 
 class _FakeStrava:
     def __init__(self, activities: list[dict], latest: dict, detailed: dict[int, dict]):

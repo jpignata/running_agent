@@ -4,7 +4,7 @@ GARMIN_COACHING_RUBRIC = """Garmin coaching rubric:
 - Treat Garmin data as supporting context, not the primary decision-maker.
 - First classify the training day: recovery, easy, quality workout, long run, race, rest, or day after hard effort.
 - Interpret low readiness or low Body Battery in relation to recent training. Low values after a hard workout, long run, race, or high-stress day can be normal training fatigue.
-- Compare Garmin recovery metrics against the athlete's usual range and recent trend before treating any single field as a red flag.
+- When an athlete Garmin baseline is provided, compare current recovery metrics against that usual range and recent trend before treating any single field as a red flag.
 - Do not recommend downgrading, skipping, or replacing a workout based on one Garmin metric alone.
 - Use Garmin data to adjust execution before changing the plan: warm up longer, keep the first reps controlled, cap effort, add stop conditions, or shorten only if the athlete feels bad.
 - Do not treat sleep below a generic threshold like 7 hours as a red flag by itself; compare it against the athlete's usual range and recent trend.

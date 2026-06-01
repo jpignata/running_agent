@@ -5,6 +5,7 @@ from datetime import date
 
 from running_agent.garmin_client import GarminClient
 from running_agent.garmin_context import (
+    format_garmin_baseline_context,
     format_garmin_readiness_context,
     format_garmin_weekly_context,
 )
@@ -153,8 +154,74 @@ class GarminContextTest(unittest.TestCase):
         self.assertIn("Sleep: 6h 00m.", context)
 
     def test_format_garmin_weekly_context_summarizes_recovery_trends(self) -> None:
+        snapshots = [
+            _snapshot(
+                "2026-05-24",
+                readiness=32,
+                level="LOW",
+                hrv=41,
+                hrv_status="LOW",
+                rhr=47,
+                stress=44,
+                battery_low=28,
+                sleep_hours=5.5,
+                vo2=51.8,
+            ),
+            _snapshot(
+                "2026-05-25",
+                readiness=62,
+                level="MODERATE",
+                hrv=46,
+                hrv_status="BALANCED",
+                rhr=44,
+                stress=31,
+                battery_low=42,
+                sleep_hours=7.0,
+                vo2=51.9,
+            ),
+            _snapshot(
+                "2026-05-26",
+                readiness=38,
+                level="LOW",
+                hrv=43,
+                hrv_status="LOW",
+                rhr=46,
+                stress=41,
+                battery_low=35,
+                sleep_hours=5.8,
+                vo2=52.0,
+            ),
+        ]
+        context = format_garmin_weekly_context(snapshots)
+
+        self.assertIn("Garmin recovery context, last 3 days:", context)
+        self.assertIn("Training readiness: avg 44, low days 2, latest 38 (Low).", context)
+        self.assertIn("HRV: avg 43 ms, latest 43 ms (Low).", context)
+        self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
+        self.assertIn("Stress: avg 39, high-stress days 2.", context)
+        self.assertIn("Body Battery: avg daily low 35, latest daily low 35.", context)
+        self.assertIn("Sleep: avg 6.1h, latest 5.8h, range 5.5-7.0h.", context)
+        self.assertNotIn("red flag", context)
+        self.assertIn("VO2 max: latest 52.0.", context)
+
+    def test_format_garmin_weekly_context_includes_baseline_when_provided(self) -> None:
+        snapshots = [
+            _snapshot(
+                "2026-05-24",
+                readiness=32,
+                level="LOW",
+                hrv=41,
+                hrv_status="LOW",
+                rhr=47,
+                stress=44,
+                battery_low=28,
+                sleep_hours=5.5,
+                vo2=51.8,
+            )
+        ]
         context = format_garmin_weekly_context(
-            [
+            snapshots,
+            baseline_snapshots=[
                 _snapshot(
                     "2026-05-24",
                     readiness=32,
@@ -191,18 +258,39 @@ class GarminContextTest(unittest.TestCase):
                     sleep_hours=5.8,
                     vo2=52.0,
                 ),
+            ],
+        )
+
+        self.assertIn("Athlete Garmin baseline, last 3 snapshots:", context)
+        self.assertIn("Sleep: typical 5.5-7.0h, median 5.8h.", context)
+        self.assertIn("Resting HR: typical 44-47 bpm, median 46 bpm.", context)
+        self.assertIn("HRV: typical 41-46 ms, median 43 ms.", context)
+        self.assertIn("Stress: typical 31-44, median 41.", context)
+        self.assertIn("Body Battery low: typical 28-42, median 35.", context)
+        self.assertIn("Training readiness: typical 32-62, median 38.", context)
+
+    def test_format_garmin_baseline_context_uses_middle_range_for_larger_samples(self) -> None:
+        context = format_garmin_baseline_context(
+            [
+                _snapshot(
+                    f"2026-05-{20 + index}",
+                    readiness=30 + index,
+                    level="LOW",
+                    hrv=40 + index,
+                    hrv_status="BALANCED",
+                    rhr=45 + index,
+                    stress=20 + index,
+                    battery_low=25 + index,
+                    sleep_hours=5.0 + index * 0.25,
+                    vo2=52.0,
+                )
+                for index in range(10)
             ]
         )
 
-        self.assertIn("Garmin recovery context, last 3 days:", context)
-        self.assertIn("Training readiness: avg 44, low days 2, latest 38 (Low).", context)
-        self.assertIn("HRV: avg 43 ms, latest 43 ms (Low).", context)
-        self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
-        self.assertIn("Stress: avg 39, high-stress days 2.", context)
-        self.assertIn("Body Battery: avg daily low 35, latest daily low 35.", context)
-        self.assertIn("Sleep: avg 6.1h, latest 5.8h, range 5.5-7.0h.", context)
-        self.assertNotIn("red flag", context)
-        self.assertIn("VO2 max: latest 52.0.", context)
+        self.assertIn("Athlete Garmin baseline, last 10 snapshots:", context)
+        self.assertIn("Sleep: typical 5.2-7.0h, median 6.1h.", context)
+        self.assertIn("Resting HR: typical 46-53 bpm, median 50 bpm.", context)
 
 
 def _snapshot(
