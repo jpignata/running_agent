@@ -10,6 +10,7 @@ from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .auth import load_env_file
 from .coach_time import coach_now
 from .coaching_guidance import GARMIN_COACHING_RUBRIC, TRAINING_PROGRESSION_RUBRIC
+from .goal_store import save_training_goal
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -32,6 +33,31 @@ REMEMBER_NOTE_TOOL = {
             }
         },
         "required": ["note"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+UPDATE_GOAL_TOOL = {
+    "type": "function",
+    "name": "update_training_goal",
+    "description": (
+        "Save a revised overall training goal for future coaching. Use this when the athlete "
+        "states a durable goal, race target, target time, goal race date, priority, or a change "
+        "to an existing goal. Write a complete updated goal statement that preserves still-relevant "
+        "existing goal details and incorporates the new information. Do not use this for ordinary "
+        "workout preferences; use remember_coaching_note for those."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "goal": {
+                "type": "string",
+                "description": (
+                    "The complete revised overall training goal to save for future coaching."
+                ),
+            }
+        },
+        "required": ["goal"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -111,13 +137,18 @@ def coaching_reply(
             "general statements like 'I prefer...', 'I usually...', 'I generally...', and "
             "'keep in mind...' as likely memory candidates when they will help future coaching. "
             "After storing a note, briefly acknowledge it in the normal coaching reply. "
+            "When the athlete states or changes a durable training goal, race target, target "
+            "time, goal race date, or major priority, call update_training_goal before answering. "
+            "Use the current overall training goal context to rewrite a complete updated goal "
+            "statement rather than saving only a fragment. After updating the goal, briefly "
+            "acknowledge the change in the normal coaching reply. "
             "Write in plain text for Telegram. Do not use Markdown formatting, including "
             "asterisk bold, headings, tables, or bullet symbols that require Markdown rendering. "
             "Do not diagnose injuries or give medical certainty; recommend rest or a clinician "
             "when pain, illness, or injury risk comes up."
         ),
         "input": "\n".join(prompt_parts),
-        "tools": [REMEMBER_NOTE_TOOL],
+        "tools": [REMEMBER_NOTE_TOOL, UPDATE_GOAL_TOOL],
         "tool_choice": "auto",
         "max_output_tokens": 650,
     }
@@ -136,19 +167,14 @@ def _handle_tool_calls(
 ) -> dict[str, Any]:
     tool_outputs = []
     for call in _function_calls(response):
-        if call.get("name") != "remember_coaching_note":
+        if call.get("name") == "remember_coaching_note":
+            output = _execute_remember_note_tool(call)
+        elif call.get("name") == "update_training_goal":
+            output = _execute_update_goal_tool(call)
+        else:
             continue
-        note = _tool_argument(call, "note")
-        if not note:
-            continue
-        append_coaching_preference(note)
-        tool_outputs.append(
-            {
-                "type": "function_call_output",
-                "call_id": call["call_id"],
-                "output": json.dumps({"saved": True}),
-            }
-        )
+        if output:
+            tool_outputs.append(output)
 
     if not tool_outputs:
         return response
@@ -162,6 +188,30 @@ def _handle_tool_calls(
     if response.get("id"):
         followup_payload["previous_response_id"] = response["id"]
     return _post_json(OPENAI_RESPONSES_URL, followup_payload, api_key)
+
+
+def _execute_remember_note_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    note = _tool_argument(call, "note")
+    if not note:
+        return None
+    append_coaching_preference(note)
+    return _tool_output(call["call_id"], {"saved": True})
+
+
+def _execute_update_goal_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    goal = _tool_argument(call, "goal")
+    if not goal:
+        return None
+    save_training_goal(goal)
+    return _tool_output(call["call_id"], {"saved": True})
+
+
+def _tool_output(call_id: str, output: dict[str, Any]) -> dict[str, str]:
+    return {
+        "type": "function_call_output",
+        "call_id": call_id,
+        "output": json.dumps(output),
+    }
 
 
 def _function_calls(response: dict[str, Any]) -> list[dict[str, Any]]:

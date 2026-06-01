@@ -525,7 +525,8 @@ def _help_text() -> str:
         "/check - check Strava for newly synced runs\n"
         "/help - show this help\n\n"
         "You can also say things like 'remember that I prefer long runs on Saturday' and I will "
-        "decide whether to save that as future coaching context."
+        "decide whether to save that as future coaching context. If you state a durable race "
+        "goal or target time, I can update the saved goal too."
     )
 
 

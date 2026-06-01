@@ -34,11 +34,14 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("durable coaching preference", payload["instructions"])
         self.assertIn("I generally", payload["instructions"])
         self.assertIn("briefly acknowledge", payload["instructions"])
+        tools = {tool["name"]: tool for tool in payload["tools"]}
         self.assertIn(
             "quality sessions on Wednesdays or long runs on Saturdays",
-            payload["tools"][0]["description"],
+            tools["remember_coaching_note"]["description"],
         )
-        self.assertEqual(payload["tools"][0]["name"], "remember_coaching_note")
+        self.assertIn("update_training_goal", tools)
+        self.assertIn("durable training goal", payload["instructions"])
+        self.assertIn("complete updated goal", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
@@ -84,6 +87,60 @@ class OpenAIClientTest(unittest.TestCase):
                 {
                     "type": "function_call_output",
                     "call_id": "call_1",
+                    "output": '{"saved": true}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_training_goal")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "update_training_goal",
+                        "call_id": "call_goal",
+                        "arguments": (
+                            '{"goal": "Run the Boston Marathon on October 12 with a target '
+                            'of 3:10 while staying healthy."}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "Got it. I updated that goal."},
+        ],
+    )
+    def test_coaching_reply_executes_goal_tool_and_returns_final_reply(
+        self,
+        post_json,
+        save_training_goal,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "My main goal is Boston on Oct 12, ideally 3:10.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            training_goal="Current goal: stay healthy.",
+        )
+
+        self.assertEqual(reply, "Got it. I updated that goal.")
+        save_training_goal.assert_called_once_with(
+            "Run the Boston Marathon on October 12 with a target of 3:10 while staying healthy."
+        )
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(followup_payload["previous_response_id"], "resp_1")
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_goal",
                     "output": '{"saved": true}',
                 }
             ],

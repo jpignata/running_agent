@@ -141,6 +141,10 @@ The coach can also remember natural-language notes when chatting. For example, i
 `remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
 store that in `.athlete_profile.txt`, and use it in future coaching.
 
+The same model-tool pattern is available for goals. If you say something like
+`my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
+`.training_goal.json` so future coaching uses the updated target.
+
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
 today's weekly plan has a matched workout that has not already been completed, and sends
