@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch
 
-from running_agent.coach_agent import CoachAgent
+from running_agent.coach_agent import COMMANDS, CoachAgent, help_text
 
 METERS_PER_MILE = 1609.344
 
@@ -14,6 +14,24 @@ class CoachAgentTest(unittest.TestCase):
         agent = CoachAgent(strava_client=_FakeStrava())
 
         self.assertEqual(agent.handle_message("/ping"), ["Pong!"])
+
+    @patch.object(CoachAgent, "training_summary", return_value="Recent summary")
+    def test_command_aliases_route_to_same_handler(self, _training_summary) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        self.assertEqual(agent.handle_message("/summary"), ["Recent summary"])
+
+    def test_help_text_is_generated_from_command_registry(self) -> None:
+        text = help_text()
+
+        self.assertIn("/recent - summarize recent training", text)
+        self.assertIn("/run YYYY-MM-DD - send a workout summary for a specific day", text)
+        self.assertIn("/setplan <plan> - save this week's plan", text)
+        self.assertNotIn("/tick -", text)
+        self.assertNotIn("/start -", text)
+        for command in COMMANDS:
+            if command.show_in_help:
+                self.assertIn(command.usage or command.names[0], text)
 
     @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 4, 0))
     def test_tick_returns_messages_without_transport(self, _coach_now) -> None:

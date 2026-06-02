@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 from datetime import time as datetime_time
 from typing import Any, Callable
@@ -35,6 +36,56 @@ from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 21
 GARMIN_REFRESH_TIME = datetime_time(5, 0)
+
+
+@dataclass(frozen=True)
+class Command:
+    names: tuple[str, ...]
+    help_text: str
+    handler_name: str
+    show_in_help: bool = True
+    usage: str | None = None
+
+
+COMMANDS = (
+    Command(("/start",), "show this help", "_help_command", show_in_help=False),
+    Command(("/help",), "show this help", "_help_command"),
+    Command(("/ping",), "respond with Pong!", "_ping_command"),
+    Command(("/recent", "/summary"), "summarize recent training", "_recent_command"),
+    Command(
+        ("/last", "/last_run"), "send a workout summary for the latest Strava run", "_last_command"
+    ),
+    Command(
+        ("/run",),
+        "send a workout summary for a specific day",
+        "_run_command",
+        usage="/run YYYY-MM-DD",
+    ),
+    Command(("/suggestplan",), "suggest a plan idea for next week", "_suggest_plan_command"),
+    Command(("/plan",), "show the current weekly plan", "_plan_command"),
+    Command(("/setplan",), "save this week's plan", "_set_plan_command", usage="/setplan <plan>"),
+    Command(("/goal",), "show the current overall training goal", "_goal_command"),
+    Command(
+        ("/setgoal",),
+        "save your overall training goal",
+        "_set_goal_command",
+        usage="/setgoal <goal>",
+    ),
+    Command(("/preferences", "/profile"), "show remembered coaching notes", "_profile_command"),
+    Command(
+        ("/preference", "/note"),
+        "explicitly save a coaching note",
+        "_note_command",
+        usage="/preference <note>",
+    ),
+    Command(("/garmin",), "show today's Garmin readiness context", "_garmin_command"),
+    Command(
+        ("/garminweek", "/garmin-week"), "show recent Garmin recovery trend", "_garmin_week_command"
+    ),
+    Command(("/check",), "check Strava for newly synced runs", "_check_command"),
+    Command(("/tick",), "run scheduled checks now", "_tick_command", show_in_help=False),
+)
+COMMAND_BY_NAME = {name: command for command in COMMANDS for name in command.names}
 
 
 class CoachAgent:
@@ -87,40 +138,60 @@ class CoachAgent:
         self._save_state()
 
     def _handle_message(self, text: str, command: str) -> list[str]:
-        if command in {"/start", "/help"}:
-            return [help_text()]
-        if command == "/ping":
-            return ["Pong!"]
-        if command in {"/recent", "/summary"}:
-            return [self.training_summary()]
-        if command in {"/last", "/last_run"}:
-            return [self.last_run_summary()]
-        if command == "/run":
-            return [self._run_summary_from_message(text)]
-        if command == "/suggestplan":
-            return [self.next_week_plan()]
-        if command == "/plan":
-            return [weekly_plan_context()]
-        if command == "/setplan":
-            return [self._set_weekly_plan_from_message(text)]
-        if command == "/goal":
-            return [training_goal_context()]
-        if command == "/setgoal":
-            return [self._set_training_goal_from_message(text)]
-        if command in {"/preferences", "/profile"}:
-            return [athlete_profile_context()]
-        if command in {"/preference", "/note"}:
-            return [self._save_coaching_preference_from_message(text, command)]
-        if command == "/garmin":
-            return [current_garmin_context()]
-        if command in {"/garminweek", "/garmin-week"}:
-            return [safe_garmin_weekly_context(days=7)]
-        if command == "/tick":
-            messages = self.tick()
-            return messages or ["No scheduled messages due."]
-        if command == "/check":
-            return self.check_new_runs(force=True)
+        command_spec = COMMAND_BY_NAME.get(command)
+        if command_spec:
+            handler = getattr(self, command_spec.handler_name)
+            return handler(text, command)
         return [self.coach_reply(text)]
+
+    def _help_command(self, _text: str, _command: str) -> list[str]:
+        return [help_text()]
+
+    def _ping_command(self, _text: str, _command: str) -> list[str]:
+        return ["Pong!"]
+
+    def _recent_command(self, _text: str, _command: str) -> list[str]:
+        return [self.training_summary()]
+
+    def _last_command(self, _text: str, _command: str) -> list[str]:
+        return [self.last_run_summary()]
+
+    def _run_command(self, text: str, _command: str) -> list[str]:
+        return [self._run_summary_from_message(text)]
+
+    def _suggest_plan_command(self, _text: str, _command: str) -> list[str]:
+        return [self.next_week_plan()]
+
+    def _plan_command(self, _text: str, _command: str) -> list[str]:
+        return [weekly_plan_context()]
+
+    def _set_plan_command(self, text: str, _command: str) -> list[str]:
+        return [self._set_weekly_plan_from_message(text)]
+
+    def _goal_command(self, _text: str, _command: str) -> list[str]:
+        return [training_goal_context()]
+
+    def _set_goal_command(self, text: str, _command: str) -> list[str]:
+        return [self._set_training_goal_from_message(text)]
+
+    def _profile_command(self, _text: str, _command: str) -> list[str]:
+        return [athlete_profile_context()]
+
+    def _note_command(self, text: str, command: str) -> list[str]:
+        return [self._save_coaching_preference_from_message(text, command)]
+
+    def _garmin_command(self, _text: str, _command: str) -> list[str]:
+        return [current_garmin_context()]
+
+    def _garmin_week_command(self, _text: str, _command: str) -> list[str]:
+        return [safe_garmin_weekly_context(days=7)]
+
+    def _check_command(self, _text: str, _command: str) -> list[str]:
+        return self.check_new_runs(force=True)
+
+    def _tick_command(self, _text: str, _command: str) -> list[str]:
+        messages = self.tick()
+        return messages or ["No scheduled messages due."]
 
     def coach_reply(self, text: str) -> str:
         log_event("debug", {"message": "coach_reply_recent_activities_start"})
@@ -397,25 +468,14 @@ class CoachAgent:
 
 
 def help_text() -> str:
+    command_lines = [
+        f"{command.usage or command.names[0]} - {command.help_text}"
+        for command in COMMANDS
+        if command.show_in_help
+    ]
     return (
         "Send me any running question and I will answer using your recent Strava context.\n\n"
-        "Commands:\n"
-        "/ping - respond with Pong!\n"
-        "/recent - summarize recent training\n"
-        "/last - send a workout summary for the latest Strava run\n"
-        "/run YYYY-MM-DD - send a workout summary for a specific day\n"
-        "/suggestplan - suggest a plan idea for next week\n"
-        "/plan - show the current weekly plan\n"
-        "/setplan <plan> - save this week's plan\n"
-        "/goal - show the current overall training goal\n"
-        "/setgoal <goal> - save your overall training goal\n"
-        "/preferences - show remembered coaching notes\n"
-        "/preference <note> - explicitly save a coaching note\n"
-        "/garmin - show today's Garmin readiness context\n"
-        "/garminweek - show recent Garmin recovery trend\n"
-        "/check - check Strava for newly synced runs\n"
-        "/tick - run scheduled checks now\n"
-        "/help - show this help\n\n"
+        "Commands:\n" + "\n".join(command_lines) + "\n\n"
         "You can also say things like 'remember that I prefer long runs on Saturday' and I will "
         "decide whether to save that as future coaching context. If you state a durable race "
         "goal or target time, I can update the saved goal too."
