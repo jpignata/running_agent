@@ -61,7 +61,16 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("last race", tools["query_local_runs"]["description"])
         self.assertIn("splits", tools["get_local_run_details"]["description"])
         self.assertIn("Body Battery", tools["get_garmin_readiness"]["description"])
+        self.assertIn("today's live Garmin readiness", tools["get_garmin_readiness"]["description"])
+        self.assertIn(
+            "cached completed days",
+            tools["get_garmin_readiness"]["description"],
+        )
         self.assertIn("HRV trends", tools["get_garmin_recovery_trend"]["description"])
+        self.assertIn(
+            "cached completed days",
+            tools["get_garmin_recovery_trend"]["description"],
+        )
         self.assertIn("call query_local_runs or get_local_run_details", payload["instructions"])
         self.assertIn(
             "call get_garmin_readiness or get_garmin_recovery_trend", payload["instructions"]

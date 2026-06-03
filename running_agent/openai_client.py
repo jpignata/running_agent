@@ -171,10 +171,10 @@ GET_GARMIN_READINESS_TOOL = {
     "type": "function",
     "name": "get_garmin_readiness",
     "description": (
-        "Return today's cached Garmin readiness context, including readiness, sleep, HRV, stress, "
-        "resting HR, Body Battery, and athlete baseline ranges when available. Use this when the "
-        "athlete asks about recovery, readiness, sleep, HRV, body battery, stress, or whether "
-        "today's training should be adjusted."
+        "Return today's live Garmin readiness context, including readiness, sleep, HRV, stress, "
+        "resting HR, Body Battery, and athlete baseline ranges from cached completed days when "
+        "available. Use this when the athlete asks about recovery, readiness, sleep, HRV, body "
+        "battery, stress, or whether today's training should be adjusted."
     ),
     "parameters": {
         "type": "object",
@@ -188,9 +188,10 @@ GET_GARMIN_TREND_TOOL = {
     "type": "function",
     "name": "get_garmin_recovery_trend",
     "description": (
-        "Return recent cached Garmin recovery trend context. Use this when the athlete asks about "
-        "recent recovery trends, the last week of Garmin data, HRV trends, sleep trends, stress "
-        "trends, resting HR trends, or whether fatigue is accumulating over several days."
+        "Return recent Garmin recovery trend context from cached completed days. Use this when "
+        "the athlete asks about recent recovery trends, the last week of Garmin data, HRV trends, "
+        "sleep trends, stress trends, resting HR trends, or whether fatigue is accumulating over "
+        "several days."
     ),
     "parameters": {
         "type": "object",
