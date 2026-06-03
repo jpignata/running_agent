@@ -27,6 +27,11 @@ summaries.
   assembly, and fallback behavior.
 - Keep tests fast and dependency-free. If there's a strong reason, let's discuss first.
 
+## Git Workflow
+
+- Favor small, focused, atomic commits. Split unrelated documentation, prompt, tool, and
+  behavior changes into separate commits when practical.
+
 ## Setup
 
 - Activate the project virtualenv before running commands:
