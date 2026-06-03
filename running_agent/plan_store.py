@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -86,6 +86,33 @@ def weekly_plan_context_for_date(target_date: date, path: Path = PLAN_PATH) -> s
         f"Planned workout for {weekday}: {matched}\n"
         f"Full weekly plan:\n{text}"
     )
+
+
+def upcoming_plan_context_after_date(
+    target_date: date,
+    path: Path = PLAN_PATH,
+) -> str:
+    plan = load_weekly_plan(path)
+    if not plan:
+        return "No upcoming plan context available."
+    text = plan.get("text", "").strip()
+    if not text:
+        return "No upcoming plan context available."
+
+    parsed = parse_weekly_plan(text)
+    upcoming = []
+    week_end = target_date + timedelta(days=6 - target_date.weekday())
+    cursor = target_date + timedelta(days=1)
+    while cursor <= week_end:
+        weekday = cursor.strftime("%A")
+        workout = parsed.get(weekday)
+        if workout:
+            upcoming.append(f"{weekday}: {workout}")
+        cursor += timedelta(days=1)
+
+    if not upcoming:
+        return f"No planned workouts after {target_date.strftime('%A, %b %-d')} this week."
+    return f"Remaining plan after {target_date.strftime('%A, %b %-d')}:\n" + "\n".join(upcoming)
 
 
 def planned_workout_for_date(target_date: date, path: Path = PLAN_PATH) -> str | None:

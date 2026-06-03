@@ -105,6 +105,7 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertEqual(kwargs["training_goal"], "Goal context")
         self.assertEqual(kwargs["coach_log"], "Coach log context")
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly context")
+        self.assertFalse(kwargs["tools_enabled"])
 
     @patch("running_agent.plan_suggestion.training_goal_context", return_value="Goal context")
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")

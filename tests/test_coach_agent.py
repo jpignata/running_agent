@@ -109,6 +109,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertIn("New run synced", prompt)
 
     @patch("running_agent.coach_agent.coach_now")
+    @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
     @patch("running_agent.coach_agent.has_planned_workout_for_date", return_value=False)
     @patch(
         "running_agent.coach_agent.weekly_coaching_message",
@@ -118,6 +119,7 @@ class CoachAgentTest(unittest.TestCase):
         self,
         weekly_coaching_message,
         _has_planned_workout_for_date,
+        _should_send_evening_report,
         coach_now,
     ) -> None:
         coach_now.return_value = datetime(2026, 5, 31, 18, 0)
@@ -136,6 +138,34 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(kwargs["target_week_start"].isoformat(), "2026-06-01")
         self.assertEqual(kwargs["lookback_days"], 42)
         self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
+
+    @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")
+    @patch("running_agent.coach_agent.should_send_evening_report", return_value=True)
+    @patch("running_agent.coach_agent.should_send_daily_checkin", return_value=False)
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 20, 30))
+    def test_tick_sends_evening_report_if_due(
+        self,
+        _coach_now,
+        _refresh_garmin_snapshots,
+        _should_send_daily_checkin,
+        _should_send_evening_report,
+        end_of_day_report,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        messages = agent.tick()
+
+        self.assertEqual(messages, ["Evening note"])
+        end_of_day_report.assert_called_once()
+        self.assertEqual(state["last_evening_report_date"], "2026-06-01")
+        self.assertTrue(saves)
 
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))

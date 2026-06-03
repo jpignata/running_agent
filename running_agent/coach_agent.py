@@ -17,6 +17,11 @@ from .daily_checkin import (
     mark_daily_checkin_sent,
     should_send_daily_checkin,
 )
+from .evening_report import (
+    end_of_day_report,
+    mark_evening_report_sent,
+    should_send_evening_report,
+)
 from .event_log import log_event
 from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
@@ -150,6 +155,9 @@ class CoachAgent:
         sunday = self.sunday_plan_if_due()
         if sunday:
             messages.append(sunday)
+        evening = self.evening_report_if_due()
+        if evening:
+            messages.append(evening)
         return messages
 
     def seed_seen_activities(self) -> None:
@@ -381,6 +389,18 @@ class CoachAgent:
         mark_daily_checkin_sent(now, self.state)
         self._save_state()
         return checkin
+
+    def evening_report_if_due(self) -> str | None:
+        now = coach_now()
+        if not should_send_evening_report(now, self.state):
+            return None
+
+        log_event("debug", {"message": "evening_report_start", "date": now.date().isoformat()})
+        report = end_of_day_report(self.strava, target_date=now.date(), lookback_days=7)
+        log_event("debug", {"message": "evening_report_done", "date": now.date().isoformat()})
+        mark_evening_report_sent(now, self.state)
+        self._save_state()
+        return report
 
     def refresh_garmin_cache_if_due(self) -> None:
         now = coach_now()

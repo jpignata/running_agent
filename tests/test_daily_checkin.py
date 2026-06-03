@@ -100,6 +100,7 @@ class DailyCheckinTest(unittest.TestCase):
         self.assertEqual(kwargs["training_goal"], "Goal context")
         self.assertEqual(kwargs["coach_log"], "Coach log context")
         self.assertEqual(kwargs["garmin_context"], "Garmin readiness context")
+        self.assertFalse(kwargs["tools_enabled"])
 
     @patch(
         "running_agent.daily_checkin.weekly_plan_context_for_date",

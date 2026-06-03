@@ -66,6 +66,7 @@ def suggest_next_week_plan(
             training_goal=training_goal_context(),
             coach_log=coach_log_context(),
             garmin_context=safe_garmin_weekly_context(days=7),
+            tools_enabled=False,
         )
     except RuntimeError as error:
         note = _fallback_plan_note(error)

@@ -54,6 +54,7 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["coach_log"], "Coach log")
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly")
+        self.assertFalse(kwargs["tools_enabled"])
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",
@@ -107,6 +108,7 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("recent evidence supports the stated goal", prompt)
         self.assertIn("Do not use a title, section headers", prompt)
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        self.assertFalse(kwargs["tools_enabled"])
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",

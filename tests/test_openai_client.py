@@ -74,6 +74,29 @@ class OpenAIClientTest(unittest.TestCase):
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
+    def test_coaching_reply_can_disable_tools_and_set_output_budget(
+        self,
+        post_json,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "Write a scheduled report.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Weekly plan",
+            tools_enabled=False,
+            max_output_tokens=220,
+        )
+
+        self.assertEqual(reply, "Reply")
+        payload = post_json.call_args.args[1]
+        self.assertNotIn("tools", payload)
+        self.assertNotIn("tool_choice", payload)
+        self.assertEqual(payload["max_output_tokens"], 220)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.append_coaching_preference")
     @patch(
         "running_agent.openai_client._post_json",

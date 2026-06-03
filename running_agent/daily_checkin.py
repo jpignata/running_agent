@@ -48,6 +48,7 @@ def daily_workout_checkin(
             training_goal=training_goal_context(),
             coach_log=coach_log_context(),
             garmin_context=garmin_context,
+            tools_enabled=False,
         )
     except RuntimeError as error:
         note = _fallback_daily_checkin(weekly_plan, garmin_context, error)

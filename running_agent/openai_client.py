@@ -216,6 +216,8 @@ def coaching_reply(
     coach_log: str | None = None,
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
+    tools_enabled: bool = True,
+    max_output_tokens: int = 650,
 ) -> str:
     load_env_file()
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -328,7 +330,10 @@ def coaching_reply(
             "when pain, illness, or injury risk comes up."
         ),
         "input": "\n".join(prompt_parts),
-        "tools": [
+        "max_output_tokens": max_output_tokens,
+    }
+    if tools_enabled:
+        payload["tools"] = [
             REMEMBER_NOTE_TOOL,
             UPDATE_GOAL_TOOL,
             SAVE_WEEKLY_PLAN_TOOL,
@@ -336,12 +341,11 @@ def coaching_reply(
             GET_LOCAL_RUN_DETAILS_TOOL,
             GET_GARMIN_READINESS_TOOL,
             GET_GARMIN_TREND_TOOL,
-        ],
-        "tool_choice": "auto",
-        "max_output_tokens": 650,
-    }
+        ]
+        payload["tool_choice"] = "auto"
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
-    response = _handle_tool_calls(response, payload, api_key)
+    if tools_enabled:
+        response = _handle_tool_calls(response, payload, api_key)
     text = _extract_output_text(response)
     if not text:
         raise RuntimeError("OpenAI response did not include text output.")

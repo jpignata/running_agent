@@ -57,6 +57,7 @@ def review_week(
             training_goal=training_goal_context(),
             coach_log=coach_log_context(),
             garmin_context=garmin_context,
+            tools_enabled=False,
         )
     except RuntimeError as error:
         review = _fallback_week_review(activities, garmin_context, error)
@@ -120,6 +121,7 @@ def weekly_coaching_message(
             training_goal=training_goal_context(),
             coach_log=coach_log_context(),
             garmin_context=garmin_context,
+            tools_enabled=False,
         )
     except RuntimeError as error:
         message = _fallback_weekly_coaching_message(activities, garmin_context, error)
