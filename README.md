@@ -161,19 +161,12 @@ lines; add `--debug-log` to see them.
 Then message the bot on Telegram. It supports:
 
 - `/recent` - summarize recent Strava run training
-- `/last` - send a workout summary for the latest Strava run
-- `/run YYYY-MM-DD` - send a workout summary for a specific day
-- `/suggestplan` - suggest a plan idea for next week
 - `/plan` - show the current weekly plan
-- `/setplan <plan>` - save this week's plan
 - `/goal` - show the current overall training goal
-- `/setgoal <goal>` - save your overall training goal
 - `/preferences` - show remembered coaching notes and preferences
-- `/preference <note>` - explicitly save a coaching note
 - `/garmin` - show today's Garmin readiness context
 - `/garminweek` - show recent Garmin recovery trend
 - `/check` - check for newly synced Strava runs now
-- `/tick` - run due scheduled checks now
 - Any other message - chat with the coach using recent Strava context
 
 The coach can also remember natural-language notes when chatting. For example, if you say
@@ -217,11 +210,12 @@ Send the plan in Telegram or the local REPL so the coach can compare completed S
 against what you intended to do:
 
 ```text
-/setplan Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
+Here is my plan for this week: Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
 ```
 
-You can also use natural language, for example `here is my plan for next week...`; the model
-may call its plan-saving tool and rewrite it into the saved weekly plan format.
+The model may call its plan-saving tool and rewrite natural text into the saved weekly plan
+format. The older `/setplan <plan>` command still works, but it is no longer part of the
+primary help surface.
 
 ### Step 5: Add An Overall Goal
 
@@ -229,11 +223,11 @@ Set the larger goal in Telegram or the local REPL so the coach can interpret wor
 context:
 
 ```text
-/setgoal Chicago Marathon on Oct 11, target 3:20, stay healthy.
+My main goal is Chicago Marathon on Oct 11, target 3:20, stay healthy.
 ```
 
-You can also state the goal naturally, for example `my main goal is Chicago on Oct 11,
-target 3:20`; the model may call its goal-update tool and rewrite the saved goal.
+The model may call its goal-update tool and rewrite the saved goal. The older `/setgoal`
+command still works, but it is no longer part of the primary help surface.
 
 ## Tests
 

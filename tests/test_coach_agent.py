@@ -25,8 +25,15 @@ class CoachAgentTest(unittest.TestCase):
         text = help_text()
 
         self.assertIn("/recent - summarize recent training", text)
-        self.assertIn("/run YYYY-MM-DD - send a workout summary for a specific day", text)
-        self.assertIn("/setplan <plan> - save this week's plan", text)
+        self.assertIn("/plan - show the current weekly plan", text)
+        self.assertIn("/goal - show the current overall training goal", text)
+        self.assertIn("/preferences - show remembered coaching notes", text)
+        self.assertNotIn("/last -", text)
+        self.assertNotIn("/run YYYY-MM-DD -", text)
+        self.assertNotIn("/suggestplan -", text)
+        self.assertNotIn("/setplan <plan> -", text)
+        self.assertNotIn("/setgoal <goal> -", text)
+        self.assertNotIn("/preference <note> -", text)
         self.assertNotIn("/tick -", text)
         self.assertNotIn("/start -", text)
         for command in COMMANDS:
