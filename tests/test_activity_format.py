@@ -69,6 +69,53 @@ class ActivityFormatTest(unittest.TestCase):
             context,
         )
 
+    def test_detailed_activity_context_buckets_noisy_800m_reps_together(self) -> None:
+        context = detailed_activity_context(
+            {
+                "name": "Track",
+                "distance": 2 * METERS_PER_MILE,
+                "moving_time": 13 * 60,
+                "start_date_local": "2026-06-03T05:45:00Z",
+                "laps": [
+                    _lap_meters(8, 790.34, 185, 185),
+                    _lap_meters(10, 804.67, 200, 200),
+                    _lap_meters(11, 804.67, 203, 203),
+                    _lap_meters(13, 804.67, 205, 205),
+                    _lap_meters(15, 804.67, 200, 200),
+                    _lap_meters(17, 804.67, 209, 209),
+                ],
+            }
+        )
+
+        self.assertIn("6 x 0.50 mi (laps 8, 10, 11, 13, 15, 17)", context)
+        self.assertNotIn("1 x 0.49 mi", context)
+
+    def test_detailed_activity_context_identifies_short_fast_reps(self) -> None:
+        context = detailed_activity_context(
+            {
+                "name": "Track",
+                "distance": 2 * METERS_PER_MILE,
+                "moving_time": 13 * 60,
+                "start_date_local": "2026-06-03T05:45:00Z",
+                "laps": [
+                    _lap_meters(18, 58.77, 60, 59),
+                    _lap_meters(19, 101.43, 20, 20),
+                    _lap_meters(20, 146.63, 40, 40),
+                    _lap_meters(21, 102.83, 20, 20),
+                    _lap_meters(22, 103.55, 40, 40),
+                    _lap_meters(23, 88.72, 20, 20),
+                    _lap_meters(24, 107.74, 40, 40),
+                    _lap_meters(25, 92.85, 20, 20),
+                    _lap_meters(26, 113.01, 40, 40),
+                ],
+            }
+        )
+
+        self.assertIn("Short fast reps:", context)
+        self.assertIn("4 x 20s (laps 19, 21, 23, 25)", context)
+        self.assertIn("5:17/mi, 5:13/mi, 6:02/mi, 5:46/mi", context)
+        self.assertIn("avg 5:33/mi", context)
+
     def test_detailed_activity_context_limits_laps(self) -> None:
         context = detailed_activity_context(
             {
@@ -99,6 +146,23 @@ def _lap(
         "elapsed_time": elapsed_time,
         "average_heartrate": average_heartrate,
         "max_heartrate": max_heartrate,
+        "total_elevation_gain": 0,
+    }
+
+
+def _lap_meters(
+    lap_index: int,
+    distance_meters: float,
+    moving_time: int,
+    elapsed_time: int,
+) -> dict:
+    return {
+        "lap_index": lap_index,
+        "distance": distance_meters,
+        "moving_time": moving_time,
+        "elapsed_time": elapsed_time,
+        "average_heartrate": 155,
+        "max_heartrate": 165,
         "total_elevation_gain": 0,
     }
 

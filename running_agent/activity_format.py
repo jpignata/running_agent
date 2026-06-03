@@ -8,6 +8,17 @@ from .workout_classifier import workout_classification_context
 
 METERS_PER_MILE = 1609.344
 NUMERIC_TYPES = (int, float)
+COMMON_REP_DISTANCES_MILES = (
+    300 / METERS_PER_MILE,
+    400 / METERS_PER_MILE,
+    600 / METERS_PER_MILE,
+    800 / METERS_PER_MILE,
+    1000 / METERS_PER_MILE,
+    1200 / METERS_PER_MILE,
+    1600 / METERS_PER_MILE,
+    1.0,
+    1.5,
+)
 
 
 def miles(activity: dict[str, Any]) -> float:
@@ -93,6 +104,12 @@ def _duration(seconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+def _short_duration(seconds: int) -> str:
+    if seconds < 60:
+        return f"{seconds}s"
+    return _duration(seconds)
+
+
 def _run_detail_lines(activity: dict[str, Any]) -> list[str]:
     details = [
         f"- Distance: {miles(activity):.2f} mi",
@@ -125,10 +142,13 @@ def _derived_workout_signals(activity: dict[str, Any]) -> list[str]:
 
     lines = ["Derived workout signals:"]
     rep_lines = _quality_rep_groups(laps)
+    short_fast_lines = _short_fast_groups(laps)
     recovery_lines = _recovery_groups(laps)
 
     if rep_lines:
         lines.append("- Quality-looking reps: " + "; ".join(rep_lines))
+    if short_fast_lines:
+        lines.append("- Short fast reps: " + "; ".join(short_fast_lines))
     if recovery_lines:
         lines.append("- Recovery-looking segments: " + "; ".join(recovery_lines))
     if len(lines) == 1:
@@ -145,7 +165,7 @@ def _quality_rep_groups(laps: list[dict[str, Any]], limit: int = 12) -> list[str
         if pace is None:
             continue
         if 0.18 <= distance <= 1.6 and pace <= 7 * 60:
-            groups[round(distance, 2)].append(lap)
+            groups[_rep_distance_bucket(distance)].append(lap)
     return [
         _format_quality_group(distance, reps[:limit])
         for distance, reps in sorted(groups.items(), reverse=True)
@@ -165,6 +185,26 @@ def _recovery_groups(laps: list[dict[str, Any]], limit: int = 12) -> list[str]:
     return [
         _format_recovery_group(seconds, recoveries[:limit])
         for seconds, recoveries in sorted(groups.items(), reverse=True)
+    ]
+
+
+def _short_fast_groups(laps: list[dict[str, Any]], limit: int = 12) -> list[str]:
+    groups: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for index, lap in enumerate(laps):
+        distance = miles(lap)
+        moving_time = int(lap.get("moving_time") or 0)
+        pace = _seconds_per_mile(distance, moving_time)
+        if pace is None:
+            continue
+        if not (10 <= moving_time <= 35 and 0.03 <= distance <= 0.12 and pace <= 7 * 60):
+            continue
+        if not (_is_short_recovery(laps[index - 1]) if index > 0 else False) and not (
+            _is_short_recovery(laps[index + 1]) if index + 1 < len(laps) else False
+        ):
+            continue
+        groups[_round_to_nearest(moving_time, 5)].append(lap)
+    return [
+        _format_short_fast_group(seconds, reps[:limit]) for seconds, reps in sorted(groups.items())
     ]
 
 
@@ -188,6 +228,26 @@ def _format_recovery_group(seconds: int, recoveries: list[dict[str, Any]]) -> st
     return f"{len(recoveries)} x {_duration(seconds)} recoveries (laps {lap_numbers}) over {distances}{hr_note}"
 
 
+def _format_short_fast_group(seconds: int, reps: list[dict[str, Any]]) -> str:
+    lap_numbers = ", ".join(str(rep.get("lap_index") or rep.get("split") or "?") for rep in reps)
+    paces = ", ".join(_pace_per_mile(miles(rep), int(rep.get("moving_time") or 0)) for rep in reps)
+    distances = ", ".join(f"{miles(rep):.2f} mi" for rep in reps)
+    total_distance = sum(miles(rep) for rep in reps)
+    total_moving_time = sum(int(rep.get("moving_time") or 0) for rep in reps)
+    average_pace = _pace_per_mile(total_distance, total_moving_time)
+    return (
+        f"{len(reps)} x {_short_duration(seconds)} "
+        f"(laps {lap_numbers}) at {paces}; avg {average_pace}; distances {distances}"
+    )
+
+
+def _rep_distance_bucket(distance_miles: float) -> float:
+    for common_distance in COMMON_REP_DISTANCES_MILES:
+        if abs(distance_miles - common_distance) <= max(0.03, common_distance * 0.03):
+            return round(common_distance, 2)
+    return round(distance_miles, 2)
+
+
 def _round_to_nearest(value: int, increment: int) -> int:
     return int(round(value / increment) * increment)
 
@@ -196,6 +256,15 @@ def _seconds_per_mile(distance_miles: float, moving_time_seconds: int) -> int | 
     if distance_miles <= 0 or moving_time_seconds <= 0:
         return None
     return int(moving_time_seconds / distance_miles)
+
+
+def _is_short_recovery(lap: dict[str, Any]) -> bool:
+    distance = miles(lap)
+    moving_time = int(lap.get("moving_time") or 0)
+    pace = _seconds_per_mile(distance, moving_time)
+    return bool(
+        pace is not None and 30 <= moving_time <= 75 and distance <= 0.12 and pace >= 7 * 60
+    )
 
 
 def _feet(value: Any) -> str:
