@@ -8,6 +8,8 @@ ATHLETE_PROFILE_PATH = DATA_DIR / "athlete_profile.txt"
 COACH_LOG_PATH = DATA_DIR / "coach_log.jsonl"
 GARMIN_SNAPSHOTS_PATH = DATA_DIR / "garmin_snapshots.json"
 STATE_PATH = DATA_DIR / "state.json"
+STRAVA_ACTIVITIES_PATH = DATA_DIR / "strava" / "activities.json"
+STRAVA_DETAILS_DIR = DATA_DIR / "strava" / "details"
 TRAINING_GOAL_PATH = DATA_DIR / "training_goal.json"
 WEEKLY_PLAN_PATH = DATA_DIR / "weekly_plan.json"
 

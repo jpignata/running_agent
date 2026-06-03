@@ -32,6 +32,7 @@ from .plan_suggestion import (
 )
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
+from .strava_sync import save_synced_run_detail
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 21
@@ -407,6 +408,7 @@ class CoachAgent:
             log_event("debug", {"message": "new_run_detail_start", "activity_id": run.get("id")})
             detailed_run = self.strava.detailed_activity(run["id"])
             log_event("debug", {"message": "new_run_detail_done", "activity_id": run.get("id")})
+            save_synced_run_detail(run, detailed_run)
             append_run_result(detailed_run)
             prompt = (
                 "A new Strava run just synced. Write a natural post-run coaching text for "

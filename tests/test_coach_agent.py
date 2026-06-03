@@ -71,6 +71,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertIn("Do not use a title, header", prompt)
 
     @patch("running_agent.coach_agent.append_run_result")
+    @patch("running_agent.coach_agent.save_synced_run_detail")
     @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
     @patch(
         "running_agent.coach_agent.coaching_reply",
@@ -80,6 +81,7 @@ class CoachAgentTest(unittest.TestCase):
         self,
         coaching_reply,
         _current_garmin_context,
+        save_synced_run_detail,
         _append_run_result,
     ) -> None:
         run = _run(2, "Workout", "2026-05-30T06:00:00Z")
@@ -91,6 +93,7 @@ class CoachAgentTest(unittest.TestCase):
         messages = agent.check_new_runs(force=True)
 
         self.assertEqual(messages, ["Nice work on that workout."])
+        save_synced_run_detail.assert_called_once_with(run, run)
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("natural post-run coaching text", prompt)

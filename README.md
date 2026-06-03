@@ -30,6 +30,8 @@ The coach builds replies from local context instead of treating each message as 
 
 - Recent Strava runs, including detailed laps when they matter, such as workouts, races,
   and long runs.
+- Synced local Strava activity history in `.data/strava/`, with compact run summaries
+  and per-activity detail files for lap/split lookup.
 - The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
 - The saved training goal in `.data/training_goal.json`.
 - Athlete-specific notes in `.data/athlete_profile.txt`.
@@ -79,6 +81,13 @@ Verify the connection:
 
 ```bash
 python -m running_agent me
+```
+
+Backfill local Strava run history so the coach can answer older activity questions and
+lap/split questions without fetching Strava during the model tool call:
+
+```bash
+python -m running_agent sync-strava --days 365
 ```
 
 ### Step 2: Connect Garmin
@@ -193,6 +202,9 @@ python -m running_agent telegram --poll-seconds 120 --days 28
 When a new run syncs, the bot appends a compact local coach-log entry to `.data/coach_log.jsonl`
 with the matched planned workout and completed run headline. This file is ignored by git and
 used as context for future plan suggestions.
+
+The same new-run check also stores the Strava summary and detailed activity JSON under
+`.data/strava/`, so future chat questions can look up that run's laps and splits locally.
 
 The morning check-in uses Garmin readiness context when configured, plus today's matched
 plan, the last week of runs, the coach log, and your overall goal. If there is no workout

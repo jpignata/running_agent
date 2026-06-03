@@ -11,6 +11,7 @@ from .coach_agent import CoachAgent
 from .repl_transport import ReplTransport
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
+from .strava_sync import sync_strava_runs
 from .telegram_transport import TelegramTransport
 
 
@@ -29,6 +30,17 @@ def _main() -> int:
     subparsers.add_parser("auth-url", help="Print the Strava OAuth authorization URL.")
 
     subparsers.add_parser("me", help="Verify Strava authentication and print athlete details.")
+
+    sync_strava = subparsers.add_parser(
+        "sync-strava",
+        help="Sync local Strava run summaries and detailed lap data.",
+    )
+    sync_strava.add_argument(
+        "--days",
+        type=int,
+        default=365,
+        help="How many days of Strava activities to sync.",
+    )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
     exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
@@ -105,6 +117,16 @@ def _main() -> int:
         print(f"Authenticated as: {name or 'Unknown athlete'}")
         if city:
             print(f"Location: {city}")
+        return 0
+
+    if args.command == "sync-strava":
+        result = sync_strava_runs(StravaClient(), days=args.days)
+        print(
+            "Synced "
+            f"{result['runs_seen']} Strava runs; "
+            f"saved {result['summaries_saved']} summaries; "
+            f"fetched {result['details_fetched']} detailed activities."
+        )
         return 0
 
     if args.command == "telegram":
