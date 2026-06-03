@@ -48,9 +48,16 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("save_weekly_plan", tools)
         self.assertIn("query_local_runs", tools)
         self.assertIn("get_local_run_details", tools)
+        self.assertIn("get_garmin_readiness", tools)
+        self.assertIn("get_garmin_recovery_trend", tools)
         self.assertIn("last race", tools["query_local_runs"]["description"])
         self.assertIn("splits", tools["get_local_run_details"]["description"])
+        self.assertIn("Body Battery", tools["get_garmin_readiness"]["description"])
+        self.assertIn("HRV trends", tools["get_garmin_recovery_trend"]["description"])
         self.assertIn("call query_local_runs or get_local_run_details", payload["instructions"])
+        self.assertIn(
+            "call get_garmin_readiness or get_garmin_recovery_trend", payload["instructions"]
+        )
         self.assertIn("durable training goal", payload["instructions"])
         self.assertIn("complete updated goal", payload["instructions"])
         self.assertIn("weekly training plan", payload["instructions"])
@@ -205,6 +212,100 @@ class OpenAIClientTest(unittest.TestCase):
                     "type": "function_call_output",
                     "call_id": "call_strava",
                     "output": '{"result": "Race: 6.20 mi"}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.daily_checkin.current_garmin_context", return_value="Readiness: 52")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "get_garmin_readiness",
+                        "call_id": "call_garmin",
+                        "arguments": "{}",
+                    }
+                ],
+            },
+            {"output_text": "Readiness is moderate today."},
+        ],
+    )
+    def test_coaching_reply_executes_garmin_readiness_tool_and_returns_final_reply(
+        self,
+        post_json,
+        current_garmin_context,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "How is my Garmin readiness today?",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "Readiness is moderate today.")
+        current_garmin_context.assert_called_once_with()
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_garmin",
+                    "output": '{"result": "Readiness: 52"}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.safe_garmin_weekly_context", return_value="7-day trend")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "get_garmin_recovery_trend",
+                        "call_id": "call_garmin_week",
+                        "arguments": '{"days": 7}',
+                    }
+                ],
+            },
+            {"output_text": "Recovery is stable this week."},
+        ],
+    )
+    def test_coaching_reply_executes_garmin_trend_tool_and_returns_final_reply(
+        self,
+        post_json,
+        safe_garmin_weekly_context,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "How has my HRV trended this week?",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "Recovery is stable this week.")
+        safe_garmin_weekly_context.assert_called_once_with(days=7)
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_garmin_week",
+                    "output": '{"result": "7-day trend"}',
                 }
             ],
         )

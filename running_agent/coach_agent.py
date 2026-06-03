@@ -96,9 +96,17 @@ COMMANDS = (
         show_in_help=False,
         usage="/preference <note>",
     ),
-    Command(("/garmin",), "show today's Garmin readiness context", "_garmin_command"),
     Command(
-        ("/garminweek", "/garmin-week"), "show recent Garmin recovery trend", "_garmin_week_command"
+        ("/garmin",),
+        "show today's Garmin readiness context",
+        "_garmin_command",
+        show_in_help=False,
+    ),
+    Command(
+        ("/garminweek", "/garmin-week"),
+        "show recent Garmin recovery trend",
+        "_garmin_week_command",
+        show_in_help=False,
     ),
     Command(("/check",), "check Strava for newly synced runs", "_check_command"),
     Command(("/tick",), "run scheduled checks now", "_tick_command", show_in_help=False),

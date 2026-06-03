@@ -14,6 +14,7 @@ from .coaching_guidance import (
     GARMIN_COACHING_RUBRIC,
     TRAINING_PROGRESSION_RUBRIC,
 )
+from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
 from .strava_tools import get_local_run_details, query_local_runs
@@ -166,6 +167,44 @@ GET_LOCAL_RUN_DETAILS_TOOL = {
     },
     "strict": True,
 }
+GET_GARMIN_READINESS_TOOL = {
+    "type": "function",
+    "name": "get_garmin_readiness",
+    "description": (
+        "Return today's cached Garmin readiness context, including readiness, sleep, HRV, stress, "
+        "resting HR, Body Battery, and athlete baseline ranges when available. Use this when the "
+        "athlete asks about recovery, readiness, sleep, HRV, body battery, stress, or whether "
+        "today's training should be adjusted."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+GET_GARMIN_TREND_TOOL = {
+    "type": "function",
+    "name": "get_garmin_recovery_trend",
+    "description": (
+        "Return recent cached Garmin recovery trend context. Use this when the athlete asks about "
+        "recent recovery trends, the last week of Garmin data, HRV trends, sleep trends, stress "
+        "trends, resting HR trends, or whether fatigue is accumulating over several days."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "days": {
+                "type": "integer",
+                "description": "How many recent days to summarize. Use 7 unless the athlete asks otherwise.",
+            }
+        },
+        "required": ["days"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
 
 
 def coaching_reply(
@@ -244,6 +283,10 @@ def coaching_reply(
             "Garmin readiness, Body Battery, HRV, stress, sleep, resting HR, and VO2 max are "
             "context to interpret alongside the plan, recent workload, and athlete-specific "
             "profile; do not let one generic Garmin label override the training plan by itself. "
+            "When the athlete asks about Garmin readiness, recovery, sleep, HRV, stress, resting "
+            "HR, Body Battery, or whether recovery metrics should change today's training, call "
+            "get_garmin_readiness or get_garmin_recovery_trend before answering unless the needed "
+            "Garmin context is already present in the prompt. "
             "When the athlete states a durable coaching preference, constraint, recurring "
             "pattern, or asks you to remember something, call remember_coaching_note before "
             "answering. Examples include preferred workout days, long-run days, scheduling "
@@ -279,6 +322,8 @@ def coaching_reply(
             SAVE_WEEKLY_PLAN_TOOL,
             QUERY_LOCAL_RUNS_TOOL,
             GET_LOCAL_RUN_DETAILS_TOOL,
+            GET_GARMIN_READINESS_TOOL,
+            GET_GARMIN_TREND_TOOL,
         ],
         "tool_choice": "auto",
         "max_output_tokens": 650,
@@ -308,6 +353,10 @@ def _handle_tool_calls(
             output = _execute_query_local_runs_tool(call)
         elif call.get("name") == "get_local_run_details":
             output = _execute_get_local_run_details_tool(call)
+        elif call.get("name") == "get_garmin_readiness":
+            output = _execute_get_garmin_readiness_tool(call)
+        elif call.get("name") == "get_garmin_recovery_trend":
+            output = _execute_get_garmin_trend_tool(call)
         else:
             continue
         if output:
@@ -376,6 +425,20 @@ def _execute_get_local_run_details_tool(call: dict[str, Any]) -> dict[str, str] 
         days=_int_argument(arguments.get("days"), default=365),
     )
     return _tool_output(call["call_id"], {"result": result})
+
+
+def _execute_get_garmin_readiness_tool(call: dict[str, Any]) -> dict[str, str]:
+    from .daily_checkin import current_garmin_context
+
+    return _tool_output(call["call_id"], {"result": current_garmin_context()})
+
+
+def _execute_get_garmin_trend_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    days = max(1, min(_int_argument(arguments.get("days"), default=7), 45))
+    return _tool_output(call["call_id"], {"result": safe_garmin_weekly_context(days=days)})
 
 
 def _tool_output(call_id: str, output: dict[str, Any]) -> dict[str, str]:

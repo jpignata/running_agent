@@ -222,8 +222,6 @@ are mostly for inspection and diagnostics:
 - `/plan` - show the current weekly plan
 - `/goal` - show the current overall training goal
 - `/preferences` - show remembered coaching notes and preferences
-- `/garmin` - show today's Garmin readiness context
-- `/garminweek` - show recent Garmin recovery trend
 - `/check` - check for newly synced Strava runs now
 - Any other message - chat with the coach using recent Strava context
 
@@ -238,6 +236,12 @@ The same model-tool pattern is available for goals. If you say something like
 Weekly plans can also be saved through natural chat. If you say something like
 `here is my plan for next week`, the model may rewrite it into the plain-text weekly plan
 format and save it in `.data/weekly_plan.json`.
+
+Garmin context is also available through natural chat. If you ask about readiness, sleep,
+HRV, Body Battery, stress, resting HR, or whether recovery should change today's training,
+the model may call its local Garmin-readiness or Garmin-trend tools. The older `/garmin`
+and `/garminweek` diagnostic commands still work, but they are no longer part of the primary
+help surface.
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when

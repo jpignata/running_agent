@@ -34,6 +34,8 @@ class CoachAgentTest(unittest.TestCase):
         self.assertNotIn("/setplan <plan> -", text)
         self.assertNotIn("/setgoal <goal> -", text)
         self.assertNotIn("/preference <note> -", text)
+        self.assertNotIn("/garmin -", text)
+        self.assertNotIn("/garminweek -", text)
         self.assertNotIn("/tick -", text)
         self.assertNotIn("/start -", text)
         for command in COMMANDS:
