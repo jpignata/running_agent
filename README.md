@@ -24,6 +24,22 @@ When `python -m running_agent telegram` is running, the bot:
 - Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
   Eastern.
 
+### Local Data And Privacy
+
+Runtime data lives under `.data/`, which is ignored by git:
+
+- `.data/state.json` - Telegram chat state, scheduler markers, and last-seen activity IDs.
+- `.data/weekly_plan.json` - the current saved weekly plan.
+- `.data/training_goal.json` - the current saved training goal.
+- `.data/athlete_profile.txt` - remembered coaching notes.
+- `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
+- `.data/garmin_snapshots.json` - cached Garmin recovery snapshots and baseline data.
+- `.data/strava/activities.json` - synced Strava run summaries.
+- `.data/strava/details/<activity_id>.json` - synced detailed Strava activities with laps.
+
+Secrets are kept outside `.data/`: `.env`, `.strava_tokens.json`, and Garmin's token cache
+under `~/.garminconnect` are all ignored by git.
+
 ### Coaching Context
 
 The coach builds replies from local context instead of treating each message as isolated:
@@ -41,7 +57,48 @@ The coach builds replies from local context instead of treating each message as 
   sleep, resting heart rate, HRV, stress, Body Battery low, and training readiness.
 - Short in-process conversation history while the bot is running.
 
+### Strava Sync And Lookup
+
+The bot uses Strava in two different ways:
+
+- Recent training summaries still use the Strava client directly.
+- Detailed activity lookup tools read from the local store in `.data/strava/`.
+
+Backfill the local store with:
+
+```bash
+python -m running_agent sync-strava --days 365
+```
+
+That command saves run summaries to `.data/strava/activities.json` and detailed activity
+JSON to `.data/strava/details/`. Telegram polling and `/check` also save detailed activity
+JSON when a new run appears, so the local store stays warm over time.
+
+When you ask a natural-language question like `what were the splits from my track workout
+last week?`, the model can call local lookup tools to search synced runs and load detailed
+lap data. These tools do not call Strava directly; if a run has not been synced locally, run
+`python -m running_agent sync-strava --days 365`.
+
+Only the current weekly plan is stored. Historical activity lookups should use the run's lap
+data and derived workout signals; they cannot reliably compare old runs against the plan that
+was current at the time unless that plan is still the saved plan.
+
 ## Setup
+
+Activate the project virtualenv before running commands:
+
+```bash
+source .venv/bin/activate
+```
+
+After activation, use `python` for project commands. If `python` is not available, fix the
+virtualenv setup before continuing.
+
+Install the project dependencies:
+
+```bash
+python -m pip install -e .
+```
 
 ### Step 1: Connect Strava
 
@@ -158,7 +215,8 @@ The REPL talks to the same coach agent as Telegram. Type `/help` to list chat co
 `/tick` to run due scheduled checks, and `/quit` to exit. By default it hides rx/tx log
 lines; add `--debug-log` to see them.
 
-Then message the bot on Telegram. It supports:
+Most interactions should be natural-language coaching requests. The visible slash commands
+are mostly for inspection and diagnostics:
 
 - `/recent` - summarize recent Strava run training
 - `/plan` - show the current weekly plan
@@ -203,6 +261,32 @@ The morning check-in uses Garmin readiness context when configured, plus today's
 plan, the last week of runs, the coach log, and your overall goal. If there is no workout
 scheduled for the day or Strava already has a completed run for that date, the bot sends
 nothing.
+
+### Strava Debugging
+
+Find the latest synced Strava run summary:
+
+```bash
+jq -r '
+  to_entries
+  | map(.value)
+  | map(select(.type == "Run"))
+  | sort_by(.start_date_local // .start_date)
+  | reverse
+  | .[0]
+  | "\(.id)  \(.start_date_local // .start_date)  \(.name)"
+' .data/strava/activities.json
+```
+
+Inspect lap rows for a detailed synced activity:
+
+```bash
+jq -r '
+  .laps[]
+  | [.lap_index, .distance, .moving_time, .elapsed_time]
+  | @tsv
+' .data/strava/details/ACTIVITY_ID.json
+```
 
 ### Step 4: Add A Weekly Plan
 
