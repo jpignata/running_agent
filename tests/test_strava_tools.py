@@ -79,6 +79,27 @@ class StravaToolsTest(unittest.TestCase):
         self.assertIn("Lap data from Strava detailed activity", result)
         self.assertIn("? | 0.25 mi | 1:20", result)
 
+    @patch("running_agent.strava_tools.coach_today", return_value=date(2026, 6, 3))
+    @patch("running_agent.strava_tools.load_run_detail")
+    @patch("running_agent.strava_tools.list_run_summaries")
+    def test_get_local_run_details_handles_last_week_track_workout_query(
+        self,
+        list_run_summaries,
+        load_run_detail,
+        _coach_today,
+    ) -> None:
+        today_track = _run(4, "Track", 7.0, "2026-06-03T06:00:00Z")
+        last_week_track = _run(5, "Track", 7.9, "2026-05-27T06:00:00Z")
+        list_run_summaries.return_value = [today_track, last_week_track]
+        load_run_detail.return_value = {**last_week_track, "laps": []}
+
+        result = get_local_run_details(selector="query", query="track workout last week", days=21)
+
+        self.assertIn("Track: 7.90 mi", result)
+        self.assertIn("Historical plan note", result)
+        self.assertNotIn("Matched planned workout", result)
+        load_run_detail.assert_called_once_with(5)
+
 
 def _run(
     activity_id: int,

@@ -9,6 +9,15 @@ from .strava_store import activity_local_date, list_run_summaries, load_run_deta
 
 RACE_WORKOUT_TYPE = 1
 RACE_NAME_WORDS = ("race", "5k", "10k", "half marathon", "marathon", "mile")
+GENERIC_QUERY_WORDS = {
+    "activity",
+    "from",
+    "last",
+    "latest",
+    "run",
+    "week",
+    "workout",
+}
 
 
 def query_local_runs(
@@ -64,7 +73,16 @@ def get_local_run_details(
             f"Found {activity_headline(summary)}, but detailed lap data is not synced locally. "
             f"Run `python -m running_agent sync-strava --days {days}` to backfill details."
         )
-    return detailed_activity_context(detail, target_date=activity_local_date(detail))
+    activity_date = activity_local_date(detail) or activity_local_date(summary)
+    target_date = activity_date if _is_current_training_week(activity_date) else None
+    context = detailed_activity_context(detail, target_date=target_date)
+    if activity_date and target_date is None:
+        context += (
+            "\n\nHistorical plan note: no weekly plan snapshot is stored for this activity date. "
+            "Use the lap data and derived workout signals for this run; do not compare it to "
+            "the current saved weekly plan."
+        )
+    return context
 
 
 def _select_run(
@@ -89,18 +107,40 @@ def _select_run(
 
 def _matching_runs(query: str, days: int, races_only: bool) -> list[dict[str, Any]]:
     days = max(1, min(days, 3650))
-    cutoff = coach_today() - timedelta(days=days - 1)
+    start_date, end_date = _date_window(query, days)
     runs = []
     for activity in list_run_summaries():
         activity_date = activity_local_date(activity)
-        if activity.get("id") is not None and (activity_date is None or activity_date >= cutoff):
-            runs.append(activity)
+        if activity.get("id") is None:
+            continue
+        if activity_date is not None and activity_date < start_date:
+            continue
+        if end_date is not None and activity_date is not None and activity_date > end_date:
+            continue
+        runs.append(activity)
     if races_only:
         runs = [activity for activity in runs if _looks_like_race(activity)]
     if query.strip():
-        terms = [term.lower() for term in query.split() if term.strip()]
+        terms = _query_terms(query)
         runs = [activity for activity in runs if _matches_terms(activity, terms)]
     return runs
+
+
+def _date_window(query: str, days: int):
+    today = coach_today()
+    if "last week" in query.lower():
+        this_week_start = today - timedelta(days=today.weekday())
+        last_week_start = this_week_start - timedelta(days=7)
+        return last_week_start, this_week_start - timedelta(days=1)
+    return today - timedelta(days=days - 1), None
+
+
+def _is_current_training_week(activity_date) -> bool:
+    if activity_date is None:
+        return False
+    today = coach_today()
+    week_start = today - timedelta(days=today.weekday())
+    return week_start <= activity_date <= week_start + timedelta(days=6)
 
 
 def _looks_like_race(activity: dict[str, Any]) -> bool:
@@ -122,3 +162,11 @@ def _matches_terms(activity: dict[str, Any], terms: list[str]) -> bool:
         ]
     )
     return all(term in haystack for term in terms)
+
+
+def _query_terms(query: str) -> list[str]:
+    return [
+        term.lower()
+        for term in query.split()
+        if term.strip() and term.lower() not in GENERIC_QUERY_WORDS
+    ]

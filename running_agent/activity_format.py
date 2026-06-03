@@ -213,7 +213,7 @@ def _format_quality_group(distance: float, reps: list[dict[str, Any]]) -> str:
     paces = ", ".join(_pace_per_mile(miles(rep), int(rep.get("moving_time") or 0)) for rep in reps)
     heart_rates = [rep.get("average_heartrate") for rep in reps if rep.get("average_heartrate")]
     hr_note = f", avg HRs {', '.join(_heart_rate(hr) for hr in heart_rates)}" if heart_rates else ""
-    return f"{len(reps)} x {distance:.2f} mi (laps {lap_numbers}) at {paces}{hr_note}"
+    return f"{len(reps)} x {_rep_distance_label(distance)} (laps {lap_numbers}) at {paces}{hr_note}"
 
 
 def _format_recovery_group(seconds: int, recoveries: list[dict[str, Any]]) -> str:
@@ -246,6 +246,14 @@ def _rep_distance_bucket(distance_miles: float) -> float:
         if abs(distance_miles - common_distance) <= max(0.03, common_distance * 0.03):
             return round(common_distance, 2)
     return round(distance_miles, 2)
+
+
+def _rep_distance_label(distance_miles: float) -> str:
+    for meters in (300, 400, 600, 800, 1000, 1200, 1600):
+        common_distance = round(meters / METERS_PER_MILE, 2)
+        if distance_miles == common_distance:
+            return f"{meters}m / {distance_miles:.2f} mi"
+    return f"{distance_miles:.2f} mi"
 
 
 def _round_to_nearest(value: int, increment: int) -> int:

@@ -61,7 +61,7 @@ class ActivityFormatTest(unittest.TestCase):
         self.assertIn("- Elevation gain: 33 ft", context)
         self.assertIn("Derived workout signals:", context)
         self.assertIn("Quality-looking reps:", context)
-        self.assertIn("2 x 0.75 mi", context)
+        self.assertIn("2 x 1200m / 0.75 mi", context)
         self.assertIn("Recovery-looking segments:", context)
         self.assertIn("2 x 3:00 recoveries", context)
         self.assertIn(
@@ -87,7 +87,7 @@ class ActivityFormatTest(unittest.TestCase):
             }
         )
 
-        self.assertIn("6 x 0.50 mi (laps 8, 10, 11, 13, 15, 17)", context)
+        self.assertIn("6 x 800m / 0.50 mi (laps 8, 10, 11, 13, 15, 17)", context)
         self.assertNotIn("1 x 0.49 mi", context)
 
     def test_detailed_activity_context_identifies_short_fast_reps(self) -> None:
