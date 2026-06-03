@@ -20,9 +20,10 @@ def refresh_garmin_snapshots(
 ) -> dict[str, Any]:
     client = client or GarminClient()
     end_date = end_date or date.today()
+    latest_cache_date = end_date - timedelta(days=1)
     snapshots = load_garmin_snapshots(path)
 
-    for target_date in _date_range(end_date, days):
+    for target_date in _date_range(latest_cache_date, days):
         snapshots[target_date.isoformat()] = client.readiness_snapshot(
             target_date=target_date,
             vo2max_lookback_days=0,

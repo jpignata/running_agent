@@ -2,13 +2,31 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+from unittest.mock import patch
 
 from running_agent.garmin_client import GarminClient
 from running_agent.garmin_context import (
     format_garmin_baseline_context,
     format_garmin_readiness_context,
     format_garmin_weekly_context,
+    garmin_readiness_context,
+    garmin_weekly_context,
 )
+
+
+class _FixedDate(date):
+    @classmethod
+    def today(cls) -> date:
+        return cls(2026, 6, 3)
+
+
+class _FakeGarminClient:
+    def __init__(self) -> None:
+        self.calls: list[date] = []
+
+    def readiness_snapshot(self, target_date: date, vo2max_lookback_days: int = 30) -> dict:
+        self.calls.append(target_date)
+        return {"date": target_date.isoformat()}
 
 
 class GarminContextTest(unittest.TestCase):
@@ -132,6 +150,65 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertEqual(snapshot["vo2max"]["data"], [])
         self.assertNotIn("fallback_for_date", snapshot["vo2max"])
+
+    @patch("running_agent.garmin_context.cached_garmin_snapshots", return_value=[])
+    @patch("running_agent.garmin_context.refresh_garmin_snapshots")
+    @patch("running_agent.garmin_context.date", new=_FixedDate)
+    def test_readiness_context_fetches_today_live_without_caching(
+        self,
+        refresh_garmin_snapshots,
+        cached_garmin_snapshots,
+    ) -> None:
+        client = _FakeGarminClient()
+
+        context = garmin_readiness_context(
+            client=client,
+            target_date=date(2026, 6, 3),
+        )
+
+        self.assertIn("Garmin readiness context for 2026-06-03:", context)
+        self.assertEqual(client.calls, [date(2026, 6, 3)])
+        refresh_garmin_snapshots.assert_not_called()
+        cached_garmin_snapshots.assert_called_once_with(date(2026, 6, 2), 14)
+
+    @patch("running_agent.garmin_context.cached_garmin_snapshots", return_value=[])
+    @patch("running_agent.garmin_context.refresh_garmin_snapshots")
+    @patch("running_agent.garmin_context.date", new=_FixedDate)
+    def test_readiness_context_backfills_past_date_without_caching_following_day(
+        self,
+        refresh_garmin_snapshots,
+        _cached_garmin_snapshots,
+    ) -> None:
+        client = _FakeGarminClient()
+
+        garmin_readiness_context(
+            client=client,
+            target_date=date(2026, 6, 2),
+        )
+
+        refresh_garmin_snapshots.assert_called_once_with(
+            client,
+            end_date=date(2026, 6, 3),
+            days=14,
+        )
+
+    @patch(
+        "running_agent.garmin_context.cached_garmin_snapshots",
+        side_effect=[[], [], [], []],
+    )
+    @patch("running_agent.garmin_context.refresh_garmin_snapshots")
+    @patch("running_agent.garmin_context.date", new=_FixedDate)
+    def test_weekly_context_uses_completed_days_only(
+        self,
+        refresh_garmin_snapshots,
+        cached_garmin_snapshots,
+    ) -> None:
+        garmin_weekly_context(client=_FakeGarminClient(), days=7, baseline_days=45)
+
+        self.assertEqual(cached_garmin_snapshots.call_args_list[0].args, (date(2026, 6, 2), 7))
+        self.assertEqual(cached_garmin_snapshots.call_args_list[1].args, (date(2026, 6, 2), 45))
+        refresh_garmin_snapshots.assert_called_once()
+        self.assertEqual(refresh_garmin_snapshots.call_args.kwargs["end_date"], date(2026, 6, 3))
 
     def test_sleep_duration_falls_back_to_sleep_stages(self) -> None:
         context = format_garmin_readiness_context(

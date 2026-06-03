@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from .garmin_cache import cached_garmin_snapshots, refresh_garmin_snapshots
@@ -9,6 +9,7 @@ from .garmin_client import GarminClient
 NUMERIC_TYPES = (int, float)
 DAILY_BASELINE_DAYS = 14
 WEEKLY_BASELINE_DAYS = 45
+ONE_DAY = timedelta(days=1)
 
 
 def garmin_readiness_context(
@@ -17,11 +18,21 @@ def garmin_readiness_context(
     baseline_days: int = DAILY_BASELINE_DAYS,
 ) -> str:
     client = client or GarminClient()
-    target_date = target_date or date.today()
+    today = date.today()
+    target_date = target_date or today
+    if target_date >= today:
+        snapshot = client.readiness_snapshot(target_date=target_date)
+        baseline_snapshots = cached_garmin_snapshots(target_date - ONE_DAY, baseline_days)
+        return format_garmin_readiness_context(snapshot, baseline_snapshots=baseline_snapshots)
+
     snapshots = cached_garmin_snapshots(target_date, 1)
     baseline_snapshots = cached_garmin_snapshots(target_date, baseline_days)
     if not snapshots:
-        refresh_garmin_snapshots(client, end_date=target_date, days=max(1, baseline_days))
+        refresh_garmin_snapshots(
+            client,
+            end_date=target_date + ONE_DAY,
+            days=max(1, baseline_days),
+        )
         snapshots = cached_garmin_snapshots(target_date, 1)
         baseline_snapshots = cached_garmin_snapshots(target_date, baseline_days)
     snapshot = snapshots[-1] if snapshots else client.readiness_snapshot(target_date=target_date)
@@ -35,12 +46,13 @@ def garmin_weekly_context(
 ) -> str:
     client = client or GarminClient()
     today = date.today()
-    snapshots = cached_garmin_snapshots(today, days)
-    baseline_snapshots = cached_garmin_snapshots(today, baseline_days)
+    latest_cache_date = today - ONE_DAY
+    snapshots = cached_garmin_snapshots(latest_cache_date, days)
+    baseline_snapshots = cached_garmin_snapshots(latest_cache_date, baseline_days)
     if len(snapshots) < days:
         refresh_garmin_snapshots(client, end_date=today, days=max(days, baseline_days))
-        snapshots = cached_garmin_snapshots(today, days)
-        baseline_snapshots = cached_garmin_snapshots(today, baseline_days)
+        snapshots = cached_garmin_snapshots(latest_cache_date, days)
+        baseline_snapshots = cached_garmin_snapshots(latest_cache_date, baseline_days)
     return format_garmin_weekly_context(snapshots, baseline_snapshots=baseline_snapshots)
 
 

@@ -13,7 +13,7 @@ from running_agent.garmin_cache import (
 
 
 class GarminCacheTest(unittest.TestCase):
-    def test_refresh_garmin_snapshots_writes_recent_dates_in_order(self) -> None:
+    def test_refresh_garmin_snapshots_writes_completed_dates_before_end_date(self) -> None:
         path = _temp_path()
         client = _FakeGarminClient()
 
@@ -26,12 +26,12 @@ class GarminCacheTest(unittest.TestCase):
 
         self.assertEqual(
             [call[0].isoformat() for call in client.calls],
-            ["2026-05-30", "2026-05-31", "2026-06-01"],
+            ["2026-05-29", "2026-05-30", "2026-05-31"],
         )
         self.assertTrue(all(call[1] == 0 for call in client.calls))
         self.assertEqual(
-            [snapshot["date"] for snapshot in cached_garmin_snapshots(date(2026, 6, 1), 3, path)],
-            ["2026-05-30", "2026-05-31", "2026-06-01"],
+            [snapshot["date"] for snapshot in cached_garmin_snapshots(date(2026, 5, 31), 3, path)],
+            ["2026-05-29", "2026-05-30", "2026-05-31"],
         )
 
     def test_refresh_garmin_snapshots_prunes_old_dates(self) -> None:
@@ -51,7 +51,7 @@ class GarminCacheTest(unittest.TestCase):
         snapshots = load_garmin_snapshots(path)
         self.assertNotIn("2026-01-01", snapshots)
         self.assertIn("2026-05-31", snapshots)
-        self.assertIn("2026-06-01", snapshots)
+        self.assertNotIn("2026-06-01", snapshots)
 
 
 class _FakeGarminClient:

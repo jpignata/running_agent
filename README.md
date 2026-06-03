@@ -161,10 +161,10 @@ GARMIN_PASSWORD=your-garmin-password
 The first coaching request that uses Garmin may prompt for a Garmin MFA code. Garmin tokens
 are cached under `~/.garminconnect`.
 
-The Telegram process refreshes recent Garmin snapshots once per day after 5:00am Eastern
-and stores them in `.data/garmin_snapshots.json`. Garmin commands and coaching prompts use
-that local cache for daily context and athlete baseline ranges instead of refetching the
-full baseline on every request.
+The Telegram process refreshes completed Garmin snapshots once per day after 5:00am Eastern
+and stores prior days in `.data/garmin_snapshots.json`. Today's Garmin readiness is fetched
+live because it can change during the day; cached prior days provide athlete baseline ranges
+and recent trend context without refetching the full baseline on every request.
 
 ### Step 3: Connect Telegram
 
