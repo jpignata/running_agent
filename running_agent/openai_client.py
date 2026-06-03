@@ -16,6 +16,7 @@ from .coaching_guidance import (
 )
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
+from .strava_tools import get_local_run_details, query_local_runs
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -88,6 +89,79 @@ SAVE_WEEKLY_PLAN_TOOL = {
             }
         },
         "required": ["plan"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+QUERY_LOCAL_RUNS_TOOL = {
+    "type": "function",
+    "name": "query_local_runs",
+    "description": (
+        "Search synced local Strava runs when the athlete asks for activity facts that are not "
+        "available in the provided recent context, such as their last race, race distances, "
+        "older runs, or runs matching a name/date. Returns compact facts and activity IDs."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": (
+                    "Optional search terms to match against activity name or date. Leave empty "
+                    "for broad queries like latest race."
+                ),
+            },
+            "days": {
+                "type": "integer",
+                "description": "How many days back to search. Use 365 unless the athlete asks otherwise.",
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Maximum number of matching runs to return, usually 3 to 8.",
+            },
+            "races_only": {
+                "type": "boolean",
+                "description": "Whether to return only race-like runs.",
+            },
+        },
+        "required": ["query", "days", "limit", "races_only"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+GET_LOCAL_RUN_DETAILS_TOOL = {
+    "type": "function",
+    "name": "get_local_run_details",
+    "description": (
+        "Return detailed synced Strava run context, including lap/split data when available. "
+        "Use this when the athlete asks about splits, reps, laps, workout segments, or details "
+        "of a specific run such as the latest run, latest race, a date, query, or activity ID."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "selector": {
+                "type": "string",
+                "description": "One of latest_run, latest_race, activity_id, date, or query.",
+            },
+            "activity_id": {
+                "type": "string",
+                "description": "Activity ID when selector is activity_id; otherwise empty.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Search terms when selector is query; otherwise optional.",
+            },
+            "date": {
+                "type": "string",
+                "description": "YYYY-MM-DD date when selector is date; otherwise empty.",
+            },
+            "days": {
+                "type": "integer",
+                "description": "How many days back to search. Use 365 unless the athlete asks otherwise.",
+            },
+        },
+        "required": ["selector", "activity_id", "query", "date", "days"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -187,13 +261,25 @@ def coaching_reply(
             "into a complete plain-text weekly plan with one line per planned day, preserving "
             "runner shorthand. After saving the plan, briefly acknowledge it in the normal "
             "coaching reply. "
+            "When the athlete asks for Strava activity facts that are not already present in "
+            "the provided recent context, call query_local_runs or get_local_run_details before "
+            "answering. Use query_local_runs for broad searches like last race distance or older "
+            "runs matching a date/name. Use get_local_run_details for splits, laps, reps, workout "
+            "segments, or detailed questions about a specific run such as the latest run. Do not "
+            "guess from memory when local synced Strava data can answer the question. "
             "Write in plain text for Telegram. Do not use Markdown formatting, including "
             "asterisk bold, headings, tables, or bullet symbols that require Markdown rendering. "
             "Do not diagnose injuries or give medical certainty; recommend rest or a clinician "
             "when pain, illness, or injury risk comes up."
         ),
         "input": "\n".join(prompt_parts),
-        "tools": [REMEMBER_NOTE_TOOL, UPDATE_GOAL_TOOL, SAVE_WEEKLY_PLAN_TOOL],
+        "tools": [
+            REMEMBER_NOTE_TOOL,
+            UPDATE_GOAL_TOOL,
+            SAVE_WEEKLY_PLAN_TOOL,
+            QUERY_LOCAL_RUNS_TOOL,
+            GET_LOCAL_RUN_DETAILS_TOOL,
+        ],
         "tool_choice": "auto",
         "max_output_tokens": 650,
     }
@@ -218,6 +304,10 @@ def _handle_tool_calls(
             output = _execute_update_goal_tool(call)
         elif call.get("name") == "save_weekly_plan":
             output = _execute_save_weekly_plan_tool(call)
+        elif call.get("name") == "query_local_runs":
+            output = _execute_query_local_runs_tool(call)
+        elif call.get("name") == "get_local_run_details":
+            output = _execute_get_local_run_details_tool(call)
         else:
             continue
         if output:
@@ -261,6 +351,33 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
     return _tool_output(call["call_id"], {"saved": True})
 
 
+def _execute_query_local_runs_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    result = query_local_runs(
+        query=str(arguments.get("query") or ""),
+        days=_int_argument(arguments.get("days"), default=365),
+        limit=_int_argument(arguments.get("limit"), default=8),
+        races_only=_bool_argument(arguments.get("races_only")),
+    )
+    return _tool_output(call["call_id"], {"result": result})
+
+
+def _execute_get_local_run_details_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    result = get_local_run_details(
+        selector=str(arguments.get("selector") or "latest_run"),
+        activity_id=str(arguments.get("activity_id") or ""),
+        query=str(arguments.get("query") or ""),
+        date=str(arguments.get("date") or ""),
+        days=_int_argument(arguments.get("days"), default=365),
+    )
+    return _tool_output(call["call_id"], {"result": result})
+
+
 def _tool_output(call_id: str, output: dict[str, Any]) -> dict[str, str]:
     return {
         "type": "function_call_output",
@@ -278,6 +395,17 @@ def _function_calls(response: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _tool_argument(call: dict[str, Any], name: str) -> str | None:
+    parsed = _tool_arguments(call)
+    if parsed is None:
+        return None
+    value = parsed.get(name)
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _tool_arguments(call: dict[str, Any]) -> dict[str, Any] | None:
     arguments = call.get("arguments")
     if not isinstance(arguments, str):
         return None
@@ -285,11 +413,28 @@ def _tool_argument(call: dict[str, Any], name: str) -> str | None:
         parsed = json.loads(arguments)
     except json.JSONDecodeError:
         return None
-    value = parsed.get(name)
-    if not isinstance(value, str):
+    if not isinstance(parsed, dict):
         return None
-    value = value.strip()
-    return value or None
+    return parsed
+
+
+def _int_argument(value: Any, default: int) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    return default
+
+
+def _bool_argument(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes"}
+    return bool(value)
 
 
 def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:

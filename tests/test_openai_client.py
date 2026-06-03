@@ -46,6 +46,11 @@ class OpenAIClientTest(unittest.TestCase):
         )
         self.assertIn("update_training_goal", tools)
         self.assertIn("save_weekly_plan", tools)
+        self.assertIn("query_local_runs", tools)
+        self.assertIn("get_local_run_details", tools)
+        self.assertIn("last race", tools["query_local_runs"]["description"])
+        self.assertIn("splits", tools["get_local_run_details"]["description"])
+        self.assertIn("call query_local_runs or get_local_run_details", payload["instructions"])
         self.assertIn("durable training goal", payload["instructions"])
         self.assertIn("complete updated goal", payload["instructions"])
         self.assertIn("weekly training plan", payload["instructions"])
@@ -96,6 +101,110 @@ class OpenAIClientTest(unittest.TestCase):
                     "type": "function_call_output",
                     "call_id": "call_1",
                     "output": '{"saved": true}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch(
+        "running_agent.openai_client.get_local_run_details",
+        return_value="Lap 1: 0.25 mi at 5:50/mi",
+    )
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "get_local_run_details",
+                        "call_id": "call_detail",
+                        "arguments": (
+                            '{"selector": "latest_run", "activity_id": "", "query": "", '
+                            '"date": "", "days": 365}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "Your 4x20s were right around 5:50 pace."},
+        ],
+    )
+    def test_coaching_reply_executes_local_run_details_tool_and_returns_final_reply(
+        self,
+        post_json,
+        get_local_run_details,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "What were my splits for the 4x20s portion of my last run?",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "Your 4x20s were right around 5:50 pace.")
+        get_local_run_details.assert_called_once_with(
+            selector="latest_run", activity_id="", query="", date="", days=365
+        )
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(followup_payload["previous_response_id"], "resp_1")
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_detail",
+                    "output": '{"result": "Lap 1: 0.25 mi at 5:50/mi"}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.query_local_runs", return_value="Race: 6.20 mi")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "query_local_runs",
+                        "call_id": "call_strava",
+                        "arguments": ('{"query": "", "days": 365, "limit": 3, "races_only": true}'),
+                    }
+                ],
+            },
+            {"output_text": "Your last race was 6.2 miles."},
+        ],
+    )
+    def test_coaching_reply_executes_strava_query_tool_and_returns_final_reply(
+        self,
+        post_json,
+        query_local_runs,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "What distance was my last race?",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "Your last race was 6.2 miles.")
+        query_local_runs.assert_called_once_with(query="", days=365, limit=3, races_only=True)
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(followup_payload["previous_response_id"], "resp_1")
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_strava",
+                    "output": '{"result": "Race: 6.20 mi"}',
                 }
             ],
         )
