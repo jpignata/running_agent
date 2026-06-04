@@ -241,7 +241,7 @@ class CoachAgent:
             text,
             training_summary=summary,
             recent_runs=recent_runs_context(activities),
-            weekly_plan=weekly_plan_context(),
+            weekly_plan=weekly_plan_context_for_date(coach_today()),
             training_goal=training_goal_context(),
             conversation=self.conversation,
         )

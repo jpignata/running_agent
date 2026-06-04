@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date
+from unittest.mock import patch
 
-from running_agent.activity_format import activity_headline, detailed_activity_context
+from running_agent.activity_format import (
+    activity_headline,
+    detailed_activity_context,
+    recent_runs_context,
+)
 
 METERS_PER_MILE = 1609.344
 
@@ -129,6 +135,52 @@ class ActivityFormatTest(unittest.TestCase):
         )
 
         self.assertIn("...1 additional laps omitted.", context)
+
+    @patch("running_agent.activity_format.coach_today", return_value=date(2026, 6, 4))
+    def test_recent_runs_context_states_when_no_run_is_recorded_today(
+        self,
+        _coach_today,
+    ) -> None:
+        context = recent_runs_context(
+            [
+                {
+                    "type": "Run",
+                    "name": "Track",
+                    "distance": 7 * METERS_PER_MILE,
+                    "moving_time": 56 * 60,
+                    "start_date_local": "2026-06-03T05:45:00Z",
+                }
+            ]
+        )
+
+        self.assertIn(
+            "Current Strava status for Thursday, Jun 4: no synced run recorded today.",
+            context,
+        )
+        self.assertIn("Latest synced run is Track: 7.00 mi on Wednesday, Jun 3", context)
+
+    @patch("running_agent.activity_format.coach_today", return_value=date(2026, 6, 4))
+    def test_recent_runs_context_states_when_run_is_recorded_today(
+        self,
+        _coach_today,
+    ) -> None:
+        context = recent_runs_context(
+            [
+                {
+                    "type": "Run",
+                    "name": "Easy 5",
+                    "distance": 5 * METERS_PER_MILE,
+                    "moving_time": 40 * 60,
+                    "start_date_local": "2026-06-04T05:45:00Z",
+                }
+            ]
+        )
+
+        self.assertIn(
+            "Current Strava status for Thursday, Jun 4: 1 synced run(s) recorded today.",
+            context,
+        )
+        self.assertIn("- Easy 5: 5.00 mi on Thursday, Jun 4", context)
 
 
 def _lap(

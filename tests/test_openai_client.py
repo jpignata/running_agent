@@ -47,6 +47,8 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("Respect the scope and timing", payload["instructions"])
         self.assertIn("do not pivot into workout execution", payload["instructions"])
         self.assertIn("today's planned workout has already been completed", payload["instructions"])
+        self.assertIn("Do not claim the athlete completed a run today", payload["instructions"])
+        self.assertIn("weekly plan line is not evidence", payload["instructions"])
         self.assertIn("Avoid vague status labels like 'usable'", payload["instructions"])
         self.assertIn("Write like a coach texting the athlete", payload["instructions"])
         self.assertIn("Coach take:", payload["instructions"])

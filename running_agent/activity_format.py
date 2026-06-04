@@ -4,6 +4,7 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Any
 
+from .coach_time import coach_today
 from .workout_classifier import workout_classification_context
 
 METERS_PER_MILE = 1609.344
@@ -83,7 +84,43 @@ def recent_runs_context(activities: list[dict[str, Any]], limit: int = 12) -> st
     runs = [activity for activity in activities if activity.get("type") == "Run"]
     if not runs:
         return "No recent runs found."
-    return "\n".join(f"- {activity_headline(activity)}" for activity in runs[:limit])
+    today = coach_today()
+    todays_runs = [activity for activity in runs if _activity_date(activity) == today]
+    latest = runs[0]
+    lines = [_today_status_line(today, todays_runs, latest)]
+    lines.extend(f"- {activity_headline(activity)}" for activity in runs[:limit])
+    return "\n".join(lines)
+
+
+def _today_status_line(
+    today: date,
+    todays_runs: list[dict[str, Any]],
+    latest: dict[str, Any],
+) -> str:
+    today_label = _friendly_day(today)
+    if todays_runs:
+        return (
+            f"Current Strava status for {today_label}: "
+            f"{len(todays_runs)} synced run(s) recorded today."
+        )
+    return (
+        f"Current Strava status for {today_label}: no synced run recorded today. "
+        f"Latest synced run is {activity_headline(latest)}."
+    )
+
+
+def _activity_date(activity: dict[str, Any]) -> date | None:
+    value = activity.get("start_date_local") or activity.get("start_date")
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def _friendly_day(value: date) -> str:
+    return f"{value.strftime('%A, %b')} {value.day}"
 
 
 def _pace_per_mile(distance_miles: float, moving_time_seconds: int) -> str:

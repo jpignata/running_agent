@@ -226,6 +226,31 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(state["last_evening_report_date"], "2026-06-01")
         self.assertTrue(saves)
 
+    @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
+    @patch(
+        "running_agent.coach_agent.weekly_plan_context_for_date",
+        return_value="Matched Thursday plan context",
+    )
+    @patch("running_agent.coach_agent.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Recovery is steady.")
+    def test_coach_reply_passes_today_plan_context(
+        self,
+        coaching_reply,
+        _training_goal_context,
+        weekly_plan_context_for_date,
+        _coach_today,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        reply = agent.coach_reply("How's my recovery?")
+
+        self.assertEqual(reply, "Recovery is steady.")
+        weekly_plan_context_for_date.assert_called_once_with(datetime(2026, 6, 4).date())
+        self.assertEqual(
+            coaching_reply.call_args.kwargs["weekly_plan"],
+            "Matched Thursday plan context",
+        )
+
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
     def test_garmin_cache_refresh_runs_once_per_day(
