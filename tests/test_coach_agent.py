@@ -109,6 +109,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertIn("New run synced", prompt)
 
     @patch("running_agent.coach_agent.coach_now")
+    @patch("running_agent.coach_agent.generate_coach_reflection")
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
     @patch("running_agent.coach_agent.has_planned_workout_for_date", return_value=False)
     @patch(
@@ -120,6 +121,7 @@ class CoachAgentTest(unittest.TestCase):
         weekly_coaching_message,
         _has_planned_workout_for_date,
         _should_send_evening_report,
+        generate_coach_reflection,
         coach_now,
     ) -> None:
         coach_now.return_value = datetime(2026, 5, 31, 18, 0)
@@ -137,6 +139,35 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(kwargs["week_start"].isoformat(), "2026-05-25")
         self.assertEqual(kwargs["target_week_start"].isoformat(), "2026-06-01")
         self.assertEqual(kwargs["lookback_days"], 42)
+        generate_coach_reflection.assert_called_once()
+        self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
+
+    @patch("running_agent.coach_agent.coach_now")
+    @patch("running_agent.coach_agent.generate_coach_reflection", side_effect=RuntimeError("nope"))
+    @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
+    @patch("running_agent.coach_agent.has_planned_workout_for_date", return_value=False)
+    @patch(
+        "running_agent.coach_agent.weekly_coaching_message",
+        return_value="You had a great week. Here is next week.",
+    )
+    def test_sunday_message_still_sends_when_reflection_refresh_fails(
+        self,
+        _weekly_coaching_message,
+        _has_planned_workout_for_date,
+        _should_send_evening_report,
+        _generate_coach_reflection,
+        coach_now,
+    ) -> None:
+        coach_now.return_value = datetime(2026, 5, 31, 18, 0)
+        state: dict = {}
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+        )
+
+        messages = agent.tick()
+
+        self.assertEqual(messages, ["You had a great week. Here is next week."])
         self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
 
     @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")

@@ -31,6 +31,25 @@ class CliTest(unittest.TestCase):
             "Synced 2 Strava runs; saved 2 summaries; fetched 1 detailed activities."
         )
 
+    @patch("builtins.print")
+    @patch("running_agent.cli.StravaClient")
+    @patch("running_agent.cli.generate_coach_reflection", return_value="Updated thesis")
+    @patch("sys.argv", ["running-agent", "reflect", "--days", "30"])
+    def test_reflect_command_regenerates_coach_reflection(
+        self,
+        generate_coach_reflection,
+        strava_client,
+        print_,
+    ) -> None:
+        client = Mock()
+        strava_client.return_value = client
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        generate_coach_reflection.assert_called_once_with(client, lookback_days=30)
+        print_.assert_called_once_with("Updated thesis")
+
 
 if __name__ == "__main__":
     unittest.main()

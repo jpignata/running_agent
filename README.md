@@ -25,6 +25,7 @@ When `python -m running_agent telegram` is running, the bot:
   Strava shows a completed run for the day.
 - Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
   Eastern.
+- Refreshes the coach's private training state after the Sunday review-plus-plan message.
 
 ### Local Data And Privacy
 
@@ -35,6 +36,7 @@ Runtime data lives under `.data/`, which is ignored by git:
 - `.data/training_goal.json` - the current saved training goal.
 - `.data/athlete_profile.txt` - remembered coaching notes.
 - `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
+- `.data/coach_reflection.json` - the coach's private current training state.
 - `.data/garmin_snapshots.json` - cached Garmin recovery snapshots and baseline data.
 - `.data/strava/activities.json` - synced Strava run summaries.
 - `.data/strava/details/<activity_id>.json` - synced detailed Strava activities with laps.
@@ -53,6 +55,9 @@ The coach builds replies from local context instead of treating each message as 
 - The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
 - The saved training goal in `.data/training_goal.json`.
 - Athlete-specific notes in `.data/athlete_profile.txt`.
+- The current coach reflection in `.data/coach_reflection.json`, which captures compact
+  private coach state: capacity, goal confidence, goal requirements/checkpoints, limiters,
+  next emphasis, and watch items.
 - The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
   run outcomes.
 - Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for
@@ -75,6 +80,16 @@ python -m running_agent sync-strava --days 365
 That command saves run summaries to `.data/strava/activities.json` and detailed activity
 JSON to `.data/strava/details/`. Telegram polling and `/check` also save detailed activity
 JSON when a new run appears, so the local store stays warm over time.
+
+Regenerate the coach's private training state with:
+
+```bash
+python -m running_agent reflect --days 42
+```
+
+That command rewrites `.data/coach_reflection.json` from recent Strava, Garmin, plan, goal,
+and coach-log context. Future model replies include the current reflection as private coaching
+context, including concrete goal requirements and checkpoints when the saved goal supports them.
 
 When you ask a natural-language question like `what were the splits from my track workout
 last week?`, the model can call local lookup tools to search synced runs and load detailed

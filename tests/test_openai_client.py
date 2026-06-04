@@ -8,12 +8,17 @@ from running_agent.openai_client import coaching_reply
 
 class OpenAIClientTest(unittest.TestCase):
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch(
+        "running_agent.openai_client.coach_reflection_context",
+        return_value="Current coach thesis",
+    )
     @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
     def test_coaching_reply_includes_profile_and_garmin_rubric(
         self,
         post_json,
         _athlete_profile_context,
+        _coach_reflection_context,
     ) -> None:
         reply = coaching_reply(
             "What should I do today?",
@@ -25,6 +30,10 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertEqual(reply, "Reply")
         payload = post_json.call_args.args[1]
         self.assertIn("Athlete-specific profile:\nProfile note", payload["input"])
+        self.assertIn(
+            "Coach's private current training thesis:\nCurrent coach thesis",
+            payload["input"],
+        )
         self.assertIn("Coaching stance rubric:", payload["input"])
         self.assertIn("Coach toward the athlete's saved goal", payload["input"])
         self.assertIn("whether the stated goal looks realistic", payload["instructions"])

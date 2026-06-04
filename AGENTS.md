@@ -63,6 +63,7 @@ python -m running_agent telegram
   - `.data/training_goal.json`
   - `.data/athlete_profile.txt`
   - `.data/coach_log.jsonl`
+  - `.data/coach_reflection.json`
   - `.data/garmin_snapshots.json`
 - Keep `.env` and `.strava_tokens.json` separate from `.data/`.
 - Weekly plans are plain text, but parsed by weekday.

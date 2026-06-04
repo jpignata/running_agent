@@ -8,6 +8,7 @@ from urllib.request import Request, urlopen
 
 from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .auth import load_env_file
+from .coach_reflection import coach_reflection_context
 from .coach_time import coach_now
 from .coaching_guidance import (
     COACHING_STANCE_RUBRIC,
@@ -219,6 +220,7 @@ def coaching_reply(
     conversation: list[dict[str, str]] | None = None,
     tools_enabled: bool = True,
     max_output_tokens: int = 650,
+    include_coach_reflection: bool = True,
 ) -> str:
     load_env_file()
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -247,6 +249,14 @@ def coaching_reply(
         "",
         TRAINING_PROGRESSION_RUBRIC,
     ]
+    if include_coach_reflection:
+        prompt_parts.extend(
+            [
+                "",
+                "Coach's private current training thesis:",
+                coach_reflection_context(),
+            ]
+        )
     if weekly_plan:
         prompt_parts.extend(["", "Athlete-provided weekly plan:", weekly_plan])
     if training_goal:

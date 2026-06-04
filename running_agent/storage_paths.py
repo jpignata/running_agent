@@ -6,6 +6,7 @@ DATA_DIR = Path(".data")
 
 ATHLETE_PROFILE_PATH = DATA_DIR / "athlete_profile.txt"
 COACH_LOG_PATH = DATA_DIR / "coach_log.jsonl"
+COACH_REFLECTION_PATH = DATA_DIR / "coach_reflection.json"
 GARMIN_SNAPSHOTS_PATH = DATA_DIR / "garmin_snapshots.json"
 STATE_PATH = DATA_DIR / "state.json"
 STRAVA_ACTIVITIES_PATH = DATA_DIR / "strava" / "activities.json"

@@ -1,0 +1,159 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from running_agent.coach_reflection import (
+    coach_reflection_context,
+    generate_coach_reflection,
+    reflection_coach_log_context,
+    save_coach_reflection,
+)
+
+METERS_PER_MILE = 1609.344
+
+
+class CoachReflectionTest(unittest.TestCase):
+    def test_coach_reflection_context_formats_current_thesis(self) -> None:
+        path = _temp_path()
+
+        save_coach_reflection("Current limiter is long-run durability.", path=path)
+
+        context = coach_reflection_context(path=path)
+        self.assertIn("Current coach reflection, last updated", context)
+        self.assertIn("Current limiter is long-run durability.", context)
+
+    def test_coach_reflection_context_handles_missing_reflection(self) -> None:
+        self.assertEqual(
+            coach_reflection_context(path=_temp_path()),
+            "No coach reflection has been recorded yet.",
+        )
+
+    @patch("running_agent.coach_reflection.safe_garmin_weekly_context", return_value="Garmin trend")
+    @patch(
+        "running_agent.coach_reflection.coach_reflection_context", return_value="Previous thesis"
+    )
+    @patch("running_agent.coach_reflection.read_coach_log")
+    @patch("running_agent.coach_reflection.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_reflection.weekly_plan_context", return_value="Weekly plan")
+    @patch("running_agent.coach_reflection.save_coach_reflection")
+    @patch("running_agent.openai_client.coaching_reply", return_value="Updated thesis")
+    def test_generate_coach_reflection_rewrites_current_thesis(
+        self,
+        coaching_reply,
+        save_coach_reflection,
+        _weekly_plan_context,
+        _training_goal_context,
+        read_coach_log,
+        _coach_reflection_context,
+        _safe_garmin_weekly_context,
+    ) -> None:
+        read_coach_log.return_value = [
+            {
+                "type": "run_completed",
+                "activity_id": 1,
+                "run_date": "2026-06-01",
+                "planned_workout": "10 easy",
+                "completed_run": "Long Run: 10.00 mi",
+            }
+        ]
+        client = _FakeStravaClient(
+            [
+                {
+                    "type": "Run",
+                    "name": "Long Run",
+                    "distance": 10 * METERS_PER_MILE,
+                    "moving_time": 80 * 60,
+                    "start_date_local": "2026-06-01T06:00:00Z",
+                }
+            ]
+        )
+
+        reflection = generate_coach_reflection(client, lookback_days=42)
+
+        self.assertEqual(reflection, "Updated thesis")
+        self.assertEqual(client.requested_days, 42)
+        prompt = coaching_reply.call_args.args[0]
+        kwargs = coaching_reply.call_args.kwargs
+        self.assertIn("private current thesis", prompt)
+        self.assertIn("compact labeled bullets", prompt)
+        self.assertIn("Goal requirements/checkpoints", prompt)
+        self.assertIn("concrete adaptations or timeline checkpoints", prompt)
+        self.assertIn("Current limiter", prompt)
+        self.assertIn("Watch items", prompt)
+        self.assertIn("confidence words", prompt)
+        self.assertIn("under 180 words", prompt)
+        self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
+        self.assertIn("Long Run: 10.00 mi", kwargs["recent_runs"])
+        self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        self.assertEqual(kwargs["training_goal"], "Goal")
+        self.assertIn("Long Run: 10.00 mi", kwargs["coach_log"])
+        self.assertIn("Previous thesis", kwargs["coach_log"])
+        self.assertEqual(kwargs["garmin_context"], "Garmin trend")
+        self.assertFalse(kwargs["tools_enabled"])
+        self.assertFalse(kwargs["include_coach_reflection"])
+        save_coach_reflection.assert_called_once_with("Updated thesis")
+
+    @patch("running_agent.coach_reflection.read_coach_log")
+    def test_reflection_coach_log_context_dedupes_runs_and_uses_latest_week_review(
+        self,
+        read_coach_log,
+    ) -> None:
+        read_coach_log.return_value = [
+            {
+                "type": "week_reviewed",
+                "week_start": "2026-05-18",
+                "week_end": "2026-05-24",
+                "summary": "Old review.",
+            },
+            {
+                "type": "run_completed",
+                "activity_id": 1,
+                "run_date": "2026-05-25",
+                "planned_workout": "easy 7",
+                "completed_run": "Easy: 7.00 mi",
+            },
+            {
+                "type": "run_completed",
+                "activity_id": 1,
+                "run_date": "2026-05-25",
+                "planned_workout": "easy 7",
+                "completed_run": "Easy duplicate: 7.00 mi",
+            },
+            {
+                "type": "week_reviewed",
+                "week_start": "2026-05-25",
+                "week_end": "2026-05-31",
+                "summary": "Latest review.",
+            },
+        ]
+
+        context = reflection_coach_log_context()
+
+        self.assertIn("Latest review.", context)
+        self.assertNotIn("Old review.", context)
+        self.assertIn("Easy duplicate: 7.00 mi", context)
+        self.assertNotIn("Easy: 7.00 mi", context)
+
+
+class _FakeStravaClient:
+    def __init__(self, activities: list[dict]):
+        self.activities = activities
+        self.requested_days: int | None = None
+
+    def recent_activities(self, days: int) -> list[dict]:
+        self.requested_days = days
+        return self.activities
+
+
+def _temp_path() -> Path:
+    handle = tempfile.NamedTemporaryFile(delete=True)
+    path = Path(handle.name)
+    handle.close()
+    return path
+
+
+if __name__ == "__main__":
+    unittest.main()

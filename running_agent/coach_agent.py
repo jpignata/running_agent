@@ -8,6 +8,7 @@ from typing import Any, Callable
 from .activity_format import detailed_activity_context, recent_runs_context
 from .athlete_profile import append_coaching_preference, athlete_profile_context
 from .coach_log import append_run_result
+from .coach_reflection import generate_coach_reflection
 from .coach_time import coach_now, coach_today
 from .daily_checkin import (
     current_garmin_context,
@@ -358,9 +359,26 @@ class CoachAgent:
             "debug",
             {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
         )
+        self.refresh_coach_reflection(trigger="sunday_plan")
         mark_sunday_plan_sent(now, self.state)
         self._save_state()
         return message
+
+    def refresh_coach_reflection(self, trigger: str) -> None:
+        log_event("debug", {"message": "coach_reflection_start", "trigger": trigger})
+        try:
+            generate_coach_reflection(self.strava, lookback_days=max(self.lookback_days, 42))
+        except RuntimeError as error:
+            log_event(
+                "debug",
+                {
+                    "message": "coach_reflection_failed",
+                    "trigger": trigger,
+                    "error": str(error),
+                },
+            )
+        else:
+            log_event("debug", {"message": "coach_reflection_done", "trigger": trigger})
 
     def daily_checkin_if_due(self) -> str | None:
         now = coach_now()

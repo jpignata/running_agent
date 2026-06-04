@@ -8,6 +8,7 @@ import traceback
 from .agent_state import load_agent_state, save_agent_state
 from .auth import build_authorization_url
 from .coach_agent import CoachAgent
+from .coach_reflection import generate_coach_reflection
 from .repl_transport import ReplTransport
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
@@ -40,6 +41,17 @@ def _main() -> int:
         type=int,
         default=365,
         help="How many days of Strava activities to sync.",
+    )
+
+    reflect = subparsers.add_parser(
+        "reflect",
+        help="Regenerate the coach's private training thesis from recent context.",
+    )
+    reflect.add_argument(
+        "--days",
+        type=int,
+        default=42,
+        help="How many days of Strava activities to consider.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
@@ -127,6 +139,11 @@ def _main() -> int:
             f"saved {result['summaries_saved']} summaries; "
             f"fetched {result['details_fetched']} detailed activities."
         )
+        return 0
+
+    if args.command == "reflect":
+        reflection = generate_coach_reflection(StravaClient(), lookback_days=args.days)
+        print(reflection)
         return 0
 
     if args.command == "telegram":
