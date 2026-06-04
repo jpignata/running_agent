@@ -9,10 +9,10 @@ from running_agent.openai_client import coaching_reply
 class OpenAIClientTest(unittest.TestCase):
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(
-        "running_agent.openai_client.coach_reflection_context",
+        "running_agent.coach_prompt.coach_reflection_context",
         return_value="Current coach thesis",
     )
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
     def test_coaching_reply_includes_profile_and_garmin_rubric(
         self,
@@ -91,7 +91,7 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertEqual(payload["tool_choice"], "auto")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
     def test_coaching_reply_can_disable_tools_and_set_output_budget(
         self,
@@ -114,7 +114,7 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertEqual(payload["max_output_tokens"], 220)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.append_coaching_preference")
     @patch(
         "running_agent.openai_client._post_json",
@@ -162,7 +162,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch(
         "running_agent.openai_client.get_local_run_details",
         return_value="Lap 1: 0.25 mi at 5:50/mi",
@@ -218,7 +218,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.query_local_runs", return_value="Race: 6.20 mi")
     @patch(
         "running_agent.openai_client._post_json",
@@ -266,7 +266,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.daily_checkin.current_garmin_context", return_value="Readiness: 52")
     @patch(
         "running_agent.openai_client._post_json",
@@ -313,7 +313,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.safe_garmin_weekly_context", return_value="7-day trend")
     @patch(
         "running_agent.openai_client._post_json",
@@ -360,7 +360,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.save_weekly_plan")
     @patch(
         "running_agent.openai_client._post_json",
@@ -414,7 +414,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
-    @patch("running_agent.openai_client.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.save_training_goal")
     @patch(
         "running_agent.openai_client._post_json",
