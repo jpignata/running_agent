@@ -21,7 +21,8 @@ When `python -m running_agent telegram` is running, the bot:
 - Refreshes the Garmin snapshot cache once per day after 5:00am Eastern.
 - Sends one morning workout check-in after 5:30am Eastern when today's saved plan has
   a workout and Strava does not already show a completed run for the day.
-- Sends one brief end-of-day report after 8:30pm Eastern Monday through Saturday.
+- Sends one brief end-of-day report after 8:30pm Eastern Monday through Saturday when
+  Strava shows a completed run for the day.
 - Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
   Eastern.
 
@@ -269,7 +270,7 @@ nothing.
 
 The end-of-day report briefly recaps today's exercise, then gives a sleep, recovery, or
 next-day note to keep in mind. It does not send on Sundays because the weekly review already
-covers the day and next week.
+covers the day and next week. It also stays quiet on days without a completed Strava run.
 
 ### Strava Debugging
 

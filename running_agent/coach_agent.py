@@ -394,6 +394,14 @@ class CoachAgent:
         now = coach_now()
         if not should_send_evening_report(now, self.state):
             return None
+        if not has_completed_run_for_date(self.strava, now.date()):
+            log_event(
+                "debug",
+                {"message": "evening_report_skipped_no_run", "date": now.date().isoformat()},
+            )
+            mark_evening_report_sent(now, self.state)
+            self._save_state()
+            return None
 
         log_event("debug", {"message": "evening_report_start", "date": now.date().isoformat()})
         report = end_of_day_report(self.strava, target_date=now.date(), lookback_days=7)

@@ -155,7 +155,7 @@ class CoachAgentTest(unittest.TestCase):
         state: dict = {}
         saves = []
         agent = CoachAgent(
-            strava_client=_FakeStrava(),
+            strava_client=_FakeStrava(runs_by_date={"2026-06-01": [{"id": 1}]}),
             state=state,
             save_state=lambda: saves.append(dict(state)),
         )
@@ -164,6 +164,34 @@ class CoachAgentTest(unittest.TestCase):
 
         self.assertEqual(messages, ["Evening note"])
         end_of_day_report.assert_called_once()
+        self.assertEqual(state["last_evening_report_date"], "2026-06-01")
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")
+    @patch("running_agent.coach_agent.should_send_evening_report", return_value=True)
+    @patch("running_agent.coach_agent.should_send_daily_checkin", return_value=False)
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 20, 30))
+    def test_tick_suppresses_evening_report_without_completed_run(
+        self,
+        _coach_now,
+        _refresh_garmin_snapshots,
+        _should_send_daily_checkin,
+        _should_send_evening_report,
+        end_of_day_report,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        messages = agent.tick()
+
+        self.assertEqual(messages, [])
+        end_of_day_report.assert_not_called()
         self.assertEqual(state["last_evening_report_date"], "2026-06-01")
         self.assertTrue(saves)
 
@@ -224,10 +252,12 @@ class _FakeStrava:
         activities: list[dict] | None = None,
         latest: dict | None = None,
         detailed: dict[int, dict] | None = None,
+        runs_by_date: dict[str, list[dict]] | None = None,
     ):
         self.activities = activities or []
         self.latest = latest or {}
         self.detailed = detailed or {}
+        self.runs_by_date = runs_by_date or {}
 
     def recent_activities(self, days: int) -> list[dict]:
         return self.activities
@@ -238,8 +268,8 @@ class _FakeStrava:
     def detailed_activity(self, activity_id: int) -> dict:
         return self.detailed[activity_id]
 
-    def runs_on_date(self, _target_date, search_days: int = 14) -> list[dict]:
-        return []
+    def runs_on_date(self, target_date, search_days: int = 14) -> list[dict]:
+        return self.runs_by_date.get(target_date.isoformat(), [])
 
 
 def _run(activity_id: int, name: str, start_date_local: str) -> dict:
