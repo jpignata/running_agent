@@ -102,6 +102,7 @@ class CoachAgentTest(unittest.TestCase):
         save_synced_run_detail.assert_called_once_with(run, run)
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
 
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now")
     @patch("running_agent.coach_agent.generate_coach_reflection")
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
@@ -117,6 +118,7 @@ class CoachAgentTest(unittest.TestCase):
         _should_send_evening_report,
         generate_coach_reflection,
         coach_now,
+        _refresh_garmin_snapshots,
     ) -> None:
         coach_now.return_value = datetime(2026, 5, 31, 18, 0)
         state: dict = {}
@@ -136,6 +138,7 @@ class CoachAgentTest(unittest.TestCase):
         generate_coach_reflection.assert_called_once()
         self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
 
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now")
     @patch("running_agent.coach_agent.generate_coach_reflection", side_effect=RuntimeError("nope"))
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
@@ -151,6 +154,7 @@ class CoachAgentTest(unittest.TestCase):
         _should_send_evening_report,
         _generate_coach_reflection,
         coach_now,
+        _refresh_garmin_snapshots,
     ) -> None:
         coach_now.return_value = datetime(2026, 5, 31, 18, 0)
         state: dict = {}
