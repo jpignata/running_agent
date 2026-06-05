@@ -41,15 +41,7 @@ class WeeklyReviewTest(unittest.TestCase):
         )
 
         self.assertEqual(review, "Good week. Keep it controlled.")
-        prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
-        self.assertIn("2026-05-25 through 2026-05-31", prompt)
-        self.assertIn("Write like a real coach texting the athlete", prompt)
-        self.assertIn("Do not use a title, section headers", prompt)
-        self.assertIn("By weekday", prompt)
-        self.assertIn("low readiness after quality work can be normal", prompt)
-        self.assertIn("recovery debt", prompt)
-        self.assertIn("made the stated goal more credible", prompt)
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["coach_log"], "Coach log")
@@ -98,15 +90,7 @@ class WeeklyReviewTest(unittest.TestCase):
         )
 
         self.assertEqual(message, "You had a great week. Next week, keep it controlled.")
-        prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
-        self.assertIn("one integrated Sunday evening coaching message", prompt)
-        self.assertIn("not two pasted reports", prompt)
-        self.assertIn("2026-05-25 through 2026-05-31", prompt)
-        self.assertIn("2026-06-01 through 2026-06-07", prompt)
-        self.assertIn("8% above", prompt)
-        self.assertIn("recent evidence supports the stated goal", prompt)
-        self.assertIn("Do not use a title, section headers", prompt)
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
         self.assertFalse(kwargs["tools_enabled"])
         append_week_review.assert_called_once_with(

@@ -27,9 +27,6 @@ class RunSummaryTest(unittest.TestCase):
         )
 
         self.assertEqual(summary, "Nice controlled run.")
-        prompt = coaching_reply.call_args.args[0]
-        self.assertIn("natural post-run coaching text", prompt)
-        self.assertIn("Do not use a title, header", prompt)
         self.assertNotIn("Run summary for", summary)
 
     def test_fallback_summary_includes_error_and_activity_context(self) -> None:

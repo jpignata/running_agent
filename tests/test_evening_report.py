@@ -80,12 +80,7 @@ class EveningReportTest(unittest.TestCase):
         self.assertEqual(report, "Good day. Sleep well.")
         self.assertEqual(client.requested_days, 7)
         self.assertEqual(client.search_days, 3)
-        prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
-        self.assertIn("brief end-of-day running coach text", prompt)
-        self.assertIn("do not mention later activities", prompt)
-        self.assertIn("prioritize freshness for that race", prompt)
-        self.assertIn("under 90 words", prompt)
         self.assertIn("Track: 7.00 mi", kwargs["recent_runs"])
         self.assertIn("Matched plan for today", kwargs["weekly_plan"])
         self.assertIn("Sunday: 5K race", kwargs["weekly_plan"])

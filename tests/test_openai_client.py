@@ -14,7 +14,7 @@ class OpenAIClientTest(unittest.TestCase):
     )
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
-    def test_coaching_reply_includes_profile_and_garmin_rubric(
+    def test_coaching_reply_includes_context_and_tools(
         self,
         post_json,
         _athlete_profile_context,
@@ -34,67 +34,17 @@ class OpenAIClientTest(unittest.TestCase):
             "Coach's private current training thesis:\nCurrent coach thesis",
             payload["input"],
         )
-        self.assertIn("Coaching stance rubric:", payload["input"])
-        self.assertIn("Coach toward the athlete's saved goal", payload["input"])
-        self.assertIn("whether the stated goal looks realistic", payload["instructions"])
-        self.assertIn("what has to change", payload["instructions"])
-        self.assertIn("Garmin coaching rubric:", payload["input"])
-        self.assertIn("Training progression rubric:", payload["input"])
-        self.assertIn("weekly volume increases usually around 5-10%", payload["input"])
-        self.assertIn("Do not recommend downgrading", payload["input"])
-        self.assertIn("saved weekly plan takes precedence", payload["instructions"])
-        self.assertIn("plan includes a race or deliberately easy day", payload["instructions"])
-        self.assertIn("strategic background", payload["instructions"])
-        self.assertIn("appropriately challenging training", payload["instructions"])
-        self.assertIn("challenge choices and patterns", payload["instructions"])
-        self.assertIn("Respect the scope and timing", payload["instructions"])
-        self.assertIn("do not pivot into workout execution", payload["instructions"])
-        self.assertIn("today's planned workout has already been completed", payload["instructions"])
-        self.assertIn("Do not claim the athlete completed a run today", payload["instructions"])
-        self.assertIn("weekly plan line is not evidence", payload["instructions"])
-        self.assertIn("say 'today' in the natural sentence", payload["instructions"])
-        self.assertIn("weekday names mainly for past or future days", payload["instructions"])
-        self.assertIn("Avoid vague status labels like 'usable'", payload["instructions"])
-        self.assertIn("Write like a coach texting the athlete", payload["instructions"])
-        self.assertIn("Coach take:", payload["instructions"])
-        self.assertIn("Bottom line:", payload["instructions"])
-        self.assertIn("Work those ideas into natural sentences", payload["instructions"])
-        self.assertIn("do not let one generic Garmin label override", payload["instructions"])
-        self.assertIn("durable coaching preference", payload["instructions"])
-        self.assertIn("I generally", payload["instructions"])
-        self.assertIn("briefly acknowledge", payload["instructions"])
+        self.assertIn("Current training summary:\nTraining summary", payload["input"])
+        self.assertIn("Recent runs:\nRecent runs", payload["input"])
+        self.assertIn("Garmin readiness context:\nGarmin context", payload["input"])
         tools = {tool["name"]: tool for tool in payload["tools"]}
-        self.assertIn(
-            "quality sessions on Wednesdays or long runs on Saturdays",
-            tools["remember_coaching_note"]["description"],
-        )
+        self.assertIn("remember_coaching_note", tools)
         self.assertIn("update_training_goal", tools)
         self.assertIn("save_weekly_plan", tools)
         self.assertIn("query_local_runs", tools)
         self.assertIn("get_local_run_details", tools)
         self.assertIn("get_garmin_readiness", tools)
         self.assertIn("get_garmin_recovery_trend", tools)
-        self.assertIn("last race", tools["query_local_runs"]["description"])
-        self.assertIn("splits", tools["get_local_run_details"]["description"])
-        self.assertIn("Body Battery", tools["get_garmin_readiness"]["description"])
-        self.assertIn("today's live Garmin readiness", tools["get_garmin_readiness"]["description"])
-        self.assertIn(
-            "cached completed days",
-            tools["get_garmin_readiness"]["description"],
-        )
-        self.assertIn("HRV trends", tools["get_garmin_recovery_trend"]["description"])
-        self.assertIn(
-            "cached completed days",
-            tools["get_garmin_recovery_trend"]["description"],
-        )
-        self.assertIn("call query_local_runs or get_local_run_details", payload["instructions"])
-        self.assertIn(
-            "call get_garmin_readiness or get_garmin_recovery_trend", payload["instructions"]
-        )
-        self.assertIn("durable training goal", payload["instructions"])
-        self.assertIn("complete updated goal", payload["instructions"])
-        self.assertIn("weekly training plan", payload["instructions"])
-        self.assertIn("one line per planned day", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)

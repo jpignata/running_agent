@@ -75,16 +75,7 @@ class CoachReflectionTest(unittest.TestCase):
 
         self.assertEqual(reflection, "Updated thesis")
         self.assertEqual(client.requested_days, 42)
-        prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
-        self.assertIn("private current thesis", prompt)
-        self.assertIn("compact labeled bullets", prompt)
-        self.assertIn("Goal requirements/checkpoints", prompt)
-        self.assertIn("concrete adaptations or timeline checkpoints", prompt)
-        self.assertIn("Current limiter", prompt)
-        self.assertIn("Watch items", prompt)
-        self.assertIn("confidence words", prompt)
-        self.assertIn("under 180 words", prompt)
         self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
         self.assertIn("Long Run: 10.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")

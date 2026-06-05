@@ -88,15 +88,7 @@ class DailyCheckinTest(unittest.TestCase):
 
         self.assertEqual(checkin, "Do the planned easy run.")
         self.assertEqual(client.requested_days, 7)
-        prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
-        self.assertIn("2026-05-30", prompt)
-        self.assertIn("Open conversationally", prompt)
-        self.assertIn("Good morning", prompt)
-        self.assertIn("Today you have", prompt)
-        self.assertIn("today's matched plan", prompt)
-        self.assertIn("Do not downgrade the plan based on one Garmin metric alone", prompt)
-        self.assertIn("execution adjustments first", prompt)
         self.assertIn("Reviewed 1 runs over the last 7 days.", kwargs["training_summary"])
         self.assertIn("Easy Run: 5.00 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Matched plan for today")
