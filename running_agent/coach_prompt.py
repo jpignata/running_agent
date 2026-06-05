@@ -61,11 +61,13 @@ SAVE_WEEKLY_PLAN_TOOL = {
     "type": "function",
     "name": "save_weekly_plan",
     "description": (
-        "Save a complete weekly training plan for future coaching. Use this when the athlete "
-        "provides, revises, or approves a weekly plan, including natural messages like 'here is "
-        "my plan for next week'. Convert the plan into clear plain text with one line for each "
-        "planned day. Preserve runner shorthand such as '2mi WU, 6x400m, CD'. Do not use this "
-        "for casual workout ideas unless the athlete indicates the plan should be saved."
+        "Save a complete weekly training plan for future coaching. Use this only when the "
+        "athlete clearly says they are setting, updating, saving, replacing, or confirming "
+        "their actual plan, including natural messages like 'here is my plan for next week', "
+        "'save this as my plan', or 'that is the plan'. Do not use this when the athlete asks "
+        "for a suggested, possible, hypothetical, or example plan, such as 'what might next "
+        "week look like?' or 'suggest a plan'. Convert saved plans into clear plain text with "
+        "one line for each planned day. Preserve runner shorthand such as '2mi WU, 6x400m, CD'."
     ),
     "parameters": {
         "type": "object",
@@ -266,11 +268,12 @@ COACHING_INSTRUCTIONS = (
     "Use the current overall training goal context to rewrite a complete updated goal "
     "statement rather than saving only a fragment. After updating the goal, briefly "
     "acknowledge the change in the normal coaching reply. "
-    "When the athlete provides, revises, or approves a weekly training plan to use for "
-    "future coaching, call save_weekly_plan before answering. Rewrite natural plan text "
-    "into a complete plain-text weekly plan with one line per planned day, preserving "
-    "runner shorthand. After saving the plan, briefly acknowledge it in the normal "
-    "coaching reply. "
+    "When the athlete clearly sets, updates, saves, replaces, or confirms their actual "
+    "weekly training plan, call save_weekly_plan before answering. Rewrite natural plan "
+    "text into a complete plain-text weekly plan with one line per planned day, preserving "
+    "runner shorthand. If the athlete asks for a suggested, possible, hypothetical, or "
+    "example plan, do not save it unless they later explicitly approve it as the actual "
+    "plan. After saving the plan, briefly acknowledge it in the normal coaching reply. "
     "When the athlete asks for Strava activity facts that are not already present in "
     "the provided recent context, call query_local_runs or get_local_run_details before "
     "answering. Use query_local_runs for broad searches like last race distance or older "
