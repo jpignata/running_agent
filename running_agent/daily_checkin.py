@@ -28,6 +28,9 @@ def daily_workout_checkin(
     garmin_context = current_garmin_context(garmin_context_provider)
     prompt = (
         f"Write a morning workout check-in for {target_date.isoformat()} for Telegram. "
+        "Open conversationally, like a coach texting in the morning. A short greeting such as "
+        "'Good morning' or 'Hey' is appropriate. Then state today's planned workout naturally, "
+        "for example 'Today you have...' rather than starting with a terse label. "
         "Use today's matched plan, this week's recent runs, Garmin readiness context, coach log, "
         "and the overall goal. Tell the athlete what to do in today's workout, how hard to run "
         "it, and anything to watch out for. Interpret Garmin readiness in relation to recent "

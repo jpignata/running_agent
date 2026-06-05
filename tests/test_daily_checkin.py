@@ -91,6 +91,9 @@ class DailyCheckinTest(unittest.TestCase):
         prompt = coaching_reply.call_args.args[0]
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("2026-05-30", prompt)
+        self.assertIn("Open conversationally", prompt)
+        self.assertIn("Good morning", prompt)
+        self.assertIn("Today you have", prompt)
         self.assertIn("today's matched plan", prompt)
         self.assertIn("Do not downgrade the plan based on one Garmin metric alone", prompt)
         self.assertIn("execution adjustments first", prompt)
