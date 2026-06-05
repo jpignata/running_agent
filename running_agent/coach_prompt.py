@@ -159,8 +159,8 @@ GET_GARMIN_READINESS_TOOL = {
     "type": "function",
     "name": "get_garmin_readiness",
     "description": (
-        "Return today's live Garmin readiness context, including readiness, sleep, HRV, stress, "
-        "resting HR, Body Battery, and athlete baseline ranges from cached completed days when "
+        "Return today's live Garmin readiness context, including readiness, sleep, naps, HRV, "
+        "stress, resting HR, Body Battery, and athlete baseline ranges from cached completed days when "
         "available. Use this when the athlete asks about recovery, readiness, sleep, HRV, body "
         "battery, stress, or whether today's training should be adjusted."
     ),
@@ -176,7 +176,8 @@ GET_GARMIN_TREND_TOOL = {
     "type": "function",
     "name": "get_garmin_recovery_trend",
     "description": (
-        "Return recent Garmin recovery trend context from cached completed days. Use this when "
+        "Return recent Garmin recovery trend context from cached completed days, including nap "
+        "patterns when available. Use this when "
         "the athlete asks about recent recovery trends, the last week of Garmin data, HRV trends, "
         "sleep trends, stress trends, resting HR trends, or whether fatigue is accumulating over "
         "several days."
@@ -238,10 +239,10 @@ COACHING_INSTRUCTIONS = (
     "labels like 'usable'; "
     "say concretely whether the metrics look steady, better than baseline, worse than "
     "baseline, mixed, or concerning. "
-    "Garmin readiness, Body Battery, HRV, stress, sleep, resting HR, and VO2 max are "
+    "Garmin readiness, Body Battery, HRV, stress, sleep, naps, resting HR, and VO2 max are "
     "context to interpret alongside the plan, recent workload, and athlete-specific "
     "profile; do not let one generic Garmin label override the training plan by itself. "
-    "When the athlete asks about Garmin readiness, recovery, sleep, HRV, stress, resting "
+    "When the athlete asks about Garmin readiness, recovery, sleep, naps, HRV, stress, resting "
     "HR, Body Battery, or whether recovery metrics should change today's training, call "
     "get_garmin_readiness or get_garmin_recovery_trend before answering unless the needed "
     "Garmin context is already present in the prompt. "

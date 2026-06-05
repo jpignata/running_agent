@@ -81,6 +81,7 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Garmin readiness context for 2026-05-30:", context)
         self.assertIn("Sleep: 6h 57m, score 77.", context)
+        self.assertIn("Naps: available, no nap summary fields found.", context)
         self.assertIn("HRV: 42 ms, BALANCED.", context)
         self.assertIn("Resting HR: 48 bpm.", context)
         self.assertIn("Stress: avg 31, max 74.", context)
@@ -230,6 +231,37 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Sleep: 6h 00m.", context)
 
+    def test_readiness_context_includes_nap_summary(self) -> None:
+        context = format_garmin_readiness_context(
+            {
+                "date": "2026-06-05",
+                "sleep": {
+                    "available": True,
+                    "data": {
+                        "dailySleepDTO": {
+                            "sleepTimeSeconds": 25104,
+                            "napTimeSeconds": 3540,
+                            "dailyNapDTOS": [
+                                {
+                                    "napTimeSec": 3540,
+                                    "napStartTimestampGMT": "2026-06-05T11:47:27",
+                                    "napEndTimestampGMT": "2026-06-05T12:46:27",
+                                    "napStartTimeOffset": -240,
+                                    "napEndTimeOffset": -240,
+                                    "napFeedback": "IDEAL_TIMING_LONG_DURATION_LOW_NEED",
+                                }
+                            ],
+                        }
+                    },
+                },
+            }
+        )
+
+        self.assertIn(
+            "Naps: 0h 59m, 1 nap(s), 7:47 AM-8:46 AM, Ideal Timing Long Duration Low Need.",
+            context,
+        )
+
     def test_format_garmin_weekly_context_summarizes_recovery_trends(self) -> None:
         snapshots = [
             _snapshot(
@@ -242,6 +274,7 @@ class GarminContextTest(unittest.TestCase):
                 stress=44,
                 battery_low=28,
                 sleep_hours=5.5,
+                nap_hours=0.0,
                 vo2=51.8,
             ),
             _snapshot(
@@ -254,6 +287,7 @@ class GarminContextTest(unittest.TestCase):
                 stress=31,
                 battery_low=42,
                 sleep_hours=7.0,
+                nap_hours=0.5,
                 vo2=51.9,
             ),
             _snapshot(
@@ -266,6 +300,7 @@ class GarminContextTest(unittest.TestCase):
                 stress=41,
                 battery_low=35,
                 sleep_hours=5.8,
+                nap_hours=1.0,
                 vo2=52.0,
             ),
         ]
@@ -278,6 +313,7 @@ class GarminContextTest(unittest.TestCase):
         self.assertIn("Stress: avg 39, high-stress days 2.", context)
         self.assertIn("Body Battery: avg daily low 35, latest daily low 35.", context)
         self.assertIn("Sleep: avg 6.1h, latest 5.8h, range 5.5-7.0h.", context)
+        self.assertIn("Naps: 2 day(s) with naps, avg 0h 30m, latest 1h 00m.", context)
         self.assertNotIn("red flag", context)
         self.assertIn("VO2 max: latest 52.0.", context)
 
@@ -309,6 +345,7 @@ class GarminContextTest(unittest.TestCase):
                     stress=44,
                     battery_low=28,
                     sleep_hours=5.5,
+                    nap_hours=0.0,
                     vo2=51.8,
                 ),
                 _snapshot(
@@ -321,6 +358,7 @@ class GarminContextTest(unittest.TestCase):
                     stress=31,
                     battery_low=42,
                     sleep_hours=7.0,
+                    nap_hours=0.5,
                     vo2=51.9,
                 ),
                 _snapshot(
@@ -333,6 +371,7 @@ class GarminContextTest(unittest.TestCase):
                     stress=41,
                     battery_low=35,
                     sleep_hours=5.8,
+                    nap_hours=1.0,
                     vo2=52.0,
                 ),
             ],
@@ -340,6 +379,7 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Athlete Garmin baseline, last 3 snapshots:", context)
         self.assertIn("Sleep: typical 5.5-7.0h, median 5.8h.", context)
+        self.assertIn("Naps: typical 0.0-1.0h, median 0.5h.", context)
         self.assertIn("Resting HR: typical 44-47 bpm, median 46 bpm.", context)
         self.assertIn("HRV: typical 41-46 ms, median 43 ms.", context)
         self.assertIn("Stress: typical 31-44, median 41.", context)
@@ -359,6 +399,7 @@ class GarminContextTest(unittest.TestCase):
                     stress=20 + index,
                     battery_low=25 + index,
                     sleep_hours=5.0 + index * 0.25,
+                    nap_hours=0.0,
                     vo2=52.0,
                 )
                 for index in range(10)
@@ -380,7 +421,8 @@ def _snapshot(
     stress: int,
     battery_low: int,
     sleep_hours: float,
-    vo2: float,
+    nap_hours: float = 0.0,
+    vo2: float = 52.0,
 ) -> dict:
     return {
         "date": date,
@@ -404,7 +446,12 @@ def _snapshot(
         "stress": {"available": True, "data": {"avgStressLevel": stress}},
         "sleep": {
             "available": True,
-            "data": {"dailySleepDTO": {"sleepTimeSeconds": sleep_hours * 3600}},
+            "data": {
+                "dailySleepDTO": {
+                    "sleepTimeSeconds": sleep_hours * 3600,
+                    "napTimeSeconds": nap_hours * 3600,
+                }
+            },
         },
         "vo2max": {"available": True, "data": [{"generic": {"vo2MaxPreciseValue": vo2}}]},
     }

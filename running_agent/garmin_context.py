@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from .garmin_cache import cached_garmin_snapshots, refresh_garmin_snapshots
@@ -78,6 +78,7 @@ def format_garmin_weekly_context(
     stress_avgs: list[float] = []
     body_battery_lows: list[float] = []
     sleep_hours: list[float] = []
+    nap_seconds_values: list[float] = []
     vo2_values: list[float] = []
 
     for snapshot in snapshots:
@@ -132,6 +133,9 @@ def format_garmin_weekly_context(
         sleep_seconds = _sleep_seconds(_data(snapshot, "sleep"))
         if sleep_seconds is not None:
             sleep_hours.append(sleep_seconds / 3600)
+        nap_seconds = _nap_seconds(_data(snapshot, "sleep"))
+        if nap_seconds is not None:
+            nap_seconds_values.append(nap_seconds)
 
         vo2 = _vo2_value(_data(snapshot, "vo2max"))
         if vo2 is not None:
@@ -181,6 +185,14 @@ def format_garmin_weekly_context(
         )
     else:
         lines.append("Sleep: unavailable or no duration fields found.")
+    if nap_seconds_values:
+        nap_days = sum(seconds > 0 for seconds in nap_seconds_values)
+        lines.append(
+            "Naps: "
+            f"{nap_days} day(s) with naps, "
+            f"avg {_duration(_mean(nap_seconds_values))}, "
+            f"latest {_duration(nap_seconds_values[-1])}."
+        )
     if vo2_values:
         lines.append(f"VO2 max: latest {vo2_values[-1]:.1f}.")
     if baseline_snapshots:
@@ -199,6 +211,7 @@ def format_garmin_readiness_context(
     lines.extend(
         [
             _sleep_line(_data(snapshot, "sleep")),
+            _nap_line(_data(snapshot, "sleep")),
             _hrv_line(_data(snapshot, "hrv")),
             _resting_hr_line(_data(snapshot, "heart_rates"), _data(snapshot, "stats")),
             _stress_line(_data(snapshot, "stress")),
@@ -226,6 +239,7 @@ def format_garmin_baseline_context(snapshots: list[dict[str, Any]]) -> str:
 
     lines = [f"Athlete Garmin baseline, last {len(snapshots)} snapshots:"]
     _append_baseline_line(lines, "Sleep", metrics.get("sleep_hours"), "h", decimals=1)
+    _append_baseline_line(lines, "Naps", metrics.get("nap_hours"), "h", decimals=1)
     _append_baseline_line(lines, "Resting HR", metrics.get("resting_hr"), " bpm")
     _append_baseline_line(lines, "HRV", metrics.get("hrv"), " ms")
     _append_baseline_line(lines, "Stress", metrics.get("stress"), "")
@@ -251,6 +265,7 @@ def _data(snapshot: dict[str, Any], key: str) -> Any:
 def _baseline_metrics(snapshots: list[dict[str, Any]]) -> dict[str, list[float]]:
     metrics: dict[str, list[float]] = {
         "sleep_hours": [],
+        "nap_hours": [],
         "resting_hr": [],
         "hrv": [],
         "stress": [],
@@ -261,6 +276,9 @@ def _baseline_metrics(snapshots: list[dict[str, Any]]) -> dict[str, list[float]]
         sleep_seconds = _sleep_seconds(_data(snapshot, "sleep"))
         if sleep_seconds is not None:
             metrics["sleep_hours"].append(sleep_seconds / 3600)
+        nap_seconds = _nap_seconds(_data(snapshot, "sleep"))
+        if nap_seconds is not None:
+            metrics["nap_hours"].append(nap_seconds / 3600)
 
         heart_rates = _data(snapshot, "heart_rates")
         stats = _data(snapshot, "stats")
@@ -343,6 +361,28 @@ def _sleep_line(data: Any) -> str:
     if score:
         parts.append(f"score {score:.0f}")
     return "Sleep: " + (", ".join(parts) + "." if parts else "available, no summary fields found.")
+
+
+def _nap_line(data: Any) -> str:
+    if not isinstance(data, dict):
+        return "Naps: unavailable."
+    seconds = _nap_seconds(data)
+    naps = _nap_entries(data)
+    if seconds is None and not naps:
+        return "Naps: available, no nap summary fields found."
+    if not seconds:
+        return "Naps: none recorded."
+
+    parts = [_duration(seconds)]
+    if naps:
+        parts.append(f"{len(naps)} nap(s)")
+        window = _nap_window(naps[-1])
+        if window:
+            parts.append(window)
+        feedback = _first_string(naps[-1], ["napFeedback"])
+        if feedback:
+            parts.append(_humanize_status(feedback))
+    return "Naps: " + ", ".join(parts) + "."
 
 
 def _hrv_line(data: Any) -> str:
@@ -480,6 +520,66 @@ def _sleep_seconds(data: Any) -> float | None:
         if any(value is not None for value in sleep_stage_seconds):
             seconds = sum(value or 0 for value in sleep_stage_seconds)
     return seconds
+
+
+def _nap_seconds(data: Any) -> float | None:
+    if not isinstance(data, dict):
+        return None
+    sleep = data.get("dailySleepDTO") if isinstance(data.get("dailySleepDTO"), dict) else data
+    seconds = _first_number(sleep, ["napTimeSeconds", "napTimeSec", "totalNapTimeSeconds"])
+    if seconds is not None:
+        return seconds
+
+    naps = _nap_entries(data)
+    if not naps:
+        return None
+    total = 0.0
+    found = False
+    for nap in naps:
+        nap_seconds = _first_number(nap, ["napTimeSec", "napTimeSeconds", "duration"])
+        if nap_seconds is not None:
+            total += nap_seconds
+            found = True
+    return total if found else None
+
+
+def _nap_entries(data: Any) -> list[dict[str, Any]]:
+    if not isinstance(data, dict):
+        return []
+    sleep = data.get("dailySleepDTO") if isinstance(data.get("dailySleepDTO"), dict) else data
+    entries = []
+    for source in [data, sleep]:
+        if not isinstance(source, dict):
+            continue
+        for key in ["dailyNapDTOS", "napDtos", "naps"]:
+            values = source.get(key)
+            if isinstance(values, list):
+                entries.extend(item for item in values if isinstance(item, dict))
+    return entries
+
+
+def _nap_window(nap: dict[str, Any]) -> str | None:
+    start = _nap_local_time(nap, "napStartTimestampGMT", "napStartTimeOffset")
+    end = _nap_local_time(nap, "napEndTimestampGMT", "napEndTimeOffset")
+    if start and end:
+        return f"{start}-{end}"
+    return None
+
+
+def _nap_local_time(nap: dict[str, Any], timestamp_key: str, offset_key: str) -> str | None:
+    timestamp = _first_string(nap, [timestamp_key])
+    if not timestamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    offset = _first_number(nap, [offset_key])
+    if offset is not None:
+        parsed = parsed + timedelta(minutes=offset)
+    hour = parsed.hour % 12 or 12
+    suffix = "AM" if parsed.hour < 12 else "PM"
+    return f"{hour}:{parsed.minute:02d} {suffix}"
 
 
 def _vo2_value(data: Any) -> float | None:
