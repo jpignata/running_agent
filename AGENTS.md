@@ -33,6 +33,9 @@ summaries.
   behavior changes into separate commits when practical.
 - After user-facing behavior or command changes, check whether `README.md` needs an
   update before finishing.
+- `ROADMAP.md` is the lightweight project board. Use `Backlog` for ready-to-build
+  work and `Icebox` for looser ideas. When a roadmap item is completed, remove it
+  from `ROADMAP.md` in the same focused change when practical.
 
 ## Setup
 
