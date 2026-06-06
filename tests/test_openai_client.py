@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from running_agent.openai_client import coaching_reply
+from running_agent.openai_client import coaching_reply, image_coaching_reply
 
 
 class OpenAIClientTest(unittest.TestCase):
@@ -69,6 +69,40 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertNotIn("tools", payload)
         self.assertNotIn("tool_choice", payload)
         self.assertEqual(payload["max_output_tokens"], 220)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch(
+        "running_agent.coach_prompt.coach_reflection_context",
+        return_value="Current coach thesis",
+    )
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client._post_json", return_value={"output_text": "Image reply"})
+    def test_image_coaching_reply_includes_text_context_and_image(
+        self,
+        post_json,
+        _athlete_profile_context,
+        _coach_reflection_context,
+    ) -> None:
+        reply = image_coaching_reply(
+            "What should I know about this course?",
+            image_bytes=b"image bytes",
+            mime_type="image/png",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Weekly plan",
+            training_goal="Goal",
+        )
+
+        self.assertEqual(reply, "Image reply")
+        payload = post_json.call_args.args[1]
+        content = payload["input"][0]["content"]
+        self.assertEqual(content[0]["type"], "input_text")
+        self.assertIn("What should I know about this course?", content[0]["text"])
+        self.assertIn("Training summary", content[0]["text"])
+        self.assertIn("Weekly plan", content[0]["text"])
+        self.assertEqual(content[1]["type"], "input_image")
+        self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
+        self.assertNotIn("tools", payload)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")

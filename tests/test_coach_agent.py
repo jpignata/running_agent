@@ -319,6 +319,41 @@ class CoachAgentTest(unittest.TestCase):
             "Matched Thursday plan context",
         )
 
+    @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
+    @patch(
+        "running_agent.coach_agent.weekly_plan_context_for_date",
+        return_value="Matched Thursday plan context",
+    )
+    @patch("running_agent.coach_agent.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_agent.image_coaching_reply", return_value="Course note")
+    def test_coach_image_reply_passes_context_and_updates_conversation(
+        self,
+        image_coaching_reply,
+        _training_goal_context,
+        _weekly_plan_context_for_date,
+        _coach_today,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        reply = agent.coach_image_reply(
+            caption="How should I pace this course?",
+            image_bytes=b"image-bytes",
+            mime_type="image/png",
+        )
+
+        self.assertEqual(reply, "Course note")
+        self.assertEqual(image_coaching_reply.call_args.args[0], "How should I pace this course?")
+        self.assertEqual(image_coaching_reply.call_args.kwargs["image_bytes"], b"image-bytes")
+        self.assertEqual(image_coaching_reply.call_args.kwargs["mime_type"], "image/png")
+        self.assertEqual(
+            image_coaching_reply.call_args.kwargs["weekly_plan"],
+            "Matched Thursday plan context",
+        )
+        self.assertEqual(
+            agent.conversation[-2]["content"], "[image] How should I pace this course?"
+        )
+        self.assertEqual(agent.conversation[-1]["content"], "Course note")
+
     @patch("running_agent.coach_agent.coaching_reply")
     @patch(
         "running_agent.coach_agent.build_chat_debug_context",

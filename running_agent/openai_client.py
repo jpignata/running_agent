@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 from typing import Any
@@ -8,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from .athlete_profile import append_coaching_preference
 from .auth import load_env_file
-from .coach_prompt import build_coaching_payload
+from .coach_prompt import COACHING_INSTRUCTIONS, build_coaching_input, build_coaching_payload
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
@@ -53,6 +54,69 @@ def coaching_reply(
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     if tools_enabled:
         response = _handle_tool_calls(response, payload, api_key)
+    text = _extract_output_text(response)
+    if not text:
+        raise RuntimeError("OpenAI response did not include text output.")
+    return text.strip()
+
+
+def image_coaching_reply(
+    message: str,
+    image_bytes: bytes,
+    mime_type: str,
+    training_summary: str,
+    recent_runs: str,
+    weekly_plan: str | None = None,
+    training_goal: str | None = None,
+    coach_log: str | None = None,
+    garmin_context: str | None = None,
+    conversation: list[dict[str, str]] | None = None,
+    max_output_tokens: int = 650,
+) -> str:
+    load_env_file()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return (
+            "I received the image, but image understanding needs OPENAI_API_KEY to be set. "
+            "Add a caption with the key details and I can still coach from text."
+        )
+
+    context = build_coaching_input(
+        message=message,
+        training_summary=training_summary,
+        recent_runs=recent_runs,
+        weekly_plan=weekly_plan,
+        training_goal=training_goal,
+        coach_log=coach_log,
+        garmin_context=garmin_context,
+        conversation=conversation,
+    )
+    payload = {
+        "model": os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "instructions": (
+            COACHING_INSTRUCTIONS
+            + " The athlete sent an image. Inspect the image directly and use it as coaching "
+            "context. For course screenshots, focus on concrete running implications such as "
+            "elevation, turns, terrain, pacing, effort distribution, risk spots, and how it "
+            "fits the athlete's current plan and goal. If the image text is unreadable or the "
+            "important details are not visible, say what you cannot see and ask for the missing "
+            "detail. Do not claim certainty about details that are not visible."
+        ),
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "input_text", "text": context},
+                    {
+                        "type": "input_image",
+                        "image_url": _image_data_url(image_bytes, mime_type),
+                    },
+                ],
+            }
+        ],
+        "max_output_tokens": max_output_tokens,
+    }
+    response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     text = _extract_output_text(response)
     if not text:
         raise RuntimeError("OpenAI response did not include text output.")
@@ -261,3 +325,9 @@ def _fallback_reply(message: str, training_summary: str) -> str:
         "Rule of thumb for this question: keep the next run easy unless the last few days have "
         "felt fresh, and add volume gradually before adding intensity."
     )
+
+
+def _image_data_url(image_bytes: bytes, mime_type: str) -> str:
+    safe_mime_type = mime_type if mime_type.startswith("image/") else "image/jpeg"
+    encoded = base64.b64encode(image_bytes).decode("ascii")
+    return f"data:{safe_mime_type};base64,{encoded}"

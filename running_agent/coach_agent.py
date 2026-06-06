@@ -29,7 +29,7 @@ from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
-from .openai_client import coaching_reply
+from .openai_client import coaching_reply, image_coaching_reply
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
 from .plan_suggestion import (
     mark_sunday_plan_sent,
@@ -252,6 +252,39 @@ class CoachAgent:
         self.conversation.extend(
             [
                 {"role": "athlete", "content": text},
+                {"role": "coach", "content": reply},
+            ]
+        )
+        self.conversation = self.conversation[-12:]
+        return reply
+
+    def coach_image_reply(self, caption: str, image_bytes: bytes, mime_type: str) -> str:
+        message = caption.strip() or (
+            "The athlete sent an image for coaching context. Inspect it and explain the "
+            "running implications."
+        )
+        log_event("debug", {"message": "coach_image_recent_activities_start"})
+        activities = self.strava.recent_activities(days=self.lookback_days)
+        log_event(
+            "debug",
+            {"message": "coach_image_recent_activities_done", "count": len(activities)},
+        )
+        summary = summarize_training(activities, days=self.lookback_days)
+        log_event("debug", {"message": "coach_image_openai_start", "chars": len(image_bytes)})
+        reply = image_coaching_reply(
+            message,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            training_summary=summary,
+            recent_runs=recent_runs_context(activities),
+            weekly_plan=weekly_plan_context_for_date(coach_today()),
+            training_goal=training_goal_context(),
+            conversation=self.conversation,
+        )
+        log_event("debug", {"message": "coach_image_openai_done", "chars": len(reply)})
+        self.conversation.extend(
+            [
+                {"role": "athlete", "content": f"[image] {message}"},
                 {"role": "coach", "content": reply},
             ]
         )

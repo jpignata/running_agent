@@ -15,6 +15,7 @@ SEND_MESSAGE_TIMEOUT_SECONDS = 5
 class TelegramClient:
     def __init__(self, bot_token: str):
         self.base_url = f"{TELEGRAM_API_BASE}/bot{bot_token}"
+        self.file_base_url = f"{TELEGRAM_API_BASE}/file/bot{bot_token}"
 
     def get_updates(
         self,
@@ -44,6 +45,24 @@ class TelegramClient:
                 },
                 timeout_seconds=SEND_MESSAGE_TIMEOUT_SECONDS,
             )
+
+    def get_file(self, file_id: str) -> dict[str, Any]:
+        return self._post(
+            "getFile",
+            {"file_id": file_id},
+            timeout_seconds=SEND_MESSAGE_TIMEOUT_SECONDS,
+        ).get("result", {})
+
+    def download_file(self, file_path: str) -> bytes:
+        request = Request(f"{self.file_base_url}/{file_path}", method="GET")
+        try:
+            with urlopen(request, timeout=SEND_MESSAGE_TIMEOUT_SECONDS) as response:
+                return response.read()
+        except HTTPError as error:
+            body = error.read().decode("utf-8")
+            raise RuntimeError(
+                f"Telegram file download failed with HTTP {error.code}: {body}"
+            ) from error
 
     def _post(
         self,

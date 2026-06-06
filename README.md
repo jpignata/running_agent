@@ -264,6 +264,10 @@ The coach can also remember natural-language notes when chatting. For example, i
 `remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
 store that in `.data/athlete_profile.txt`, and use it in future coaching.
 
+Telegram photo messages are supported too. If you send an image such as a course screenshot,
+with or without a caption, the bot downloads the Telegram image in memory and sends it to the
+model alongside the usual coaching context. It does not save the image to disk.
+
 The same model-tool pattern is available for goals. If you say something like
 `my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
 `.data/training_goal.json` so future coaching uses the updated target.

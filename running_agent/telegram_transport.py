@@ -91,14 +91,23 @@ class TelegramTransport:
             self.state["telegram_update_offset"] = int(update["update_id"]) + 1
             message = update.get("message") or {}
             text = (message.get("text") or "").strip()
+            caption = (message.get("caption") or "").strip()
+            photo = message.get("photo") or []
             chat = message.get("chat") or {}
             chat_id = chat.get("id")
-            if not text or chat_id is None:
+            if chat_id is None or (not text and not photo):
                 continue
             if not self._chat_allowed(chat_id):
                 continue
-            log_event("rx", {"chat_id": chat_id, "text": text})
-            self._deliver_messages(self.coach.handle_message(text), chat_id=chat_id)
+            if photo:
+                log_event("rx", {"chat_id": chat_id, "text": caption, "photo": True})
+                self._deliver_messages(
+                    [self._image_reply_from_message(photo, caption)],
+                    chat_id=chat_id,
+                )
+            else:
+                log_event("rx", {"chat_id": chat_id, "text": text})
+                self._deliver_messages(self.coach.handle_message(text), chat_id=chat_id)
         self._save_state()
 
     def _chat_allowed(self, chat_id: int) -> bool:
@@ -150,3 +159,41 @@ class TelegramTransport:
             self.coach.check_new_runs(force=force_chat_id is not None),
             chat_id=force_chat_id,
         )
+
+    def _image_reply_from_message(self, photo_sizes: list[dict], caption: str) -> str:
+        try:
+            photo = _largest_photo(photo_sizes)
+            file_id = photo.get("file_id")
+            if not file_id:
+                return "I received the image, but Telegram did not include a downloadable file ID."
+            file_info = self.telegram.get_file(file_id)
+            file_path = file_info.get("file_path")
+            if not file_path:
+                return "I received the image, but Telegram did not return a file path for it."
+            image_bytes = self.telegram.download_file(file_path)
+            return self.coach.coach_image_reply(
+                caption=caption,
+                image_bytes=image_bytes,
+                mime_type=_mime_type_for_file_path(file_path),
+            )
+        except RuntimeError as error:
+            return f"Something failed while reading that image: {error}"
+
+
+def _largest_photo(photo_sizes: list[dict]) -> dict:
+    return max(
+        photo_sizes,
+        key=lambda item: (
+            int(item.get("file_size") or 0),
+            int(item.get("width") or 0) * int(item.get("height") or 0),
+        ),
+    )
+
+
+def _mime_type_for_file_path(file_path: str) -> str:
+    lower = file_path.lower()
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".webp"):
+        return "image/webp"
+    return "image/jpeg"
