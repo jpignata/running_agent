@@ -6,29 +6,6 @@ problem we have seen. This is the result of the robot and I brainstorming.
 
 ## Backlog
 
-### Scheduled Message Preview
-
-Why: Morning, evening, and weekly messages are hard to tune if the only way to
-see them is to wait for the scheduler or write one-off Python snippets.
-
-Shape:
-
-```bash
-python -m running_agent preview morning
-python -m running_agent preview evening --date 2026-06-05
-python -m running_agent preview weekly --date 2026-06-07
-```
-
-The command should run the same generation path as the scheduler, but print the
-message instead of sending it. It should support an optional date so we can test
-edge cases like yesterday's evening message, a Sunday weekly message, or a race
-weekend. It should make clear whether tools are disabled, whether the message
-would normally be skipped, and what data sources were used.
-
-Done when: There are simple preview commands for morning, evening, and weekly
-messages, with an optional date, and they do not mutate scheduler state or send
-Telegram messages.
-
 ### Coach Event Logging
 
 Why: When the coach gives a strange answer or misses a scheduled behavior, we

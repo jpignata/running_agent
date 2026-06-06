@@ -73,6 +73,36 @@ class CliTest(unittest.TestCase):
         coach.debug_context.assert_called_once_with("How's my recovery?")
         print_.assert_called_once_with("Debug context")
 
+    @patch("builtins.print")
+    @patch("running_agent.cli.StravaClient")
+    @patch("running_agent.cli.load_agent_state", return_value={"state": "value"})
+    @patch("running_agent.cli.format_scheduled_preview", return_value="Preview text")
+    @patch("running_agent.cli.preview_scheduled_message", return_value="Preview object")
+    @patch("sys.argv", ["running-agent", "preview", "evening", "--date", "2026-06-05"])
+    def test_preview_command_prints_scheduled_message_preview(
+        self,
+        preview_scheduled_message,
+        format_scheduled_preview,
+        load_agent_state,
+        strava_client,
+        print_,
+    ) -> None:
+        client = Mock()
+        strava_client.return_value = client
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        preview_scheduled_message.assert_called_once()
+        kwargs = preview_scheduled_message.call_args.kwargs
+        self.assertEqual(preview_scheduled_message.call_args.args, ("evening",))
+        self.assertEqual(kwargs["client"], client)
+        self.assertEqual(kwargs["target_date"].isoformat(), "2026-06-05")
+        self.assertEqual(kwargs["state"], {"state": "value"})
+        load_agent_state.assert_called_once()
+        format_scheduled_preview.assert_called_once_with("Preview object")
+        print_.assert_called_once_with("Preview text")
+
 
 if __name__ == "__main__":
     unittest.main()

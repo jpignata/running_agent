@@ -4,12 +4,14 @@ import argparse
 import os
 import time
 import traceback
+from datetime import date
 
 from .agent_state import load_agent_state, save_agent_state
 from .auth import build_authorization_url
 from .coach_agent import CoachAgent
 from .coach_reflection import generate_coach_reflection
 from .repl_transport import ReplTransport
+from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
 from .strava_sync import sync_strava_runs
@@ -64,6 +66,17 @@ def _main() -> int:
         type=int,
         default=21,
         help="Training lookback window in days.",
+    )
+
+    preview = subparsers.add_parser(
+        "preview",
+        help="Preview a scheduled message without sending it or mutating scheduler state.",
+    )
+    preview.add_argument("kind", choices=["morning", "evening", "weekly"])
+    preview.add_argument(
+        "--date",
+        type=_parse_date,
+        help="Coach-local date to preview, in YYYY-MM-DD format. Defaults to today.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
@@ -163,6 +176,16 @@ def _main() -> int:
         print(coach.debug_context(args.message))
         return 0
 
+    if args.command == "preview":
+        preview = preview_scheduled_message(
+            args.kind,
+            client=StravaClient(),
+            target_date=args.date,
+            state=load_agent_state(STATE_PATH),
+        )
+        print(format_scheduled_preview(preview))
+        return 0
+
     if args.command == "telegram":
         if args.debug_log:
             os.environ["RUNNING_AGENT_DEBUG_LOG"] = "1"
@@ -211,3 +234,10 @@ def _run_telegram_with_restarts(
             traceback.print_exc()
             print(f"Restarting in {restart_delay} seconds...")
             time.sleep(restart_delay)
+
+
+def _parse_date(value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("date must be in YYYY-MM-DD format") from error
