@@ -25,7 +25,7 @@ When `python -m running_agent telegram` is running, the bot:
   Strava shows a completed run for the day.
 - Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
   Eastern.
-- Refreshes the coach's private training state after the Sunday review-plus-plan message.
+- Refreshes the coach's private training state once per day after 7:00pm Eastern.
 
 ### Local Data And Privacy
 
@@ -90,6 +90,7 @@ python -m running_agent reflect --days 42
 That command rewrites `.data/coach_reflection.json` from recent Strava, Garmin, plan, goal,
 and coach-log context. Future model replies include the current reflection as private coaching
 context, including concrete goal requirements and checkpoints when the saved goal supports them.
+The Telegram scheduler also refreshes this reflection once per day after 7:00pm Eastern.
 
 When you ask a natural-language question like `what were the splits from my track workout
 last week?`, the model can call local lookup tools to search synced runs and load detailed
@@ -232,6 +233,23 @@ The REPL talks to the same coach agent as Telegram. Type `/help` to list chat co
 `/tick` to run due scheduled checks, and `/quit` to exit. By default it hides rx/tx log
 lines; add `--debug-log` to see them.
 
+To inspect the context a normal chat reply would send to the model without calling OpenAI:
+
+```bash
+python -m running_agent debug-context "How's my recovery?"
+```
+
+To preview scheduled messages without sending Telegram messages or mutating scheduler state:
+
+```bash
+python -m running_agent preview morning
+python -m running_agent preview evening --date 2026-06-05
+python -m running_agent preview weekly --date 2026-06-07
+```
+
+Preview output includes whether the scheduler would normally send, skip reasons, tools status,
+data sources, and the generated message.
+
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:
 
@@ -262,10 +280,11 @@ help surface.
 
 The Telegram process checks Strava every five minutes by default, sends a short coaching
 note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
-today's weekly plan has a matched workout that has not already been completed, and sends
-one Sunday evening review plus next-week plan idea after 6:00pm Eastern. It also refreshes
-the Garmin snapshot cache once per day after 5:00am Eastern. Change the polling interval
-with:
+today's weekly plan has a matched workout that has not already been completed, sends one
+end-of-day report after 8:30pm Eastern Monday through Saturday when there was a completed
+run, and sends one Sunday evening review plus next-week plan idea after 6:00pm Eastern.
+It also refreshes the Garmin snapshot cache once per day after 5:00am Eastern and the
+coach reflection once per day after 7:00pm Eastern. Change the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28

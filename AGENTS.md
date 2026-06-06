@@ -31,6 +31,8 @@ summaries.
 
 - Favor small, focused, atomic commits. Split unrelated documentation, prompt, tool, and
   behavior changes into separate commits when practical.
+- After user-facing behavior or command changes, check whether `README.md` needs an
+  update before finishing.
 
 ## Setup
 
