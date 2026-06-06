@@ -18,6 +18,7 @@ from .daily_checkin import (
     mark_daily_checkin_sent,
     should_send_daily_checkin,
 )
+from .debug_context import build_chat_debug_context, format_chat_debug_context
 from .evening_report import (
     end_of_day_report,
     mark_evening_report_sent,
@@ -254,6 +255,16 @@ class CoachAgent:
         )
         self.conversation = self.conversation[-12:]
         return reply
+
+    def debug_context(self, text: str) -> str:
+        context = build_chat_debug_context(
+            message=text,
+            client=self.strava,
+            lookback_days=self.lookback_days,
+            conversation=self.conversation,
+            tools_enabled=True,
+        )
+        return format_chat_debug_context(context)
 
     def training_summary(self) -> str:
         log_event("debug", {"message": "training_summary_recent_activities_start"})

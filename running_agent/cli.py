@@ -54,6 +54,18 @@ def _main() -> int:
         help="How many days of Strava activities to consider.",
     )
 
+    debug_context = subparsers.add_parser(
+        "debug-context",
+        help="Print the context a normal coach reply would send to the model.",
+    )
+    debug_context.add_argument("message", help="Sample athlete message to debug.")
+    debug_context.add_argument(
+        "--days",
+        type=int,
+        default=21,
+        help="Training lookback window in days.",
+    )
+
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
     exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
 
@@ -144,6 +156,11 @@ def _main() -> int:
     if args.command == "reflect":
         reflection = generate_coach_reflection(StravaClient(), lookback_days=args.days)
         print(reflection)
+        return 0
+
+    if args.command == "debug-context":
+        coach = CoachAgent(lookback_days=args.days, strava_client=StravaClient())
+        print(coach.debug_context(args.message))
         return 0
 
     if args.command == "telegram":

@@ -339,7 +339,12 @@ def build_coaching_input(
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     include_coach_reflection: bool = True,
+    athlete_profile_text: str | None = None,
+    coach_reflection_text: str | None = None,
 ) -> str:
+    profile = (
+        athlete_profile_text if athlete_profile_text is not None else athlete_profile_context()
+    )
     prompt_parts = [
         "Current local date:",
         coach_now().strftime("%A, %B %-d, %Y"),
@@ -354,7 +359,7 @@ def build_coaching_input(
         recent_runs,
         "",
         "Athlete-specific profile:",
-        athlete_profile_context(),
+        profile,
         "",
         COACHING_STANCE_RUBRIC,
         "",
@@ -363,11 +368,16 @@ def build_coaching_input(
         TRAINING_PROGRESSION_RUBRIC,
     ]
     if include_coach_reflection:
+        reflection = (
+            coach_reflection_text
+            if coach_reflection_text is not None
+            else coach_reflection_context()
+        )
         prompt_parts.extend(
             [
                 "",
                 "Coach's private current training thesis:",
-                coach_reflection_context(),
+                reflection,
             ]
         )
     if weekly_plan:

@@ -6,28 +6,6 @@ problem we have seen. This is the result of the robot and I brainstorming.
 
 ## Backlog
 
-### Agent Context Debug View
-
-Why: When the coach gives a strange answer, the fastest debug path is seeing the
-exact context it received: plan, goal, notes, reflection, Garmin, and Strava.
-This should be an on-demand debugging command, not automatic logging.
-
-Shape:
-
-```bash
-python -m running_agent debug-context "How's my recovery?"
-```
-
-The command should assemble the same context that a normal coach reply would use,
-print it in readable sections, and stop before calling OpenAI. It should show the
-user message, tools-enabled setting, training summary, recent runs, matched weekly
-plan, goal, coaching notes, private reflection, Garmin context, and any obvious
-freshness metadata.
-
-Done when: A CLI or REPL command can print the assembled context for a sample
-message without calling the model, and the output is useful enough to explain why
-the coach might have answered the way it did.
-
 ### Scheduled Message Preview
 
 Why: Morning, evening, and weekly messages are hard to tune if the only way to

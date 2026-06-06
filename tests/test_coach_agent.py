@@ -249,6 +249,36 @@ class CoachAgentTest(unittest.TestCase):
             "Matched Thursday plan context",
         )
 
+    @patch("running_agent.coach_agent.coaching_reply")
+    @patch(
+        "running_agent.coach_agent.build_chat_debug_context",
+        return_value="Debug object",
+    )
+    @patch(
+        "running_agent.coach_agent.format_chat_debug_context",
+        return_value="Debug context",
+    )
+    def test_debug_context_does_not_call_model(
+        self,
+        format_chat_debug_context,
+        build_chat_debug_context,
+        coaching_reply,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        text = agent.debug_context("How's my recovery?")
+
+        self.assertEqual(text, "Debug context")
+        build_chat_debug_context.assert_called_once_with(
+            message="How's my recovery?",
+            client=agent.strava,
+            lookback_days=agent.lookback_days,
+            conversation=agent.conversation,
+            tools_enabled=True,
+        )
+        format_chat_debug_context.assert_called_once_with("Debug object")
+        coaching_reply.assert_not_called()
+
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))
     def test_garmin_cache_refresh_runs_once_per_day(

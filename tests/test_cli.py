@@ -50,6 +50,29 @@ class CliTest(unittest.TestCase):
         generate_coach_reflection.assert_called_once_with(client, lookback_days=30)
         print_.assert_called_once_with("Updated thesis")
 
+    @patch("builtins.print")
+    @patch("running_agent.cli.StravaClient")
+    @patch("running_agent.cli.CoachAgent")
+    @patch("sys.argv", ["running-agent", "debug-context", "How's my recovery?", "--days", "14"])
+    def test_debug_context_command_prints_agent_context(
+        self,
+        coach_agent,
+        strava_client,
+        print_,
+    ) -> None:
+        client = Mock()
+        strava_client.return_value = client
+        coach = Mock()
+        coach.debug_context.return_value = "Debug context"
+        coach_agent.return_value = coach
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        coach_agent.assert_called_once_with(lookback_days=14, strava_client=client)
+        coach.debug_context.assert_called_once_with("How's my recovery?")
+        print_.assert_called_once_with("Debug context")
+
 
 if __name__ == "__main__":
     unittest.main()
