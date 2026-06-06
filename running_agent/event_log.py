@@ -26,12 +26,16 @@ def _event_line(entry: dict[str, Any]) -> str:
     for key, value in entry.items():
         if key in {"timestamp", "type"}:
             continue
-        parts.append(f"{key}={_line_value(value)}")
+        parts.append(f"{key}={_line_value(value, quoted=key == 'text')}")
     return " ".join(parts)
 
 
-def _line_value(value: Any) -> str:
-    return str(value).replace("\n", "\\n")
+def _line_value(value: Any, quoted: bool = False) -> str:
+    text = str(value).replace("\\", "\\\\").replace("\n", "\\n")
+    if quoted:
+        text = text.replace('"', '\\"')
+        return f'"{text}"'
+    return text
 
 
 def _debug_stdout_enabled() -> bool:

@@ -13,8 +13,14 @@ class EventLogTest(unittest.TestCase):
             log_event("rx", {"chat_id": 123, "text": "hello\nthere"})
 
         printed_line = print_mock.call_args.args[0]
-        self.assertIn(" rx chat_id=123 text=hello\\nthere", printed_line)
+        self.assertIn(' rx chat_id=123 text="hello\\nthere"', printed_line)
         self.assertEqual(print_mock.call_args.kwargs, {"flush": True})
+
+    def test_log_event_quotes_and_escapes_text_field(self) -> None:
+        with patch("builtins.print") as print_mock:
+            log_event("tx", {"chat_id": 123, "text": 'he said "go"'})
+
+        self.assertIn(' tx chat_id=123 text="he said \\"go\\""', print_mock.call_args.args[0])
 
     def test_debug_event_does_not_print_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=True), patch("builtins.print") as print_mock:
