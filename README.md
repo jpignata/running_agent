@@ -48,8 +48,8 @@ under `~/.garminconnect` are all ignored by git.
 
 The coach builds replies from local context instead of treating each message as isolated:
 
-- Recent Strava runs, including detailed laps when they matter, such as workouts, races,
-  and long runs.
+- Recent Strava runs, using a four-week default lookback for normal chat and summaries,
+  including detailed laps when they matter, such as workouts, races, and long runs.
 - Synced local Strava activity history in `.data/strava/`, with compact run summaries
   and per-activity detail files for lap/split lookup.
 - The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.

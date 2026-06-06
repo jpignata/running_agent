@@ -14,6 +14,8 @@ from .openai_client import DEFAULT_MODEL
 from .plan_store import weekly_plan_context_for_date
 from .strava_client import StravaClient
 
+DEFAULT_DEBUG_LOOKBACK_DAYS = 28
+
 
 @dataclass(frozen=True)
 class CoachDebugContext:
@@ -35,7 +37,7 @@ def build_chat_debug_context(
     *,
     message: str,
     client: StravaClient,
-    lookback_days: int = 21,
+    lookback_days: int = DEFAULT_DEBUG_LOOKBACK_DAYS,
     conversation: list[dict[str, str]] | None = None,
     tools_enabled: bool = True,
 ) -> CoachDebugContext:

@@ -42,7 +42,7 @@ from .strava_client import StravaClient
 from .strava_sync import save_synced_run_detail
 from .weekly_review import current_week_start, weekly_coaching_message
 
-DEFAULT_LOOKBACK_DAYS = 21
+DEFAULT_LOOKBACK_DAYS = 28
 GARMIN_REFRESH_TIME = datetime_time(5, 0)
 COACH_REFLECTION_REFRESH_TIME = datetime_time(19, 0)
 

@@ -8,7 +8,7 @@ from datetime import date
 
 from .agent_state import load_agent_state, save_agent_state
 from .auth import build_authorization_url
-from .coach_agent import CoachAgent
+from .coach_agent import DEFAULT_LOOKBACK_DAYS, CoachAgent
 from .coach_reflection import generate_coach_reflection
 from .repl_transport import ReplTransport
 from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
@@ -64,7 +64,7 @@ def _main() -> int:
     debug_context.add_argument(
         "--days",
         type=int,
-        default=21,
+        default=DEFAULT_LOOKBACK_DAYS,
         help="Training lookback window in days.",
     )
 
@@ -86,7 +86,12 @@ def _main() -> int:
         "telegram",
         help="Run the Telegram running coach and monitor Strava for new runs.",
     )
-    telegram.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
+    telegram.add_argument(
+        "--days",
+        type=int,
+        default=DEFAULT_LOOKBACK_DAYS,
+        help="Training lookback window in days.",
+    )
     telegram.add_argument(
         "--poll-seconds",
         type=int,
@@ -114,7 +119,12 @@ def _main() -> int:
         "repl",
         help="Chat with the running coach locally.",
     )
-    repl.add_argument("--days", type=int, default=21, help="Training lookback window in days.")
+    repl.add_argument(
+        "--days",
+        type=int,
+        default=DEFAULT_LOOKBACK_DAYS,
+        help="Training lookback window in days.",
+    )
     repl.add_argument(
         "--debug-log",
         action="store_true",
