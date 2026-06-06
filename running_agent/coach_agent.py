@@ -44,6 +44,7 @@ from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 21
 GARMIN_REFRESH_TIME = datetime_time(5, 0)
+COACH_REFLECTION_REFRESH_TIME = datetime_time(19, 0)
 
 
 @dataclass(frozen=True)
@@ -151,6 +152,7 @@ class CoachAgent:
     def tick(self) -> list[str]:
         messages: list[str] = []
         self.refresh_garmin_cache_if_due()
+        self.refresh_coach_reflection_if_due()
         daily = self.daily_checkin_if_due()
         if daily:
             messages.append(daily)
@@ -370,26 +372,37 @@ class CoachAgent:
             "debug",
             {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
         )
-        self.refresh_coach_reflection(trigger="sunday_plan")
         mark_sunday_plan_sent(now, self.state)
         self._save_state()
         return message
 
-    def refresh_coach_reflection(self, trigger: str) -> None:
-        log_event("debug", {"message": "coach_reflection_start", "trigger": trigger})
+    def refresh_coach_reflection_if_due(self) -> None:
+        now = coach_now()
+        if now.time() < COACH_REFLECTION_REFRESH_TIME:
+            return
+        today = now.date().isoformat()
+        if self.state.get("last_coach_reflection_attempt_date") == today:
+            return
+
+        log_event("debug", {"message": "coach_reflection_start", "trigger": "daily"})
+        self.state["last_coach_reflection_attempt_date"] = today
         try:
             generate_coach_reflection(self.strava, lookback_days=max(self.lookback_days, 42))
         except RuntimeError as error:
+            self.state["last_coach_reflection_error"] = str(error)
             log_event(
                 "debug",
                 {
                     "message": "coach_reflection_failed",
-                    "trigger": trigger,
+                    "trigger": "daily",
                     "error": str(error),
                 },
             )
         else:
-            log_event("debug", {"message": "coach_reflection_done", "trigger": trigger})
+            self.state["last_coach_reflection_date"] = today
+            self.state.pop("last_coach_reflection_error", None)
+            log_event("debug", {"message": "coach_reflection_done", "trigger": "daily"})
+        self._save_state()
 
     def daily_checkin_if_due(self) -> str | None:
         now = coach_now()

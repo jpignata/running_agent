@@ -29,26 +29,6 @@ Done when: There are simple preview commands for morning, evening, and weekly
 messages, with an optional date, and they do not mutate scheduler state or send
 Telegram messages.
 
-### Reflection Lifecycle
-
-Why: Reflections can make automated coaching more strategic if they are refreshed
-on a predictable cadence. A daily reflection can reassess recovery, recent
-training, goal progress, and the next concrete training emphasis without trying
-to react to every single run.
-
-Shape:
-
-- Refresh the coach reflection once per day from recent Strava runs, Garmin
-  context, the saved plan, coaching notes, and the overall goal.
-- Keep the saved reflection compact and useful to the model: current capacity,
-  goal confidence, next concrete progression, limiter, and watch items.
-- Treat reflection as strategic background, not permission to override the saved
-  weekly plan.
-
-Done when: The scheduler refreshes reflection once per day, avoids duplicate
-updates for the same day, and stores a concise thesis that improves later
-coaching messages.
-
 ### Coach Event Logging
 
 Why: When the coach gives a strange answer or misses a scheduled behavior, we

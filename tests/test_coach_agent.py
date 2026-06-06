@@ -120,7 +120,7 @@ class CoachAgentTest(unittest.TestCase):
         coach_now,
         _refresh_garmin_snapshots,
     ) -> None:
-        coach_now.return_value = datetime(2026, 5, 31, 18, 0)
+        coach_now.return_value = datetime(2026, 5, 31, 19, 0)
         state: dict = {}
         agent = CoachAgent(
             strava_client=_FakeStrava(),
@@ -136,6 +136,8 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(kwargs["target_week_start"].isoformat(), "2026-06-01")
         self.assertEqual(kwargs["lookback_days"], 42)
         generate_coach_reflection.assert_called_once()
+        self.assertEqual(state["last_coach_reflection_attempt_date"], "2026-05-31")
+        self.assertEqual(state["last_coach_reflection_date"], "2026-05-31")
         self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
 
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
@@ -156,7 +158,7 @@ class CoachAgentTest(unittest.TestCase):
         coach_now,
         _refresh_garmin_snapshots,
     ) -> None:
-        coach_now.return_value = datetime(2026, 5, 31, 18, 0)
+        coach_now.return_value = datetime(2026, 5, 31, 19, 0)
         state: dict = {}
         agent = CoachAgent(
             strava_client=_FakeStrava(),
@@ -166,8 +168,11 @@ class CoachAgentTest(unittest.TestCase):
         messages = agent.tick()
 
         self.assertEqual(messages, ["You had a great week. Here is next week."])
+        self.assertEqual(state["last_coach_reflection_attempt_date"], "2026-05-31")
+        self.assertEqual(state["last_coach_reflection_error"], "nope")
         self.assertEqual(state["last_next_week_plan_start"], "2026-06-01")
 
+    @patch("running_agent.coach_agent.generate_coach_reflection")
     @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=True)
     @patch("running_agent.coach_agent.should_send_daily_checkin", return_value=False)
@@ -180,6 +185,7 @@ class CoachAgentTest(unittest.TestCase):
         _should_send_daily_checkin,
         _should_send_evening_report,
         end_of_day_report,
+        _generate_coach_reflection,
     ) -> None:
         state: dict = {}
         saves = []
@@ -196,6 +202,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(state["last_evening_report_date"], "2026-06-01")
         self.assertTrue(saves)
 
+    @patch("running_agent.coach_agent.generate_coach_reflection")
     @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=True)
     @patch("running_agent.coach_agent.should_send_daily_checkin", return_value=False)
@@ -208,6 +215,7 @@ class CoachAgentTest(unittest.TestCase):
         _should_send_daily_checkin,
         _should_send_evening_report,
         end_of_day_report,
+        _generate_coach_reflection,
     ) -> None:
         state: dict = {}
         saves = []
@@ -223,6 +231,68 @@ class CoachAgentTest(unittest.TestCase):
         end_of_day_report.assert_not_called()
         self.assertEqual(state["last_evening_report_date"], "2026-06-01")
         self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.generate_coach_reflection")
+    @patch("running_agent.coach_agent.refresh_garmin_snapshots")
+    @patch("running_agent.coach_agent.should_send_evening_report", return_value=False)
+    @patch("running_agent.coach_agent.should_send_daily_checkin", return_value=False)
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 19, 0))
+    def test_tick_refreshes_coach_reflection_once_per_day(
+        self,
+        _coach_now,
+        _should_send_daily_checkin,
+        _should_send_evening_report,
+        _refresh_garmin_snapshots,
+        generate_coach_reflection,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        agent.tick()
+        agent.tick()
+
+        generate_coach_reflection.assert_called_once_with(agent.strava, lookback_days=42)
+        self.assertEqual(state["last_coach_reflection_attempt_date"], "2026-06-01")
+        self.assertEqual(state["last_coach_reflection_date"], "2026-06-01")
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.generate_coach_reflection")
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 18, 59))
+    def test_coach_reflection_refresh_waits_until_evening(
+        self,
+        _coach_now,
+        generate_coach_reflection,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_coach_reflection_if_due()
+
+        generate_coach_reflection.assert_not_called()
+        self.assertNotIn("last_coach_reflection_attempt_date", state)
+
+    @patch("running_agent.coach_agent.generate_coach_reflection", side_effect=RuntimeError("nope"))
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 19, 0))
+    def test_coach_reflection_refresh_failure_is_not_retried_until_tomorrow(
+        self,
+        _coach_now,
+        generate_coach_reflection,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_coach_reflection_if_due()
+        agent.refresh_coach_reflection_if_due()
+
+        generate_coach_reflection.assert_called_once_with(agent.strava, lookback_days=42)
+        self.assertEqual(state["last_coach_reflection_attempt_date"], "2026-06-01")
+        self.assertEqual(state["last_coach_reflection_error"], "nope")
+        self.assertNotIn("last_coach_reflection_date", state)
 
     @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
     @patch(
