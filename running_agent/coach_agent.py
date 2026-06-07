@@ -395,16 +395,30 @@ class CoachAgent:
             "debug",
             {"message": "sunday_plan_start", "week_start": target_week_start.isoformat()},
         )
-        message = weekly_coaching_message(
-            self.strava,
-            week_start=current_week_start(now.date()),
-            target_week_start=target_week_start,
-            lookback_days=max(self.lookback_days, 42),
-        )
+        try:
+            message = weekly_coaching_message(
+                self.strava,
+                week_start=current_week_start(now.date()),
+                target_week_start=target_week_start,
+                lookback_days=max(self.lookback_days, 42),
+            )
+        except RuntimeError as error:
+            self.state["last_sunday_plan_error"] = str(error)
+            log_event(
+                "debug",
+                {
+                    "message": "sunday_plan_failed",
+                    "week_start": target_week_start.isoformat(),
+                    "error": str(error),
+                },
+            )
+            self._save_state()
+            return None
         log_event(
             "debug",
             {"message": "sunday_plan_done", "week_start": target_week_start.isoformat()},
         )
+        self.state.pop("last_sunday_plan_error", None)
         mark_sunday_plan_sent(now, self.state)
         self._save_state()
         return message
@@ -459,8 +473,22 @@ class CoachAgent:
             return None
 
         log_event("debug", {"message": "daily_checkin_start", "date": now.date().isoformat()})
-        checkin = daily_workout_checkin(self.strava, target_date=now.date(), lookback_days=7)
+        try:
+            checkin = daily_workout_checkin(self.strava, target_date=now.date(), lookback_days=7)
+        except RuntimeError as error:
+            self.state["last_daily_checkin_error"] = str(error)
+            log_event(
+                "debug",
+                {
+                    "message": "daily_checkin_failed",
+                    "date": now.date().isoformat(),
+                    "error": str(error),
+                },
+            )
+            self._save_state()
+            return None
         log_event("debug", {"message": "daily_checkin_done", "date": now.date().isoformat()})
+        self.state.pop("last_daily_checkin_error", None)
         mark_daily_checkin_sent(now, self.state)
         self._save_state()
         return checkin
@@ -479,8 +507,22 @@ class CoachAgent:
             return None
 
         log_event("debug", {"message": "evening_report_start", "date": now.date().isoformat()})
-        report = end_of_day_report(self.strava, target_date=now.date(), lookback_days=7)
+        try:
+            report = end_of_day_report(self.strava, target_date=now.date(), lookback_days=7)
+        except RuntimeError as error:
+            self.state["last_evening_report_error"] = str(error)
+            log_event(
+                "debug",
+                {
+                    "message": "evening_report_failed",
+                    "date": now.date().isoformat(),
+                    "error": str(error),
+                },
+            )
+            self._save_state()
+            return None
         log_event("debug", {"message": "evening_report_done", "date": now.date().isoformat()})
+        self.state.pop("last_evening_report_error", None)
         mark_evening_report_sent(now, self.state)
         self._save_state()
         return report

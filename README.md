@@ -287,6 +287,8 @@ note when a new run appears, sends one morning workout check-in after 5:30am Eas
 today's weekly plan has a matched workout that has not already been completed, sends one
 end-of-day report after 8:30pm Eastern Monday through Saturday when there was a completed
 run, and sends one Sunday evening review plus next-week plan idea after 6:00pm Eastern.
+If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
+tick instead of marking that note sent.
 It also refreshes the Garmin snapshot cache once per day after 5:00am Eastern and the
 coach reflection once per day after 7:00pm Eastern. Change the polling interval with:
 

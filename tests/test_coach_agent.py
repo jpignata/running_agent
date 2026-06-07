@@ -202,6 +202,81 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(state["last_evening_report_date"], "2026-06-01")
         self.assertTrue(saves)
 
+    @patch(
+        "running_agent.coach_agent.daily_workout_checkin", side_effect=RuntimeError("OpenAI 503")
+    )
+    @patch("running_agent.coach_agent.has_planned_workout_for_date", return_value=True)
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 9, 30))
+    def test_daily_checkin_failure_does_not_mark_sent(
+        self,
+        _coach_now,
+        _has_planned_workout_for_date,
+        daily_workout_checkin,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        message = agent.daily_checkin_if_due()
+
+        self.assertIsNone(message)
+        daily_workout_checkin.assert_called_once()
+        self.assertEqual(state["last_daily_checkin_error"], "OpenAI 503")
+        self.assertNotIn("last_daily_checkin_date", state)
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.end_of_day_report", side_effect=RuntimeError("OpenAI 503"))
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 20, 30))
+    def test_evening_report_failure_does_not_mark_sent(
+        self,
+        _coach_now,
+        end_of_day_report,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(runs_by_date={"2026-06-01": [{"id": 1}]}),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        message = agent.evening_report_if_due()
+
+        self.assertIsNone(message)
+        end_of_day_report.assert_called_once()
+        self.assertEqual(state["last_evening_report_error"], "OpenAI 503")
+        self.assertNotIn("last_evening_report_date", state)
+        self.assertTrue(saves)
+
+    @patch(
+        "running_agent.coach_agent.weekly_coaching_message", side_effect=RuntimeError("OpenAI 503")
+    )
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 7, 18, 0))
+    def test_sunday_plan_failure_does_not_mark_sent(
+        self,
+        _coach_now,
+        weekly_coaching_message,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        message = agent.sunday_plan_if_due()
+
+        self.assertIsNone(message)
+        weekly_coaching_message.assert_called_once()
+        self.assertEqual(state["last_sunday_plan_error"], "OpenAI 503")
+        self.assertNotIn("last_next_week_plan_start", state)
+        self.assertTrue(saves)
+
     @patch("running_agent.coach_agent.generate_coach_reflection")
     @patch("running_agent.coach_agent.end_of_day_report", return_value="Evening note")
     @patch("running_agent.coach_agent.should_send_evening_report", return_value=True)

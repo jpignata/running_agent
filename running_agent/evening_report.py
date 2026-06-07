@@ -46,20 +46,17 @@ def end_of_day_report(
         "use a title, section headers, markdown, or label-style phrases. Write at most two short "
         "paragraphs."
     )
-    try:
-        return coaching_reply(
-            prompt,
-            training_summary=summarize_training(activities, days=lookback_days),
-            recent_runs=report_date_context,
-            weekly_plan=f"{weekly_plan}\n\n{upcoming_plan}",
-            training_goal=training_goal_context(),
-            coach_log=coach_log_context(),
-            garmin_context=garmin_context,
-            tools_enabled=False,
-            max_output_tokens=220,
-        )
-    except RuntimeError as error:
-        return _fallback_end_of_day_report(report_date_context, garmin_context, error)
+    return coaching_reply(
+        prompt,
+        training_summary=summarize_training(activities, days=lookback_days),
+        recent_runs=report_date_context,
+        weekly_plan=f"{weekly_plan}\n\n{upcoming_plan}",
+        training_goal=training_goal_context(),
+        coach_log=coach_log_context(),
+        garmin_context=garmin_context,
+        tools_enabled=False,
+        max_output_tokens=220,
+    )
 
 
 def should_send_evening_report(now: datetime, state: dict[str, Any]) -> bool:
@@ -105,16 +102,3 @@ def _activity_local_date(activity: dict[str, Any]) -> date | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
         return None
-
-
-def _fallback_end_of_day_report(
-    report_date_context: str,
-    garmin_context: str,
-    error: RuntimeError,
-) -> str:
-    return (
-        f"AI end-of-day report was unavailable ({error}).\n\n"
-        f"{report_date_context}\n\n"
-        f"{garmin_context}\n\n"
-        "Tonight, prioritize sleep and keep tomorrow's run honest to how recovered you feel."
-    )

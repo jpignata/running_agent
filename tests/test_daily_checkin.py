@@ -102,16 +102,17 @@ class DailyCheckinTest(unittest.TestCase):
         return_value="Matched plan for today",
     )
     @patch("running_agent.daily_checkin.coaching_reply", side_effect=RuntimeError("offline"))
-    def test_daily_workout_checkin_has_fallback(self, _coaching_reply, _weekly_plan) -> None:
-        checkin = daily_workout_checkin(
-            _FakeStravaClient([]),
-            target_date=datetime(2026, 5, 30).date(),
-            garmin_context_provider=lambda: "Garmin readiness context",
-        )
-
-        self.assertIn("AI check-in was unavailable (offline).", checkin)
-        self.assertIn("Matched plan for today", checkin)
-        self.assertIn("Garmin readiness context", checkin)
+    def test_daily_workout_checkin_raises_when_model_is_unavailable(
+        self,
+        _coaching_reply,
+        _weekly_plan,
+    ) -> None:
+        with self.assertRaisesRegex(RuntimeError, "offline"):
+            daily_workout_checkin(
+                _FakeStravaClient([]),
+                target_date=datetime(2026, 5, 30).date(),
+                garmin_context_provider=lambda: "Garmin readiness context",
+            )
 
 
 class _FakeStravaClient:

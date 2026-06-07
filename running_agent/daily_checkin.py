@@ -42,21 +42,16 @@ def daily_workout_checkin(
         "default. Keep it concise and practical. Do not claim the plan was saved or changed."
     )
 
-    try:
-        note = coaching_reply(
-            prompt,
-            training_summary=summarize_training(activities, days=lookback_days),
-            recent_runs=recent_runs_context(activities, limit=10),
-            weekly_plan=weekly_plan,
-            training_goal=training_goal_context(),
-            coach_log=coach_log_context(),
-            garmin_context=garmin_context,
-            tools_enabled=False,
-        )
-    except RuntimeError as error:
-        note = _fallback_daily_checkin(weekly_plan, garmin_context, error)
-
-    return note
+    return coaching_reply(
+        prompt,
+        training_summary=summarize_training(activities, days=lookback_days),
+        recent_runs=recent_runs_context(activities, limit=10),
+        weekly_plan=weekly_plan,
+        training_goal=training_goal_context(),
+        coach_log=coach_log_context(),
+        garmin_context=garmin_context,
+        tools_enabled=False,
+    )
 
 
 def should_send_daily_checkin(now: datetime, state: dict[str, Any]) -> bool:
@@ -88,18 +83,3 @@ def current_garmin_context(provider: Callable[[], str] | None = None) -> str:
         return provider() if provider else garmin_readiness_context()
     except RuntimeError as error:
         return f"Garmin readiness context unavailable: {error}"
-
-
-def _fallback_daily_checkin(
-    weekly_plan: str,
-    garmin_context: str,
-    error: RuntimeError,
-) -> str:
-    return (
-        f"AI check-in was unavailable ({error}).\n\n"
-        f"{weekly_plan}\n\n"
-        f"{garmin_context}\n\n"
-        "Basic read: follow the planned workout with appropriate challenge. Treat Garmin readiness "
-        "as context, not a verdict. If multiple fatigue signals line up or you feel bad in the "
-        "warmup, keep the run easy or shorten it rather than forcing intensity."
-    )

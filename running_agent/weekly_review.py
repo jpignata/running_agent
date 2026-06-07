@@ -112,19 +112,16 @@ def weekly_coaching_message(
         "Keep it plain text, conversational, and concise."
     )
 
-    try:
-        message = coaching_reply(
-            prompt,
-            training_summary=summarize_training(activities, days=lookback_days),
-            recent_runs=recent_runs,
-            weekly_plan=weekly_plan_context(),
-            training_goal=training_goal_context(),
-            coach_log=coach_log_context(),
-            garmin_context=garmin_context,
-            tools_enabled=False,
-        )
-    except RuntimeError as error:
-        message = _fallback_weekly_coaching_message(activities, garmin_context, error)
+    message = coaching_reply(
+        prompt,
+        training_summary=summarize_training(activities, days=lookback_days),
+        recent_runs=recent_runs,
+        weekly_plan=weekly_plan_context(),
+        training_goal=training_goal_context(),
+        coach_log=coach_log_context(),
+        garmin_context=garmin_context,
+        tools_enabled=False,
+    )
 
     if log_review:
         append_week_review(
@@ -206,19 +203,4 @@ def _fallback_week_review(
         f"{garmin_context}\n\n"
         "Coaching takeaway: make next week appropriately challenging if recovery and recent "
         "execution support it, while keeping progression controlled."
-    )
-
-
-def _fallback_weekly_coaching_message(
-    activities: list[dict],
-    garmin_context: str,
-    error: RuntimeError,
-) -> str:
-    return (
-        f"I could not generate the full AI weekly note ({error}), but here is the basic read.\n\n"
-        f"{summarize_training(activities, days=42)}\n\n"
-        f"{garmin_context}\n\n"
-        "For next week, keep the structure controlled: one quality day, one easy aerobic long "
-        "run, and enough recovery around them that the week stays close to recent mileage rather "
-        "than jumping aggressively."
     )

@@ -99,6 +99,30 @@ class WeeklyReviewTest(unittest.TestCase):
             summary="You had a great week. Next week, keep it controlled.",
         )
 
+    @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
+    @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
+    @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
+    @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch("running_agent.weekly_review.coaching_reply", side_effect=RuntimeError("offline"))
+    def test_weekly_coaching_message_raises_when_model_is_unavailable(
+        self,
+        _coaching_reply,
+        _weekly_plan_context,
+        _training_goal_context,
+        _coach_log_context,
+        _safe_garmin_weekly_context,
+        append_week_review,
+    ) -> None:
+        with self.assertRaisesRegex(RuntimeError, "offline"):
+            weekly_coaching_message(
+                _FakeStravaClient([_run("Easy Run")]),
+                week_start=datetime(2026, 5, 25).date(),
+                target_week_start=datetime(2026, 6, 1).date(),
+            )
+
+        append_week_review.assert_not_called()
+
     @patch("running_agent.weekly_review.planned_workout_for_date", return_value="4x1200m + 4x400m")
     def test_weekly_quality_detail_context_fetches_laps_for_planned_workout(
         self, _planned_workout

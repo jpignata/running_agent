@@ -144,16 +144,17 @@ class EveningReportTest(unittest.TestCase):
         return_value="Matched plan for today",
     )
     @patch("running_agent.evening_report.coaching_reply", side_effect=RuntimeError("offline"))
-    def test_end_of_day_report_has_fallback(self, _coaching_reply, _weekly_plan) -> None:
-        report = end_of_day_report(
-            _FakeStravaClient([]),
-            target_date=datetime(2026, 6, 3).date(),
-            garmin_context_provider=lambda: "Garmin readiness context",
-        )
-
-        self.assertIn("AI end-of-day report was unavailable (offline).", report)
-        self.assertIn("No Strava runs completed on 2026-06-03.", report)
-        self.assertIn("Garmin readiness context", report)
+    def test_end_of_day_report_raises_when_model_is_unavailable(
+        self,
+        _coaching_reply,
+        _weekly_plan,
+    ) -> None:
+        with self.assertRaisesRegex(RuntimeError, "offline"):
+            end_of_day_report(
+                _FakeStravaClient([]),
+                target_date=datetime(2026, 6, 3).date(),
+                garmin_context_provider=lambda: "Garmin readiness context",
+            )
 
 
 class _FakeStravaClient:
