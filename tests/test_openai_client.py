@@ -45,6 +45,19 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("get_local_run_details", tools)
         self.assertIn("get_garmin_readiness", tools)
         self.assertIn("get_garmin_recovery_trend", tools)
+        self.assertIn(
+            "shares a day-by-day or week-long schedule",
+            tools["save_weekly_plan"]["description"],
+        )
+        self.assertIn(
+            "even if they do not use words like save",
+            tools["save_weekly_plan"]["description"],
+        )
+        self.assertIn(
+            "even if they simply write the schedule naturally",
+            payload["instructions"],
+        )
+        self.assertIn("day-by-day lists with workout details", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
