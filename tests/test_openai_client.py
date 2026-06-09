@@ -114,7 +114,10 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("Training summary", content[0]["text"])
         self.assertIn("Weekly plan", content[0]["text"])
         self.assertIn("omit UI text, announcement titles", payload["instructions"])
-        self.assertIn("locations, reactions, and other source metadata", payload["instructions"])
+        self.assertIn(
+            "locations, reactions, club names, and other source metadata", payload["instructions"]
+        )
+        self.assertIn("rather than 'Wednesday: Track workout at Underhill", payload["instructions"])
         self.assertEqual(content[1]["type"], "input_image")
         self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
         tools = {tool["name"] for tool in payload["tools"]}
@@ -170,6 +173,52 @@ class OpenAIClientTest(unittest.TestCase):
                     "output": '{"saved": true}',
                 }
             ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_weekly_plan")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_image",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "save_weekly_plan",
+                        "call_id": "call_plan",
+                        "arguments": (
+                            '{"plan": "Monday: 5 easy\\n'
+                            "Wednesday: Track workout for 6/10 at Underhill Sports Complex: "
+                            "structured warmup; 5 x 5 min @ threshold; 2 min recovery\\n"
+                            'Saturday: 12 long"}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "I saved that plan update."},
+        ],
+    )
+    def test_image_plan_tool_strips_announcement_metadata(
+        self,
+        _post_json,
+        save_weekly_plan,
+        _athlete_profile_context,
+    ) -> None:
+        image_coaching_reply(
+            "Update my plan from this screenshot.",
+            image_bytes=b"image bytes",
+            mime_type="image/jpeg",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Current plan",
+        )
+
+        save_weekly_plan.assert_called_once_with(
+            "Monday: 5 easy\n"
+            "Wednesday: structured warmup; 5 x 5 min @ threshold; 2 min recovery\n"
+            "Saturday: 12 long"
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)

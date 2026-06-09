@@ -87,7 +87,7 @@ def _main() -> int:
     evals.add_argument(
         "--case",
         default=None,
-        help="Eval case name or JSON path. Defaults to the first plan-adjustment eval.",
+        help="Eval case name or JSON path. Defaults to all cases.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")

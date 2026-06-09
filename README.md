@@ -258,9 +258,9 @@ python -m running_agent evals --case adjust_existing_weekly_plan
 python -m running_agent evals --case image_plan_update_from_screenshot
 ```
 
-The initial evals check that the model updates weekly plans by calling the plan-saving tool,
-saving a complete revised plan, and preserving unchanged days, including from a screenshot
-plus caption.
+Without `--case`, the command runs all eval cases. The initial evals check that the model
+updates weekly plans by calling the plan-saving tool, saving a complete revised plan, and
+preserving unchanged days, including from a screenshot plus caption.
 
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:
@@ -301,8 +301,10 @@ end-of-day report after 8:30pm Eastern Monday through Saturday when there was a 
 run, and sends one Sunday evening review plus next-week plan idea after 6:00pm Eastern.
 If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
 tick instead of marking that note sent.
-It also refreshes the Garmin snapshot cache once per day after 5:00am Eastern and the
-coach reflection once per day after 7:00pm Eastern. Change the polling interval with:
+It also refreshes recent Strava run summaries once per hour so later Strava edits such as
+renames and race tags are picked up, refreshes the Garmin snapshot cache once per day after
+5:00am Eastern, and refreshes the coach reflection once per day after 7:00pm Eastern. Change
+the polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28

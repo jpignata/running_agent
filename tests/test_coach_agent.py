@@ -53,8 +53,8 @@ class CoachAgentTest(unittest.TestCase):
         )
 
         self.assertEqual(agent.tick(), [])
-        self.assertEqual(state, {})
-        self.assertEqual(saves, [])
+        self.assertEqual(state["last_strava_recent_refresh_hour"], "2026-06-01T04")
+        self.assertTrue(saves)
 
     @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
     @patch(
@@ -458,6 +458,48 @@ class CoachAgentTest(unittest.TestCase):
         )
         format_chat_debug_context.assert_called_once_with("Debug object")
         coaching_reply.assert_not_called()
+
+    @patch(
+        "running_agent.coach_agent.sync_strava_runs",
+        return_value={"runs_seen": 1, "summaries_saved": 1, "details_fetched": 0},
+    )
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 9, 9, 15))
+    def test_recent_strava_summary_refresh_runs_once_per_hour(
+        self,
+        _coach_now,
+        sync_strava_runs,
+    ) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        agent.refresh_recent_strava_summaries_if_due()
+        agent.refresh_recent_strava_summaries_if_due()
+
+        sync_strava_runs.assert_called_once_with(agent.strava, days=1)
+        self.assertEqual(state["last_strava_recent_refresh_hour"], "2026-06-09T09")
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.sync_strava_runs", side_effect=RuntimeError("strava down"))
+    @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 9, 9, 15))
+    def test_recent_strava_summary_refresh_failure_retries_next_tick(
+        self,
+        _coach_now,
+        sync_strava_runs,
+    ) -> None:
+        state: dict = {}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        agent.refresh_recent_strava_summaries_if_due()
+        agent.refresh_recent_strava_summaries_if_due()
+
+        self.assertEqual(sync_strava_runs.call_count, 2)
+        self.assertEqual(state["last_strava_recent_refresh_error"], "strava down")
+        self.assertNotIn("last_strava_recent_refresh_hour", state)
 
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now", return_value=datetime(2026, 6, 1, 5, 0))

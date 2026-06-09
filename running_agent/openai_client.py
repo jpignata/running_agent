@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 from typing import Any
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -108,10 +109,13 @@ def image_coaching_reply(
             "detail. Do not claim certainty about details that are not visible. If the athlete "
             "asks you to save or update a weekly plan from an image, call save_weekly_plan with "
             "a complete weekly plan. Normalize screenshot or announcement text into concise "
-            "workout lines: keep workout substance such as reps, effort, recovery, warmup, and "
-            "important timing, but omit UI text, announcement titles, dates already implied by "
-            "the target weekday, author names, locations, reactions, and other source metadata "
-            "unless the athlete explicitly asks to preserve them."
+            "workout lines before saving: keep workout substance such as reps, effort, recovery, "
+            "warmup, and important timing, but omit UI text, announcement titles, dates already "
+            "implied by the target weekday, author names, locations, reactions, club names, and "
+            "other source metadata unless the athlete explicitly asks to preserve them. For "
+            "example, save 'Wednesday: 5 x 5 min @ threshold or a tiny bit faster, 2 min "
+            "recovery; warmup with strides' rather than 'Wednesday: Track workout at Underhill "
+            "Sports Complex...'."
         ),
         "input": [
             {
@@ -197,8 +201,47 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
     plan = _tool_argument(call, "plan")
     if not plan:
         return None
+    plan = _clean_saved_weekly_plan(plan)
     save_weekly_plan(plan)
     return _tool_output(call["call_id"], {"saved": True})
+
+
+def _clean_saved_weekly_plan(plan: str) -> str:
+    return "\n".join(_clean_saved_weekly_plan_line(line) for line in plan.strip().splitlines())
+
+
+def _clean_saved_weekly_plan_line(line: str) -> str:
+    stripped = line.strip()
+    match = re.match(
+        r"^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b([,:-]?\s*)(.*)$",
+        stripped,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return stripped
+
+    day = match.group(1).capitalize()
+    workout = match.group(3).strip()
+    cleaned = re.sub(
+        r"^track\s+workout"
+        r"(?:\s+for\s+(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*\d{1,2}/\d{1,2})?"
+        r"(?:\s+at\s+[^:;]+)?"
+        r"\s*[:;-]\s*",
+        "",
+        workout,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
+        r"\bat\s+Underhill\s+Sports\s+Complex\b[,:;-]?\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+
+    if cleaned == workout:
+        return stripped
+    return f"{day}: {cleaned}"
 
 
 def _execute_query_local_runs_tool(call: dict[str, Any]) -> dict[str, str] | None:

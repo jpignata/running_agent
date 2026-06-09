@@ -39,12 +39,13 @@ from .plan_suggestion import (
 )
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
-from .strava_sync import save_synced_run_detail
+from .strava_sync import save_synced_run_detail, sync_strava_runs
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 28
 GARMIN_REFRESH_TIME = datetime_time(5, 0)
 COACH_REFLECTION_REFRESH_TIME = datetime_time(19, 0)
+STRAVA_RECENT_REFRESH_DAYS = 1
 
 
 @dataclass(frozen=True)
@@ -151,6 +152,7 @@ class CoachAgent:
 
     def tick(self) -> list[str]:
         messages: list[str] = []
+        self.refresh_recent_strava_summaries_if_due()
         self.refresh_garmin_cache_if_due()
         self.refresh_coach_reflection_if_due()
         daily = self.daily_checkin_if_due()
@@ -526,6 +528,42 @@ class CoachAgent:
         mark_evening_report_sent(now, self.state)
         self._save_state()
         return report
+
+    def refresh_recent_strava_summaries_if_due(self) -> None:
+        now = coach_now()
+        hour_key = now.strftime("%Y-%m-%dT%H")
+        if self.state.get("last_strava_recent_refresh_hour") == hour_key:
+            return
+
+        log_event("debug", {"message": "strava_recent_refresh_start", "hour": hour_key})
+        try:
+            result = sync_strava_runs(self.strava, days=STRAVA_RECENT_REFRESH_DAYS)
+        except RuntimeError as error:
+            self.state["last_strava_recent_refresh_error"] = str(error)
+            log_event(
+                "debug",
+                {
+                    "message": "strava_recent_refresh_failed",
+                    "hour": hour_key,
+                    "error": str(error),
+                },
+            )
+            self._save_state()
+            return
+
+        self.state["last_strava_recent_refresh_hour"] = hour_key
+        self.state.pop("last_strava_recent_refresh_error", None)
+        log_event(
+            "debug",
+            {
+                "message": "strava_recent_refresh_done",
+                "hour": hour_key,
+                "runs_seen": result.get("runs_seen"),
+                "summaries_saved": result.get("summaries_saved"),
+                "details_fetched": result.get("details_fetched"),
+            },
+        )
+        self._save_state()
 
     def refresh_garmin_cache_if_due(self) -> None:
         now = coach_now()

@@ -50,6 +50,25 @@ class StravaToolsTest(unittest.TestCase):
         self.assertIn("id 3: Turkey Trot: 3.10 mi", result)
         self.assertNotIn("Memorial Day", result)
 
+    @patch("running_agent.strava_tools.coach_today", return_value=date(2026, 6, 9))
+    @patch("running_agent.strava_tools.load_run_detail", return_value=None)
+    @patch("running_agent.strava_tools.list_run_summaries")
+    def test_query_last_race_keeps_race_tagged_generic_activity(
+        self,
+        list_run_summaries,
+        _load_run_detail,
+        _coach_today,
+    ) -> None:
+        list_run_summaries.return_value = [
+            _run(10, "Morning Run", 5.0, "2026-06-09T06:00:00Z"),
+            _run(9, "Morning Run", 3.1, "2026-06-08T07:00:00Z", workout_type=1),
+        ]
+
+        result = query_local_runs(query="last race", days=365, limit=3, races_only=True)
+
+        self.assertIn("id 9: Morning Run: 3.10 mi", result)
+        self.assertNotIn("No matching", result)
+
     @patch("running_agent.strava_tools.coach_today", return_value=date(2026, 6, 3))
     @patch("running_agent.strava_tools.load_run_detail")
     @patch("running_agent.strava_tools.list_run_summaries")

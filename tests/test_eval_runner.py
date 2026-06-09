@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from running_agent import openai_client
-from running_agent.eval_runner import format_eval_results, load_case, run_behavioral_case
+from running_agent.eval_runner import format_eval_results, load_case, run_behavioral_case, run_evals
 
 
 class EvalRunnerTest(unittest.TestCase):
@@ -64,6 +64,45 @@ class EvalRunnerTest(unittest.TestCase):
         image_coaching_reply.assert_called_once()
         self.assertGreater(len(image_coaching_reply.call_args.kwargs["image_bytes"]), 0)
         self.assertEqual(image_coaching_reply.call_args.kwargs["mime_type"], "image/jpeg")
+
+    def test_retrieval_eval_passes_when_model_queries_races(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            result = openai_client.query_local_runs(
+                query="last race",
+                days=365,
+                limit=3,
+                races_only=True,
+            )
+            self.assertIn("Riverfront 5K", result)
+            return "Your last race was Riverfront 5K at 6:21/mi."
+
+        result = run_behavioral_case(
+            load_case_path("recall_last_race.json"),
+            reply_func=fake_reply,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertEqual(result.tool_calls[0]["name"], "query_local_runs")
+        self.assertTrue(result.tool_calls[0]["arguments"]["races_only"])
+
+    def test_retrieval_eval_fails_without_lookup(self) -> None:
+        result = run_behavioral_case(
+            load_case_path("recall_last_race.json"),
+            reply_func=lambda *_args, **_kwargs: "I think it was around 6:00 pace.",
+        )
+
+        self.assertFalse(result.passed)
+        self.assertIn("expected query_local_runs call", result.checks[0].message)
+
+    @patch("running_agent.eval_runner.run_behavioral_case")
+    def test_run_evals_without_case_runs_all_cases(self, run_behavioral_case_) -> None:
+        run_behavioral_case_.side_effect = lambda case: case["name"]
+
+        results = run_evals()
+
+        self.assertIn("adjust_existing_weekly_plan_move_workout", results)
+        self.assertIn("image_plan_update_from_screenshot", results)
+        self.assertIn("recall_last_race_uses_local_retrieval", results)
 
 
 def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):

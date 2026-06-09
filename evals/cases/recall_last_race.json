@@ -1,0 +1,24 @@
+{
+  "name": "recall_last_race_uses_local_retrieval",
+  "type": "behavioral",
+  "behavior": "retrieval",
+  "user_message": "What was my last race pace?",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 3 easy runs over the last 7 days. No races are shown in the recent prompt context.",
+    "recent_runs": "Recent runs:\n- Tuesday easy: 4.00 mi\n- Monday easy: 5.00 mi",
+    "training_goal": "Build consistently for a fall marathon while staying healthy."
+  },
+  "tool_results": {
+    "query_local_runs": "Matching synced Strava race-like runs, newest first, last 365 days:\n- id 900000001: Riverfront 5K: 3.10 mi on Sunday, Jun 7, 6:21/mi, avg HR 168 race-like; details synced\n- id 900000002: Autumn Marathon: 26.20 mi on Sunday, Oct 5, 7:32/mi, avg HR 150 race-like; details synced",
+    "get_local_run_details": "Run details:\n- Name: Riverfront 5K\n- Distance: 3.10 mi\n- Moving time: 19:42\n- Average pace: 6:21/mi\n- Average HR: 168 bpm"
+  },
+  "expected": {
+    "tool_call": "query_local_runs",
+    "query_local_runs": {
+      "races_only": true,
+      "days_min": 300
+    },
+    "reply_must_include": ["6:21", "Riverfront 5K"]
+  }
+}
