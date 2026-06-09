@@ -13,3 +13,4 @@ htmlcov/
 .running_agent_state.json
 .strava_tokens.json
 strava-activity-*.json
+tmp/

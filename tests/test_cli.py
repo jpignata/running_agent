@@ -103,6 +103,14 @@ class CliTest(unittest.TestCase):
         format_scheduled_preview.assert_called_once_with("Preview object")
         print_.assert_called_once_with("Preview text")
 
+    @patch("running_agent.cli.eval_runner_main", return_value=0)
+    @patch("sys.argv", ["running-agent", "evals", "--case", "adjust_existing_weekly_plan"])
+    def test_evals_command_runs_eval_runner(self, eval_runner_main) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        eval_runner_main.assert_called_once_with(["--case", "adjust_existing_weekly_plan"])
+
 
 if __name__ == "__main__":
     unittest.main()

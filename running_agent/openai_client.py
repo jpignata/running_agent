@@ -9,7 +9,12 @@ from urllib.request import Request, urlopen
 
 from .athlete_profile import append_coaching_preference
 from .auth import load_env_file
-from .coach_prompt import COACHING_INSTRUCTIONS, build_coaching_input, build_coaching_payload
+from .coach_prompt import (
+    COACHING_INSTRUCTIONS,
+    COACHING_TOOLS,
+    build_coaching_input,
+    build_coaching_payload,
+)
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
@@ -100,7 +105,13 @@ def image_coaching_reply(
             "elevation, turns, terrain, pacing, effort distribution, risk spots, and how it "
             "fits the athlete's current plan and goal. If the image text is unreadable or the "
             "important details are not visible, say what you cannot see and ask for the missing "
-            "detail. Do not claim certainty about details that are not visible."
+            "detail. Do not claim certainty about details that are not visible. If the athlete "
+            "asks you to save or update a weekly plan from an image, call save_weekly_plan with "
+            "a complete weekly plan. Normalize screenshot or announcement text into concise "
+            "workout lines: keep workout substance such as reps, effort, recovery, warmup, and "
+            "important timing, but omit UI text, announcement titles, dates already implied by "
+            "the target weekday, author names, locations, reactions, and other source metadata "
+            "unless the athlete explicitly asks to preserve them."
         ),
         "input": [
             {
@@ -115,8 +126,11 @@ def image_coaching_reply(
             }
         ],
         "max_output_tokens": max_output_tokens,
+        "tools": COACHING_TOOLS,
+        "tool_choice": "auto",
     }
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
+    response = _handle_tool_calls(response, payload, api_key)
     text = _extract_output_text(response)
     if not text:
         raise RuntimeError("OpenAI response did not include text output.")

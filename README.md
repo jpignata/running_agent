@@ -250,6 +250,18 @@ python -m running_agent preview weekly --date 2026-06-07
 Preview output includes whether the scheduler would normally send, skip reasons, tools status,
 data sources, and the generated message.
 
+To run local AI behavior evals:
+
+```bash
+python -m running_agent evals
+python -m running_agent evals --case adjust_existing_weekly_plan
+python -m running_agent evals --case image_plan_update_from_screenshot
+```
+
+The initial evals check that the model updates weekly plans by calling the plan-saving tool,
+saving a complete revised plan, and preserving unchanged days, including from a screenshot
+plus caption.
+
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:
 

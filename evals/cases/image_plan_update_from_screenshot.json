@@ -1,0 +1,26 @@
+{
+  "name": "image_plan_update_from_screenshot",
+  "type": "behavioral",
+  "input_kind": "image",
+  "user_message": "Update my plan and make this what I'm doing tomorrow.",
+  "image_path": "evals/fixtures/plan_update_screenshot.jpg",
+  "mime_type": "image/jpeg",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: 4 easy\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 4 runs over the last 7 days. Recent training has been easy-to-moderate.",
+    "recent_runs": "Recent runs:\n- Monday easy: 5.00 mi\n- Tuesday easy: 4.00 mi",
+    "training_goal": "Build consistently for a fall marathon while staying healthy."
+  },
+  "expected": {
+    "tool_call": "save_weekly_plan",
+    "required_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    "must_include": {
+      "Wednesday": ["5x5", "threshold"],
+      "Saturday": ["12", "long"]
+    },
+    "must_not_include": {
+      "Wednesday": ["4 easy", "Track Workout", "Wednesday 6/10", "Underhill"]
+    },
+    "must_preserve_days": ["Monday", "Tuesday", "Thursday", "Friday", "Saturday", "Sunday"]
+  }
+}

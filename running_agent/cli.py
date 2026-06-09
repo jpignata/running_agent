@@ -10,6 +10,7 @@ from .agent_state import load_agent_state, save_agent_state
 from .auth import build_authorization_url
 from .coach_agent import DEFAULT_LOOKBACK_DAYS, CoachAgent
 from .coach_reflection import generate_coach_reflection
+from .eval_runner import main as eval_runner_main
 from .repl_transport import ReplTransport
 from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
 from .storage_paths import STATE_PATH
@@ -77,6 +78,16 @@ def _main() -> int:
         "--date",
         type=_parse_date,
         help="Coach-local date to preview, in YYYY-MM-DD format. Defaults to today.",
+    )
+
+    evals = subparsers.add_parser(
+        "evals",
+        help="Run local AI behavior evals.",
+    )
+    evals.add_argument(
+        "--case",
+        default=None,
+        help="Eval case name or JSON path. Defaults to the first plan-adjustment eval.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
@@ -195,6 +206,12 @@ def _main() -> int:
         )
         print(format_scheduled_preview(preview))
         return 0
+
+    if args.command == "evals":
+        argv = []
+        if args.case:
+            argv.extend(["--case", args.case])
+        return eval_runner_main(argv)
 
     if args.command == "telegram":
         if args.debug_log:

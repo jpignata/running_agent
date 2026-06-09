@@ -113,9 +113,64 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("What should I know about this course?", content[0]["text"])
         self.assertIn("Training summary", content[0]["text"])
         self.assertIn("Weekly plan", content[0]["text"])
+        self.assertIn("omit UI text, announcement titles", payload["instructions"])
+        self.assertIn("locations, reactions, and other source metadata", payload["instructions"])
         self.assertEqual(content[1]["type"], "input_image")
         self.assertTrue(content[1]["image_url"].startswith("data:image/png;base64,"))
-        self.assertNotIn("tools", payload)
+        tools = {tool["name"] for tool in payload["tools"]}
+        self.assertIn("save_weekly_plan", tools)
+        self.assertEqual(payload["tool_choice"], "auto")
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_weekly_plan")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_image",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "save_weekly_plan",
+                        "call_id": "call_plan",
+                        "arguments": '{"plan": "Wednesday 5 x 5 minutes threshold"}',
+                    }
+                ],
+            },
+            {"output_text": "I saved that plan update."},
+        ],
+    )
+    def test_image_coaching_reply_executes_plan_tool_and_returns_final_reply(
+        self,
+        post_json,
+        save_weekly_plan,
+        _athlete_profile_context,
+    ) -> None:
+        reply = image_coaching_reply(
+            "Update my plan from this screenshot.",
+            image_bytes=b"image bytes",
+            mime_type="image/jpeg",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Current plan",
+        )
+
+        self.assertEqual(reply, "I saved that plan update.")
+        save_weekly_plan.assert_called_once_with("Wednesday 5 x 5 minutes threshold")
+        self.assertEqual(post_json.call_count, 2)
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(followup_payload["previous_response_id"], "resp_image")
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_plan",
+                    "output": '{"saved": true}',
+                }
+            ],
+        )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
