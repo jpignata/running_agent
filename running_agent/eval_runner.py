@@ -339,7 +339,7 @@ def score_retrieval_case(
     return checks
 
 
-def format_eval_results(results: list[EvalResult]) -> str:
+def format_eval_results(results: list[EvalResult], debug: bool = False) -> str:
     lines: list[str] = []
     for result in results:
         status = "PASS" if result.passed else "FAIL"
@@ -347,6 +347,8 @@ def format_eval_results(results: list[EvalResult]) -> str:
         for check in result.checks:
             check_status = "PASS" if check.passed else "FAIL"
             lines.append(f"  {check_status} {check.message}")
+        if not debug:
+            continue
         if result.saved_plans:
             lines.extend(["", "Saved plan:", result.saved_plans[-1]])
         if result.tool_calls:
@@ -386,9 +388,14 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Eval case name or JSON path. Defaults to all cases.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Include saved plans, tool calls, and model replies in eval output.",
+    )
     args = parser.parse_args(argv)
     results = run_evals(args.case)
-    print(format_eval_results(results))
+    print(format_eval_results(results, debug=args.debug))
     return 0 if all(result.passed for result in results) else 1
 
 

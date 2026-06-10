@@ -256,6 +256,7 @@ To run local AI behavior evals:
 python -m running_agent evals
 python -m running_agent evals --case adjust_existing_weekly_plan
 python -m running_agent evals --case image_plan_update_from_screenshot
+python -m running_agent evals --case judged_soreness_long_run --debug
 ```
 
 Without `--case`, the command runs all eval cases. The initial evals check that the model

@@ -89,6 +89,11 @@ def _main() -> int:
         default=None,
         help="Eval case name or JSON path. Defaults to all cases.",
     )
+    evals.add_argument(
+        "--debug",
+        action="store_true",
+        help="Include saved plans, tool calls, and model replies in eval output.",
+    )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
     exchange.add_argument("code", help="Code copied from the Strava OAuth redirect URL.")
@@ -211,6 +216,8 @@ def _main() -> int:
         argv = []
         if args.case:
             argv.extend(["--case", args.case])
+        if args.debug:
+            argv.append("--debug")
         return eval_runner_main(argv)
 
     if args.command == "telegram":

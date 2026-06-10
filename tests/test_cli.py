@@ -119,6 +119,18 @@ class CliTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         eval_runner_main.assert_called_once_with([])
 
+    @patch("running_agent.cli.eval_runner_main", return_value=0)
+    @patch(
+        "sys.argv", ["running-agent", "evals", "--case", "adjust_existing_weekly_plan", "--debug"]
+    )
+    def test_evals_command_forwards_debug_flag(self, eval_runner_main) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        eval_runner_main.assert_called_once_with(
+            ["--case", "adjust_existing_weekly_plan", "--debug"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
