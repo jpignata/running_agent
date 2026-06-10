@@ -2,14 +2,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 from . import openai_client
+from .auth import load_env_file
 from .plan_store import parse_weekly_plan
 
 CASE_DIR = Path(__file__).resolve().parent.parent / "evals" / "cases"
+DEFAULT_JUDGE_MODEL = "gpt-5.4-mini"
 
 
 @dataclass(frozen=True)
@@ -29,6 +32,7 @@ class EvalResult:
 
 
 ReplyFunc = Callable[..., str]
+JudgeFunc = Callable[[dict[str, Any], str], dict[str, Any]]
 
 
 def run_evals(case_name: str | None = None) -> list[EvalResult]:
@@ -47,6 +51,7 @@ def load_case(path: Path) -> dict[str, Any]:
 def run_behavioral_case(
     case: dict[str, Any],
     reply_func: ReplyFunc | None = None,
+    judge_func: JudgeFunc | None = None,
 ) -> EvalResult:
     if case.get("type") != "behavioral":
         raise RuntimeError(f"Unsupported eval type: {case.get('type')}")
@@ -80,7 +85,7 @@ def run_behavioral_case(
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
 
-    checks = score_behavioral_case(case, saved_plans, tool_calls, reply)
+    checks = score_behavioral_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
     return EvalResult(
         name=str(case.get("name") or "unnamed"),
         passed=all(check.passed for check in checks),
@@ -193,10 +198,103 @@ def score_behavioral_case(
     saved_plans: list[str],
     tool_calls: list[dict[str, Any]],
     reply: str,
+    judge_func: JudgeFunc | None = None,
 ) -> list[EvalCheck]:
     if case.get("behavior") == "retrieval":
-        return score_retrieval_case(case, tool_calls, reply)
-    return score_plan_adjustment(case, saved_plans, reply)
+        checks = score_retrieval_case(case, tool_calls, reply)
+    elif case.get("behavior") == "judged_reply":
+        checks = score_judged_reply_case(case, reply)
+    else:
+        checks = score_plan_adjustment(case, saved_plans, reply)
+
+    if case.get("judge"):
+        checks.extend(judge_reply(case, reply, judge_func=judge_func))
+    return checks
+
+
+def score_judged_reply_case(case: dict[str, Any], reply: str) -> list[EvalCheck]:
+    expected = case.get("expected") or {}
+    checks: list[EvalCheck] = []
+    for term in expected.get("reply_must_include", []):
+        checks.append(
+            EvalCheck(
+                str(term).lower() in reply.lower(),
+                f"reply includes {term!r}",
+            )
+        )
+    for term in expected.get("reply_must_not_include", []):
+        checks.append(
+            EvalCheck(
+                str(term).lower() not in reply.lower(),
+                f"reply does not include {term!r}",
+            )
+        )
+    checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
+    return checks
+
+
+def judge_reply(
+    case: dict[str, Any],
+    reply: str,
+    judge_func: JudgeFunc | None = None,
+) -> list[EvalCheck]:
+    result = (judge_func or run_judge_model)(case, reply)
+    passed = bool(result.get("passed"))
+    rationale = str(result.get("rationale") or "").strip()
+    failures = result.get("failures") or []
+    if isinstance(failures, list):
+        failures_text = "; ".join(str(failure) for failure in failures if str(failure).strip())
+    else:
+        failures_text = str(failures).strip()
+    message = "judge passed" if passed else "judge failed"
+    if failures_text:
+        message += f"; failures: {failures_text}"
+    if rationale:
+        message += f" ({rationale})"
+    return [EvalCheck(passed, message)]
+
+
+def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
+    load_env_file()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required for judge-model evals.")
+
+    judge = case.get("judge") or {}
+    payload = {
+        "model": os.environ.get("OPENAI_EVAL_JUDGE_MODEL", DEFAULT_JUDGE_MODEL),
+        "instructions": (
+            "You are grading a running coach bot reply for an evaluation suite. "
+            "Return only valid JSON with keys: passed, rationale, failures. "
+            "passed must be a boolean. failures must be a list of unmet criteria, empty when passed. "
+            "Judge only against the criteria and pass_condition. The rationale must be one short sentence."
+        ),
+        "input": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": json.dumps(
+                            {
+                                "case_name": case.get("name"),
+                                "user_message": case.get("user_message"),
+                                "initial_context": case.get("initial_context") or {},
+                                "reply": reply,
+                                "criteria": judge.get("criteria", []),
+                                "pass_condition": judge.get("pass_condition", ""),
+                            },
+                            indent=2,
+                        ),
+                    }
+                ],
+            }
+        ],
+        "max_output_tokens": 250,
+    }
+    response = openai_client._post_json(openai_client.OPENAI_RESPONSES_URL, payload, api_key)
+    text = openai_client._extract_output_text(response)
+    return _parse_judge_response(text)
 
 
 def score_retrieval_case(
@@ -264,6 +362,21 @@ def _tool_result(case: dict[str, Any], name: str) -> str:
     if isinstance(value, str):
         return value
     return f"No fixture result configured for {name}."
+
+
+def _parse_judge_response(text: str) -> dict[str, Any]:
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Judge response was not valid JSON: {text!r}") from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError(f"Judge response must be a JSON object: {text!r}")
+    return parsed
 
 
 def main(argv: list[str] | None = None) -> int:

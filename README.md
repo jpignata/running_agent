@@ -260,7 +260,9 @@ python -m running_agent evals --case image_plan_update_from_screenshot
 
 Without `--case`, the command runs all eval cases. The initial evals check that the model
 updates weekly plans by calling the plan-saving tool, saving a complete revised plan, and
-preserving unchanged days, including from a screenshot plus caption.
+preserving unchanged days, including from a screenshot plus caption. Some evals also use a
+judge model to make a criteria-based pass/fail call for subjective coaching quality; set
+`OPENAI_EVAL_JUDGE_MODEL` to override the default judge model.
 
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:

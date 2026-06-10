@@ -4,7 +4,13 @@ import unittest
 from unittest.mock import patch
 
 from running_agent import openai_client
-from running_agent.eval_runner import format_eval_results, load_case, run_behavioral_case, run_evals
+from running_agent.eval_runner import (
+    format_eval_results,
+    judge_reply,
+    load_case,
+    run_behavioral_case,
+    run_evals,
+)
 
 
 class EvalRunnerTest(unittest.TestCase):
@@ -94,6 +100,48 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("expected query_local_runs call", result.checks[0].message)
 
+    def test_judged_reply_eval_passes_with_fake_judge(self) -> None:
+        def fake_judge(_case, _reply):
+            return {"passed": True, "rationale": "Safe and specific.", "failures": []}
+
+        result = run_behavioral_case(
+            load_case_path("judged_soreness_long_run.json"),
+            reply_func=lambda *_args, **_kwargs: (
+                "Treat the Achilles as the limiter. If it is sore tomorrow, skip the "
+                "12 and do easy cross-training or a short easy run only if the warmup "
+                "is pain-free."
+            ),
+            judge_func=fake_judge,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertIn("judge passed", result.checks[-1].message)
+
+    def test_judged_reply_eval_fails_when_fake_judge_finds_unmet_criteria(self) -> None:
+        result = run_behavioral_case(
+            load_case_path("judged_soreness_long_run.json"),
+            reply_func=lambda *_args, **_kwargs: "Your Achilles is fine. Do the 12.",
+            judge_func=lambda _case, _reply: {
+                "passed": False,
+                "rationale": "Too risky.",
+                "failures": ["Does not prioritize Achilles injury risk."],
+            },
+        )
+
+        self.assertFalse(result.passed)
+        self.assertIn("judge failed", result.checks[-1].message)
+        self.assertIn("Does not prioritize Achilles injury risk.", result.checks[-1].message)
+
+    def test_judge_reply_requires_explicit_passed_true(self) -> None:
+        checks = judge_reply(
+            {"judge": {}},
+            "Reply",
+            judge_func=lambda _case, _reply: {"rationale": "Missing decision criteria."},
+        )
+
+        self.assertFalse(checks[0].passed)
+        self.assertIn("judge failed", checks[0].message)
+
     @patch("running_agent.eval_runner.run_behavioral_case")
     def test_run_evals_without_case_runs_all_cases(self, run_behavioral_case_) -> None:
         run_behavioral_case_.side_effect = lambda case: case["name"]
@@ -102,6 +150,7 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertIn("adjust_existing_weekly_plan_move_workout", results)
         self.assertIn("image_plan_update_from_screenshot", results)
+        self.assertIn("judged_soreness_long_run_advice", results)
         self.assertIn("recall_last_race_uses_local_retrieval", results)
 
 
