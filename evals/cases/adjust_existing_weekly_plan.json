@@ -1,5 +1,5 @@
 {
-  "name": "adjust_existing_weekly_plan_move_workout",
+  "name": "adjust_existing_weekly_plan",
   "user_message": "Actually, my legs are pretty cooked after today. Move the Tuesday workout to Thursday and make Tuesday 5 easy. Keep the rest of the week the same.",
   "initial_context": {
     "weekly_plan": "Monday: 5 easy\nTuesday: 8 with 4x1200m\nWednesday: 5 recovery\nThursday: 7 easy\nFriday: rest\nSaturday: 14 long\nSunday: 4 recovery",

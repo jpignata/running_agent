@@ -125,6 +125,7 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertTrue(any("judge passed" in check.message for check in result.checks))
+        self.assertIn("Safe and specific.", format_eval_results([result]))
 
     def test_judged_reply_eval_fails_when_fake_judge_finds_unmet_criteria(self) -> None:
         result = run_case(
@@ -231,10 +232,10 @@ class EvalRunnerTest(unittest.TestCase):
 
         results = run_evals()
 
-        self.assertIn("adjust_existing_weekly_plan_move_workout", results)
+        self.assertIn("adjust_existing_weekly_plan", results)
         self.assertIn("image_plan_update_from_screenshot", results)
-        self.assertIn("judged_soreness_long_run_advice", results)
-        self.assertIn("recall_last_race_uses_local_retrieval", results)
+        self.assertIn("judged_soreness_long_run", results)
+        self.assertIn("recall_last_race", results)
 
 
 def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):

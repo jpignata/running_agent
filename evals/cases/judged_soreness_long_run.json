@@ -1,5 +1,5 @@
 {
-  "name": "judged_soreness_long_run_advice",
+  "name": "judged_soreness_long_run",
   "user_message": "My Achilles is sore after yesterday's workout. I have 12 miles planned tomorrow. What should I do?",
   "initial_context": {
     "weekly_plan": "Monday: 5 easy\nTuesday: 8 with 4x1200m\nWednesday: 5 recovery\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
