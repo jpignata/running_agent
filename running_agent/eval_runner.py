@@ -357,6 +357,9 @@ def format_eval_results(results: list[EvalResult], debug: bool = False) -> str:
             lines.extend(["", "Tool calls:", json.dumps(result.tool_calls, indent=2)])
         if result.reply:
             lines.extend(["", "Reply:", result.reply])
+    passed = sum(1 for result in results if result.passed)
+    failed = len(results) - passed
+    lines.extend(["", f"Summary: {passed} passed, {failed} failed"])
     return "\n".join(lines)
 
 

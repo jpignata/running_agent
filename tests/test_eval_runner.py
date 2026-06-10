@@ -212,6 +212,8 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertIn("PASS sample_case", text)
         self.assertIn("PASS check passed", text)
+        self.assertIn("\n\nSummary: 1 passed, 0 failed", text)
+        self.assertIn("Summary: 1 passed, 0 failed", text)
         self.assertNotIn("Saved plan:", text)
         self.assertNotIn("Tool calls:", text)
         self.assertNotIn("Reply:", text)
@@ -225,6 +227,16 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn('"name": "query_local_runs"', text)
         self.assertIn("Reply:", text)
         self.assertIn("Model reply", text)
+        self.assertIn("Summary: 1 passed, 0 failed", text)
+
+    def test_format_eval_results_summarizes_failures(self) -> None:
+        text = format_eval_results(
+            [sample_result(), sample_result(name="failing_case", passed=False)]
+        )
+
+        self.assertIn("PASS sample_case", text)
+        self.assertIn("FAIL failing_case", text)
+        self.assertIn("Summary: 1 passed, 1 failed", text)
 
     @patch("running_agent.eval_runner.run_case")
     def test_run_evals_without_case_runs_all_cases(self, run_case_) -> None:
@@ -244,10 +256,10 @@ def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):
     return load_case(CASE_DIR / filename)
 
 
-def sample_result() -> EvalResult:
+def sample_result(name: str = "sample_case", passed: bool = True) -> EvalResult:
     return EvalResult(
-        name="sample_case",
-        passed=True,
+        name=name,
+        passed=passed,
         reply="Model reply",
         saved_plans=["Monday: 5 easy"],
         tool_calls=[{"name": "query_local_runs", "arguments": {"races_only": True}}],
