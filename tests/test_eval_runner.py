@@ -5,11 +5,15 @@ from unittest.mock import patch
 
 from running_agent import openai_client
 from running_agent.eval_runner import (
+    EvalCheck,
+    EvalResult,
+    eval_temperature,
     format_eval_results,
     judge_reply,
     load_case,
     run_behavioral_case,
     run_evals,
+    run_judge_model,
 )
 
 
@@ -70,9 +74,13 @@ class EvalRunnerTest(unittest.TestCase):
         image_coaching_reply.assert_called_once()
         self.assertGreater(len(image_coaching_reply.call_args.kwargs["image_bytes"]), 0)
         self.assertEqual(image_coaching_reply.call_args.kwargs["mime_type"], "image/jpeg")
+        self.assertEqual(image_coaching_reply.call_args.kwargs["temperature"], 0.1)
 
     def test_retrieval_eval_passes_when_model_queries_races(self) -> None:
+        seen_kwargs = {}
+
         def fake_reply(*_args, **_kwargs) -> str:
+            seen_kwargs.update(_kwargs)
             result = openai_client.query_local_runs(
                 query="last race",
                 days=365,
@@ -90,6 +98,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertEqual(result.tool_calls[0]["name"], "query_local_runs")
         self.assertTrue(result.tool_calls[0]["arguments"]["races_only"])
+        self.assertEqual(seen_kwargs["temperature"], 0.1)
 
     def test_retrieval_eval_fails_without_lookup(self) -> None:
         result = run_behavioral_case(
@@ -142,6 +151,53 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertFalse(checks[0].passed)
         self.assertIn("judge failed", checks[0].message)
 
+    @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "0.2"}, clear=True)
+    def test_eval_temperature_uses_environment_override(self) -> None:
+        self.assertEqual(eval_temperature(), 0.2)
+
+    @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "warm"}, clear=True)
+    def test_eval_temperature_rejects_invalid_override(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "OPENAI_EVAL_TEMPERATURE"):
+            eval_temperature()
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch(
+        "running_agent.eval_runner.openai_client._post_json",
+        return_value={"output_text": '{"passed": true, "rationale": "OK.", "failures": []}'},
+    )
+    def test_run_judge_model_sets_eval_temperature(self, post_json) -> None:
+        run_judge_model(
+            {
+                "name": "case",
+                "user_message": "Question",
+                "judge": {"criteria": ["Do the thing"], "pass_condition": "Pass if done."},
+            },
+            "Reply",
+        )
+
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["temperature"], 0.1)
+        self.assertEqual(payload["input"][0]["role"], "user")
+
+    def test_format_eval_results_omits_debug_details_by_default(self) -> None:
+        text = format_eval_results([sample_result()])
+
+        self.assertIn("PASS sample_case", text)
+        self.assertIn("PASS check passed", text)
+        self.assertNotIn("Saved plan:", text)
+        self.assertNotIn("Tool calls:", text)
+        self.assertNotIn("Reply:", text)
+
+    def test_format_eval_results_includes_debug_details_when_requested(self) -> None:
+        text = format_eval_results([sample_result()], debug=True)
+
+        self.assertIn("Saved plan:", text)
+        self.assertIn("Monday: 5 easy", text)
+        self.assertIn("Tool calls:", text)
+        self.assertIn('"name": "query_local_runs"', text)
+        self.assertIn("Reply:", text)
+        self.assertIn("Model reply", text)
+
     @patch("running_agent.eval_runner.run_behavioral_case")
     def test_run_evals_without_case_runs_all_cases(self, run_behavioral_case_) -> None:
         run_behavioral_case_.side_effect = lambda case: case["name"]
@@ -158,6 +214,17 @@ def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):
     from running_agent.eval_runner import CASE_DIR
 
     return load_case(CASE_DIR / filename)
+
+
+def sample_result() -> EvalResult:
+    return EvalResult(
+        name="sample_case",
+        passed=True,
+        reply="Model reply",
+        saved_plans=["Monday: 5 easy"],
+        tool_calls=[{"name": "query_local_runs", "arguments": {"races_only": True}}],
+        checks=[EvalCheck(True, "check passed")],
+    )
 
 
 if __name__ == "__main__":

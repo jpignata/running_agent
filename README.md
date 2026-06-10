@@ -263,7 +263,10 @@ Without `--case`, the command runs all eval cases. The initial evals check that 
 updates weekly plans by calling the plan-saving tool, saving a complete revised plan, and
 preserving unchanged days, including from a screenshot plus caption. Some evals also use a
 judge model to make a criteria-based pass/fail call for subjective coaching quality; set
-`OPENAI_EVAL_JUDGE_MODEL` to override the default judge model.
+`OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls use
+temperature `0.1`; set `OPENAI_EVAL_TEMPERATURE` to override it. By default, eval output
+only shows pass/fail checks; add `--debug` to include saved plans, tool calls, and model
+replies.
 
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:

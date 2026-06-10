@@ -59,6 +59,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
         self.assertIn("day-by-day lists with workout details", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
+        self.assertNotIn("temperature", payload)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
@@ -82,6 +83,24 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertNotIn("tools", payload)
         self.assertNotIn("tool_choice", payload)
         self.assertEqual(payload["max_output_tokens"], 220)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
+    def test_coaching_reply_can_set_temperature(
+        self,
+        post_json,
+        _athlete_profile_context,
+    ) -> None:
+        coaching_reply(
+            "Write a scheduled report.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            temperature=0.1,
+        )
+
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["temperature"], 0.1)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(

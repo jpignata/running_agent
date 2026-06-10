@@ -37,6 +37,7 @@ def coaching_reply(
     tools_enabled: bool = True,
     max_output_tokens: int = 650,
     include_coach_reflection: bool = True,
+    temperature: float | None = None,
 ) -> str:
     load_env_file()
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -56,6 +57,7 @@ def coaching_reply(
         tools_enabled=tools_enabled,
         max_output_tokens=max_output_tokens,
         include_coach_reflection=include_coach_reflection,
+        temperature=temperature,
     )
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     if tools_enabled:
@@ -78,6 +80,7 @@ def image_coaching_reply(
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     max_output_tokens: int = 650,
+    temperature: float | None = None,
 ) -> str:
     load_env_file()
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -133,6 +136,8 @@ def image_coaching_reply(
         "tools": COACHING_TOOLS,
         "tool_choice": "auto",
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     response = _handle_tool_calls(response, payload, api_key)
     text = _extract_output_text(response)
@@ -176,6 +181,8 @@ def _handle_tool_calls(
         "input": tool_outputs,
         "max_output_tokens": original_payload.get("max_output_tokens", 650),
     }
+    if "temperature" in original_payload:
+        followup_payload["temperature"] = original_payload["temperature"]
     if response.get("id"):
         followup_payload["previous_response_id"] = response["id"]
     return _post_json(OPENAI_RESPONSES_URL, followup_payload, api_key)

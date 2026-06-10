@@ -311,6 +311,7 @@ def build_coaching_payload(
     tools_enabled: bool = True,
     max_output_tokens: int = 650,
     include_coach_reflection: bool = True,
+    temperature: float | None = None,
 ) -> dict:
     payload = {
         "model": model,
@@ -328,6 +329,8 @@ def build_coaching_payload(
         ),
         "max_output_tokens": max_output_tokens,
     }
+    if temperature is not None:
+        payload["temperature"] = temperature
     if tools_enabled:
         payload["tools"] = COACHING_TOOLS
         payload["tool_choice"] = "auto"

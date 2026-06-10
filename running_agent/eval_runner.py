@@ -13,6 +13,7 @@ from .plan_store import parse_weekly_plan
 
 CASE_DIR = Path(__file__).resolve().parent.parent / "evals" / "cases"
 DEFAULT_JUDGE_MODEL = "gpt-5.4-mini"
+DEFAULT_EVAL_TEMPERATURE = 0.1
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,7 @@ def _run_case_model_call(
             coach_log=context.get("coach_log", ""),
             garmin_context=context.get("garmin_context", ""),
             tools_enabled=True,
+            temperature=eval_temperature(),
         )
     if case.get("input_kind") == "image":
         image_path = Path(case["image_path"])
@@ -126,6 +128,7 @@ def _run_case_model_call(
             training_goal=context.get("training_goal", ""),
             coach_log=context.get("coach_log", ""),
             garmin_context=context.get("garmin_context", ""),
+            temperature=eval_temperature(),
         )
     return openai_client.coaching_reply(
         case["user_message"],
@@ -136,6 +139,7 @@ def _run_case_model_call(
         coach_log=context.get("coach_log", ""),
         garmin_context=context.get("garmin_context", ""),
         tools_enabled=True,
+        temperature=eval_temperature(),
     )
 
 
@@ -291,6 +295,7 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
             }
         ],
         "max_output_tokens": 250,
+        "temperature": eval_temperature(),
     }
     response = openai_client._post_json(openai_client.OPENAI_RESPONSES_URL, payload, api_key)
     text = openai_client._extract_output_text(response)
@@ -379,6 +384,16 @@ def _parse_judge_response(text: str) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise RuntimeError(f"Judge response must be a JSON object: {text!r}")
     return parsed
+
+
+def eval_temperature() -> float:
+    raw = os.environ.get("OPENAI_EVAL_TEMPERATURE")
+    if raw is None:
+        return DEFAULT_EVAL_TEMPERATURE
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"OPENAI_EVAL_TEMPERATURE must be a number, got {raw!r}") from exc
 
 
 def main(argv: list[str] | None = None) -> int:
