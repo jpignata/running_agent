@@ -18,6 +18,12 @@ from running_agent.eval_runner import (
 
 
 class EvalRunnerTest(unittest.TestCase):
+    def test_load_case_uses_filename_stem_as_name(self) -> None:
+        case = load_case_path("recall_last_race.json")
+
+        self.assertEqual(case["name"], "recall_last_race")
+        self.assertIn("local Strava retrieval", case["description"])
+
     def test_plan_adjustment_eval_passes_when_model_saves_revised_complete_plan(self) -> None:
         case = load_case_path()
 

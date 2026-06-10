@@ -46,6 +46,8 @@ def load_case(path: Path) -> dict[str, Any]:
         data = json.load(handle)
     if not isinstance(data, dict):
         raise RuntimeError(f"Eval case must be a JSON object: {path}")
+    data = dict(data)
+    data["name"] = path.stem
     return data
 
 

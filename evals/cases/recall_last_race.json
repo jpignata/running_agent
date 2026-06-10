@@ -1,5 +1,5 @@
 {
-  "name": "recall_last_race",
+  "description": "Checks that the bot uses local Strava retrieval for last-race questions instead of guessing from recent prompt context.",
   "user_message": "What was my last race pace?",
   "initial_context": {
     "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
