@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -228,6 +229,14 @@ def score_expected(
 
 def score_reply_rules(expected: dict[str, Any], reply: str) -> list[EvalCheck]:
     checks: list[EvalCheck] = []
+    if "reply_max_chars" in expected:
+        limit = int(expected["reply_max_chars"])
+        checks.append(
+            EvalCheck(
+                len(reply) <= limit,
+                f"reply length <= {limit}; got {len(reply)}",
+            )
+        )
     for term in expected.get("reply_must_include", []):
         checks.append(
             EvalCheck(
@@ -240,6 +249,13 @@ def score_reply_rules(expected: dict[str, Any], reply: str) -> list[EvalCheck]:
             EvalCheck(
                 str(term).lower() not in reply.lower(),
                 f"reply does not include {term!r}",
+            )
+        )
+    for pattern in expected.get("reply_must_not_match", []):
+        checks.append(
+            EvalCheck(
+                re.search(str(pattern), reply, flags=re.MULTILINE) is None,
+                f"reply does not match /{pattern}/",
             )
         )
     return checks

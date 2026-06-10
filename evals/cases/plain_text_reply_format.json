@@ -1,0 +1,21 @@
+{
+  "description": "Checks that a normal coaching reply stays concise plain text for Telegram, without Markdown headings, bullets, tables, code fences, JSON, or emphasis formatting.",
+  "user_message": "Give me a quick read on today's easy run and what I should do tomorrow.",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: 6 easy\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 4 runs over the last 7 days. Recent training has been steady and mostly easy.",
+    "recent_runs": "Recent runs:\n- Today easy run: 4.20 mi at 8:35/mi, avg HR 138. Felt relaxed.\n- Yesterday easy run: 5.00 mi at 8:42/mi, avg HR 136.",
+    "training_goal": "Build consistently for a fall marathon while staying healthy."
+  },
+  "expected": {
+    "reply_max_chars": 1200,
+    "reply_must_not_include": ["```", "{", "}", "**", "__"],
+    "reply_must_not_match": [
+      "^\\s*#+\\s",
+      "^\\s*[-*]\\s",
+      "^\\s*\\|.*\\|\\s*$",
+      "(^|\\s)_[^_\\n]+_(\\s|$)",
+      "(^|\\s)\\*[^*\\n]+\\*(\\s|$)"
+    ]
+  }
+}

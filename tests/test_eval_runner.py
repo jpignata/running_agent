@@ -185,6 +185,43 @@ class EvalRunnerTest(unittest.TestCase):
         )
         self.assertTrue(any("judge passed" in check.message for check in result.checks))
 
+    def test_rule_eval_checks_reply_format_invariants(self) -> None:
+        result = run_case(
+            {
+                "name": "format_case",
+                "user_message": "Quick read?",
+                "expected": {
+                    "reply_max_chars": 50,
+                    "reply_must_not_include": ["**"],
+                    "reply_must_not_match": ["^\\s*[-*]\\s"],
+                },
+            },
+            reply_func=lambda *_args, **_kwargs: "Keep it easy tomorrow.",
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertTrue(any("reply length <= 50" in check.message for check in result.checks))
+
+    def test_rule_eval_fails_on_forbidden_formatting(self) -> None:
+        result = run_case(
+            {
+                "name": "format_case",
+                "user_message": "Quick read?",
+                "expected": {
+                    "reply_max_chars": 50,
+                    "reply_must_not_include": ["**"],
+                    "reply_must_not_match": ["^\\s*[-*]\\s", "(^|\\s)_[^_\\n]+_(\\s|$)"],
+                },
+            },
+            reply_func=lambda *_args, **_kwargs: "- **Easy** tomorrow, _no workout_.",
+        )
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("reply does not include '**'" in check.message for check in result.checks)
+        )
+        self.assertTrue(any("reply does not match" in check.message for check in result.checks))
+
     @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "0.2"}, clear=True)
     def test_eval_temperature_uses_environment_override(self) -> None:
         self.assertEqual(eval_temperature(), 0.2)
@@ -253,6 +290,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("adjust_existing_weekly_plan", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)
+        self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
 
 
