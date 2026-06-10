@@ -223,6 +223,51 @@ class OpenAIClientTest(unittest.TestCase):
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_weekly_plan")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_image",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "save_weekly_plan",
+                        "call_id": "call_plan",
+                        "arguments": (
+                            '{"plan": "Monday: 5 easy\\n'
+                            "Wednesday: 4 easy + track workout: 5 x 5 min @ threshold, "
+                            '2 min recovery\\nSaturday: 12 long"}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "I saved that plan update."},
+        ],
+    )
+    def test_image_plan_tool_replaces_old_workout_before_track_workout(
+        self,
+        _post_json,
+        save_weekly_plan,
+        _athlete_profile_context,
+    ) -> None:
+        image_coaching_reply(
+            "Update my plan from this screenshot.",
+            image_bytes=b"image bytes",
+            mime_type="image/jpeg",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Current plan",
+        )
+
+        save_weekly_plan.assert_called_once_with(
+            "Monday: 5 easy\n"
+            "Wednesday: 5 x 5 min @ threshold, 2 min recovery\n"
+            "Saturday: 12 long"
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client.append_coaching_preference")
     @patch(
         "running_agent.openai_client._post_json",

@@ -233,6 +233,13 @@ def _clean_saved_weekly_plan_line(line: str) -> str:
         flags=re.IGNORECASE,
     ).strip()
     cleaned = re.sub(
+        r"^.*?\btrack\s+workout\s*[:;-]\s*",
+        "",
+        cleaned,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
         r"\bat\s+Underhill\s+Sports\s+Complex\b[,:;-]?\s*",
         "",
         cleaned,
