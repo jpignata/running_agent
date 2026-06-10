@@ -1,6 +1,5 @@
 {
   "name": "image_plan_update_from_screenshot",
-  "type": "behavioral",
   "input_kind": "image",
   "user_message": "Update my plan and make this what I'm doing tomorrow.",
   "image_path": "evals/fixtures/plan_update_screenshot.jpg",

@@ -38,7 +38,7 @@ JudgeFunc = Callable[[dict[str, Any], str], dict[str, Any]]
 
 def run_evals(case_name: str | None = None) -> list[EvalResult]:
     case_paths = [_case_path(case_name)] if case_name else _all_case_paths()
-    return [run_behavioral_case(load_case(path)) for path in case_paths]
+    return [run_case(load_case(path)) for path in case_paths]
 
 
 def load_case(path: Path) -> dict[str, Any]:
@@ -49,14 +49,11 @@ def load_case(path: Path) -> dict[str, Any]:
     return data
 
 
-def run_behavioral_case(
+def run_case(
     case: dict[str, Any],
     reply_func: ReplyFunc | None = None,
     judge_func: JudgeFunc | None = None,
 ) -> EvalResult:
-    if case.get("type") != "behavioral":
-        raise RuntimeError(f"Unsupported eval type: {case.get('type')}")
-
     saved_plans: list[str] = []
     tool_calls: list[dict[str, Any]] = []
     original_save_weekly_plan = openai_client.save_weekly_plan
@@ -86,7 +83,7 @@ def run_behavioral_case(
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
 
-    checks = score_behavioral_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
+    checks = score_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
     return EvalResult(
         name=str(case.get("name") or "unnamed"),
         passed=all(check.passed for check in checks),
@@ -146,7 +143,6 @@ def _run_case_model_call(
 def score_plan_adjustment(
     case: dict[str, Any],
     saved_plans: list[str],
-    reply: str,
 ) -> list[EvalCheck]:
     expected = case.get("expected") or {}
     checks = [
@@ -192,32 +188,43 @@ def score_plan_adjustment(
                 f"{day} preserved; expected {initial.get(day, '')!r}, got {saved.get(day, '')!r}",
             )
         )
-
-    checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
     return checks
 
 
-def score_behavioral_case(
+def score_case(
     case: dict[str, Any],
     saved_plans: list[str],
     tool_calls: list[dict[str, Any]],
     reply: str,
     judge_func: JudgeFunc | None = None,
 ) -> list[EvalCheck]:
-    if case.get("behavior") == "retrieval":
-        checks = score_retrieval_case(case, tool_calls, reply)
-    elif case.get("behavior") == "judged_reply":
-        checks = score_judged_reply_case(case, reply)
-    else:
-        checks = score_plan_adjustment(case, saved_plans, reply)
-
+    checks: list[EvalCheck] = []
+    if case.get("expected"):
+        checks.extend(score_expected(case, saved_plans, tool_calls, reply))
     if case.get("judge"):
         checks.extend(judge_reply(case, reply, judge_func=judge_func))
+    checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
     return checks
 
 
-def score_judged_reply_case(case: dict[str, Any], reply: str) -> list[EvalCheck]:
+def score_expected(
+    case: dict[str, Any],
+    saved_plans: list[str],
+    tool_calls: list[dict[str, Any]],
+    reply: str,
+) -> list[EvalCheck]:
     expected = case.get("expected") or {}
+    if expected.get("tool_call") == "save_weekly_plan":
+        checks = score_plan_adjustment(case, saved_plans)
+    elif expected.get("tool_call"):
+        checks = score_tool_call(case, tool_calls)
+    else:
+        checks = []
+    checks.extend(score_reply_rules(expected, reply))
+    return checks
+
+
+def score_reply_rules(expected: dict[str, Any], reply: str) -> list[EvalCheck]:
     checks: list[EvalCheck] = []
     for term in expected.get("reply_must_include", []):
         checks.append(
@@ -233,7 +240,6 @@ def score_judged_reply_case(case: dict[str, Any], reply: str) -> list[EvalCheck]
                 f"reply does not include {term!r}",
             )
         )
-    checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
     return checks
 
 
@@ -302,10 +308,9 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
     return _parse_judge_response(text)
 
 
-def score_retrieval_case(
+def score_tool_call(
     case: dict[str, Any],
     tool_calls: list[dict[str, Any]],
-    reply: str,
 ) -> list[EvalCheck]:
     expected = case.get("expected") or {}
     expected_tool = expected.get("tool_call")
@@ -333,14 +338,6 @@ def score_retrieval_case(
                     f"query_local_runs days >= {query_expected['days_min']}; got {args.get('days')}",
                 )
             )
-    for term in expected.get("reply_must_include", []):
-        checks.append(
-            EvalCheck(
-                str(term).lower() in reply.lower(),
-                f"reply includes {term!r}",
-            )
-        )
-    checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
     return checks
 
 

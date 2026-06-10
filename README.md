@@ -266,7 +266,8 @@ judge model to make a criteria-based pass/fail call for subjective coaching qual
 `OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls use
 temperature `0.1`; set `OPENAI_EVAL_TEMPERATURE` to override it. By default, eval output
 only shows pass/fail checks; add `--debug` to include saved plans, tool calls, and model
-replies.
+replies. Eval cases are key-driven: `expected` runs deterministic rule checks, `judge`
+runs judge-model criteria checks, and cases can use either or both.
 
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:

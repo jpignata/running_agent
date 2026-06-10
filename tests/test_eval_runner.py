@@ -11,7 +11,7 @@ from running_agent.eval_runner import (
     format_eval_results,
     judge_reply,
     load_case,
-    run_behavioral_case,
+    run_case,
     run_evals,
     run_judge_model,
 )
@@ -37,13 +37,13 @@ class EvalRunnerTest(unittest.TestCase):
             )
             return "Got it, I updated the week."
 
-        result = run_behavioral_case(case, reply_func=fake_reply)
+        result = run_case(case, reply_func=fake_reply)
 
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertEqual(len(result.saved_plans), 1)
 
     def test_plan_adjustment_eval_fails_when_model_does_not_save_plan(self) -> None:
-        result = run_behavioral_case(load_case_path(), reply_func=lambda *_args, **_kwargs: "OK")
+        result = run_case(load_case_path(), reply_func=lambda *_args, **_kwargs: "OK")
 
         self.assertFalse(result.passed)
         self.assertIn("expected exactly one save_weekly_plan call", result.checks[0].message)
@@ -68,7 +68,7 @@ class EvalRunnerTest(unittest.TestCase):
 
         image_coaching_reply.side_effect = fake_image_reply
 
-        result = run_behavioral_case(load_case_path("image_plan_update_from_screenshot.json"))
+        result = run_case(load_case_path("image_plan_update_from_screenshot.json"))
 
         self.assertTrue(result.passed, format_eval_results([result]))
         image_coaching_reply.assert_called_once()
@@ -90,7 +90,7 @@ class EvalRunnerTest(unittest.TestCase):
             self.assertIn("Riverfront 5K", result)
             return "Your last race was Riverfront 5K at 6:21/mi."
 
-        result = run_behavioral_case(
+        result = run_case(
             load_case_path("recall_last_race.json"),
             reply_func=fake_reply,
         )
@@ -101,7 +101,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertEqual(seen_kwargs["temperature"], 0.1)
 
     def test_retrieval_eval_fails_without_lookup(self) -> None:
-        result = run_behavioral_case(
+        result = run_case(
             load_case_path("recall_last_race.json"),
             reply_func=lambda *_args, **_kwargs: "I think it was around 6:00 pace.",
         )
@@ -113,7 +113,7 @@ class EvalRunnerTest(unittest.TestCase):
         def fake_judge(_case, _reply):
             return {"passed": True, "rationale": "Safe and specific.", "failures": []}
 
-        result = run_behavioral_case(
+        result = run_case(
             load_case_path("judged_soreness_long_run.json"),
             reply_func=lambda *_args, **_kwargs: (
                 "Treat the Achilles as the limiter. If it is sore tomorrow, skip the "
@@ -124,10 +124,10 @@ class EvalRunnerTest(unittest.TestCase):
         )
 
         self.assertTrue(result.passed, format_eval_results([result]))
-        self.assertIn("judge passed", result.checks[-1].message)
+        self.assertTrue(any("judge passed" in check.message for check in result.checks))
 
     def test_judged_reply_eval_fails_when_fake_judge_finds_unmet_criteria(self) -> None:
-        result = run_behavioral_case(
+        result = run_case(
             load_case_path("judged_soreness_long_run.json"),
             reply_func=lambda *_args, **_kwargs: "Your Achilles is fine. Do the 12.",
             judge_func=lambda _case, _reply: {
@@ -138,8 +138,13 @@ class EvalRunnerTest(unittest.TestCase):
         )
 
         self.assertFalse(result.passed)
-        self.assertIn("judge failed", result.checks[-1].message)
-        self.assertIn("Does not prioritize Achilles injury risk.", result.checks[-1].message)
+        self.assertTrue(any("judge failed" in check.message for check in result.checks))
+        self.assertTrue(
+            any(
+                "Does not prioritize Achilles injury risk." in check.message
+                for check in result.checks
+            )
+        )
 
     def test_judge_reply_requires_explicit_passed_true(self) -> None:
         checks = judge_reply(
@@ -150,6 +155,28 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertFalse(checks[0].passed)
         self.assertIn("judge failed", checks[0].message)
+
+    def test_case_runs_expected_rules_and_judge_when_both_keys_are_present(self) -> None:
+        result = run_case(
+            {
+                "name": "mixed_case",
+                "user_message": "What should I do?",
+                "expected": {"reply_must_include": ["Achilles"]},
+                "judge": {"criteria": ["Safe advice"], "pass_condition": "Pass if safe."},
+            },
+            reply_func=lambda *_args, **_kwargs: "Protect the Achilles.",
+            judge_func=lambda _case, _reply: {
+                "passed": True,
+                "rationale": "Safe.",
+                "failures": [],
+            },
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertTrue(
+            any("reply includes 'Achilles'" in check.message for check in result.checks)
+        )
+        self.assertTrue(any("judge passed" in check.message for check in result.checks))
 
     @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "0.2"}, clear=True)
     def test_eval_temperature_uses_environment_override(self) -> None:
@@ -198,9 +225,9 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("Reply:", text)
         self.assertIn("Model reply", text)
 
-    @patch("running_agent.eval_runner.run_behavioral_case")
-    def test_run_evals_without_case_runs_all_cases(self, run_behavioral_case_) -> None:
-        run_behavioral_case_.side_effect = lambda case: case["name"]
+    @patch("running_agent.eval_runner.run_case")
+    def test_run_evals_without_case_runs_all_cases(self, run_case_) -> None:
+        run_case_.side_effect = lambda case: case["name"]
 
         results = run_evals()
 
