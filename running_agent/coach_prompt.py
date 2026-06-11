@@ -7,6 +7,7 @@ from .coaching_guidance import (
     COACHING_STANCE_RUBRIC,
     GARMIN_COACHING_RUBRIC,
     TRAINING_PROGRESSION_RUBRIC,
+    coaching_philosophy_context,
 )
 
 REMEMBER_NOTE_TOOL = {
@@ -353,9 +354,15 @@ def build_coaching_input(
     include_coach_reflection: bool = True,
     athlete_profile_text: str | None = None,
     coach_reflection_text: str | None = None,
+    coaching_philosophy_text: str | None = None,
 ) -> str:
     profile = (
         athlete_profile_text if athlete_profile_text is not None else athlete_profile_context()
+    )
+    philosophy = (
+        coaching_philosophy_text
+        if coaching_philosophy_text is not None
+        else coaching_philosophy_context()
     )
     prompt_parts = [
         "Current local date:",
@@ -372,6 +379,8 @@ def build_coaching_input(
         "",
         "Athlete-specific profile:",
         profile,
+        "",
+        philosophy,
         "",
         COACHING_STANCE_RUBRIC,
         "",

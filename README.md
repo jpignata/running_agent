@@ -55,6 +55,7 @@ The coach builds replies from local context instead of treating each message as 
 - The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
 - The saved training goal in `.data/training_goal.json`.
 - Athlete-specific notes in `.data/athlete_profile.txt`.
+- The global coaching philosophy in `running_agent/coaching_philosophy.txt`.
 - The current coach reflection in `.data/coach_reflection.json`, which captures compact
   private coach state: capacity, goal confidence, goal requirements/checkpoints, limiters,
   next emphasis, and watch items.

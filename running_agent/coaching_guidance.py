@@ -1,5 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+COACHING_PHILOSOPHY_PATH = Path(__file__).with_name("coaching_philosophy.txt")
+
+
+def coaching_philosophy_context(path: Path = COACHING_PHILOSOPHY_PATH) -> str:
+    try:
+        return path.read_text().strip()
+    except FileNotFoundError:
+        return "No coaching philosophy has been provided."
+
+
 COACHING_STANCE_RUBRIC = """Coaching stance rubric:
 - Coach toward the athlete's saved goal. Do not assume a different target unless the athlete states one.
 - Think critically about the goal against the available evidence: recent volume, long-run durability, workout execution, recovery, consistency, timeline, and race specificity.

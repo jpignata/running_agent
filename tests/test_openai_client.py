@@ -30,6 +30,8 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertEqual(reply, "Reply")
         payload = post_json.call_args.args[1]
         self.assertIn("Athlete-specific profile:\nProfile note", payload["input"])
+        self.assertIn("Coaching philosophy:", payload["input"])
+        self.assertIn("Use VDOT-style thinking", payload["input"])
         self.assertIn(
             "Coach's private current training thesis:\nCurrent coach thesis",
             payload["input"],
