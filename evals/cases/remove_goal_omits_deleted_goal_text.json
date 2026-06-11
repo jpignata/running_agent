@@ -1,0 +1,22 @@
+{
+  "description": "Checks that when the athlete removes a prior goal, the saved goal omits that goal entirely instead of saving removal meta-language.",
+  "current_date": "2026-06-11",
+  "user_message": "Adjust my goal to eliminate the 5k goal for now, and incorporate the Jersey Shore Half Marathon on 2026-10-04. The half target is faster than 1:36:14 and racing for the age-group win if training supports it.",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: rest or cross-training\nFriday: 5 easy\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 5 runs over the last 7 days. Training is steady with one quality session and a recent 5K race.",
+    "recent_runs": "Recent runs:\n- Sunday race: official 5K in 19:59.\n- Wednesday threshold workout: 5 x 5 min around 6:50/mi.",
+    "training_goal": "NYC Marathon on November 1, 2026, with a target of sub-3:10. Secondary goal: 5K on 2026-09-26, now targeting a time faster than 19:59 and working toward 6:15/mi if training supports it. Main priority is staying healthy and managing heel/plantar fasciitis history carefully."
+  },
+  "expected": {
+    "tool_calls": {
+      "called": ["update_training_goal"]
+    },
+    "goal": {
+      "must_include": ["NYC Marathon", "sub-3:10", "Jersey Shore Half Marathon", "2026-10-04", "1:36:14", "age-group win", "heel/plantar"],
+      "must_not_include": ["5K", "19:59", "6:15", "remove", "removed", "eliminate", "eliminated", "for now", "no longer"]
+    },
+    "reply_must_include": ["Jersey Shore Half", "5K"],
+    "reply_must_not_include": ["Remove the 5K goal for now"]
+  }
+}

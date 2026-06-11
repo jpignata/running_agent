@@ -60,9 +60,11 @@ def run_case(
     judge_func: JudgeFunc | None = None,
 ) -> EvalResult:
     saved_plans: list[str] = []
+    saved_goals: list[str] = []
     saved_race_results: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
     original_save_weekly_plan = openai_client.save_weekly_plan
+    original_save_training_goal = openai_client.save_training_goal
     original_save_race_result = openai_client.save_race_result
     original_query_local_runs = openai_client.query_local_runs
     original_get_local_run_details = openai_client.get_local_run_details
@@ -74,6 +76,11 @@ def run_case(
         saved_plans.append(plan_text)
         tool_calls.append({"name": "save_weekly_plan", "arguments": {"plan": plan_text}})
         return {"text": plan_text}
+
+    def capture_save_training_goal(goal_text: str):
+        saved_goals.append(goal_text)
+        tool_calls.append({"name": "update_training_goal", "arguments": {"goal": goal_text}})
+        return {"text": goal_text}
 
     def capture_save_race_result(**kwargs):
         result = dict(kwargs)
@@ -90,6 +97,7 @@ def run_case(
         return _tool_result(case, "get_local_run_details")
 
     openai_client.save_weekly_plan = capture_save_weekly_plan
+    openai_client.save_training_goal = capture_save_training_goal
     openai_client.save_race_result = capture_save_race_result
     openai_client.query_local_runs = capture_query_local_runs
     openai_client.get_local_run_details = capture_get_local_run_details
@@ -115,6 +123,7 @@ def run_case(
         reply = _run_case_model_call(case, context, reply_func)
     finally:
         openai_client.save_weekly_plan = original_save_weekly_plan
+        openai_client.save_training_goal = original_save_training_goal
         openai_client.save_race_result = original_save_race_result
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
@@ -122,7 +131,7 @@ def run_case(
         coach_prompt.pace_calibration_context = original_pace_calibration_context
         coach_prompt.coach_reflection_context = original_coach_reflection_context
 
-    checks = score_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
+    checks = score_case(case, saved_plans, saved_goals, tool_calls, reply, judge_func=judge_func)
     return EvalResult(
         name=str(case.get("name") or "unnamed"),
         passed=all(check.passed for check in checks),
@@ -233,13 +242,14 @@ def score_plan_adjustment(
 def score_case(
     case: dict[str, Any],
     saved_plans: list[str],
+    saved_goals: list[str],
     tool_calls: list[dict[str, Any]],
     reply: str,
     judge_func: JudgeFunc | None = None,
 ) -> list[EvalCheck]:
     checks: list[EvalCheck] = []
     if case.get("expected"):
-        checks.extend(score_expected(case, saved_plans, tool_calls, reply))
+        checks.extend(score_expected(case, saved_plans, saved_goals, tool_calls, reply))
     if case.get("judge"):
         checks.extend(judge_reply(case, reply, judge_func=judge_func))
     checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
@@ -249,6 +259,7 @@ def score_case(
 def score_expected(
     case: dict[str, Any],
     saved_plans: list[str],
+    saved_goals: list[str],
     tool_calls: list[dict[str, Any]],
     reply: str,
 ) -> list[EvalCheck]:
@@ -256,7 +267,44 @@ def score_expected(
     checks = score_tool_calls(expected, tool_calls)
     if _expects_tool_called(expected, "save_weekly_plan"):
         checks.extend(score_plan_adjustment(case, saved_plans))
+    if _expects_tool_called(expected, "update_training_goal"):
+        checks.extend(score_goal_update(expected, saved_goals))
     checks.extend(score_reply_rules(expected, reply))
+    return checks
+
+
+def score_goal_update(expected: dict[str, Any], saved_goals: list[str]) -> list[EvalCheck]:
+    goal_expected = expected.get("goal") or {}
+    checks = [
+        EvalCheck(
+            len(saved_goals) == 1,
+            f"expected exactly one update_training_goal call; got {len(saved_goals)}",
+        )
+    ]
+    if len(saved_goals) != 1:
+        return checks
+    saved_goal = saved_goals[0]
+    for term in goal_expected.get("must_include", []):
+        checks.append(
+            EvalCheck(
+                _contains_loose(saved_goal, str(term)),
+                f"saved goal includes {term!r}; got {saved_goal!r}",
+            )
+        )
+    for term in goal_expected.get("must_not_include", []):
+        checks.append(
+            EvalCheck(
+                not _contains_loose(saved_goal, str(term)),
+                f"saved goal does not include {term!r}; got {saved_goal!r}",
+            )
+        )
+    for pattern in goal_expected.get("must_not_match", []):
+        checks.append(
+            EvalCheck(
+                re.search(str(pattern), saved_goal, flags=re.MULTILINE) is None,
+                f"saved goal does not match /{pattern}/",
+            )
+        )
     return checks
 
 

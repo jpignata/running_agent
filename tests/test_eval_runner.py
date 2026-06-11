@@ -120,6 +120,40 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("expected query_local_runs to be called", result.checks[0].message)
 
+    def test_goal_update_eval_checks_saved_goal_text(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.save_training_goal(
+                "NYC Marathon sub-3:10. Jersey Shore Half Marathon on 2026-10-04, "
+                "target faster than 1:36:14 and race for age-group win. Manage heel/plantar."
+            )
+            return "Updated the goal around the Jersey Shore Half and removed the 5K target."
+
+        result = run_case(
+            load_case_path("remove_goal_omits_deleted_goal_text.json"),
+            reply_func=fake_reply,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertEqual(result.tool_calls[0]["name"], "update_training_goal")
+
+    def test_goal_update_eval_fails_when_removed_goal_remains(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.save_training_goal(
+                "NYC Marathon sub-3:10. Jersey Shore Half Marathon on 2026-10-04. "
+                "Remove the 5K goal for now."
+            )
+            return "Updated."
+
+        result = run_case(
+            load_case_path("remove_goal_omits_deleted_goal_text.json"),
+            reply_func=fake_reply,
+        )
+
+        self.assertFalse(result.passed)
+        self.assertTrue(
+            any("saved goal does not include '5K'" in check.message for check in result.checks)
+        )
+
     @patch("running_agent.eval_runner.openai_client.coaching_reply")
     def test_run_case_can_pin_current_date(self, coaching_reply) -> None:
         original_coach_now = coach_prompt.coach_now
@@ -384,6 +418,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
+        self.assertIn("remove_goal_omits_deleted_goal_text", results)
         self.assertIn("save_official_race_result_correction", results)
         self.assertIn("strategic_5k_progression_avoids_current_week_pivot", results)
         self.assertIn("uses_deterministic_vdot_table_paces", results)

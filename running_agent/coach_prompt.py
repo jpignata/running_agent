@@ -42,8 +42,11 @@ UPDATE_GOAL_TOOL = {
         "Save a revised overall training goal for future coaching. Use this when the athlete "
         "states a durable goal, race target, target time, goal race date, priority, or a change "
         "to an existing goal. Write a complete updated goal statement that preserves still-relevant "
-        "existing goal details and incorporates the new information. Do not use this for ordinary "
-        "workout preferences; use remember_coaching_note for those."
+        "existing goal details and incorporates the new information. If the athlete removes, "
+        "drops, eliminates, pauses, or deprioritizes a previous goal, omit that removed goal "
+        "entirely from the saved statement; do not save meta-language like 'remove the 5K goal', "
+        "'5K goal removed', or 'no longer targeting the 5K'. Do not use this for ordinary workout "
+        "preferences; use remember_coaching_note for those."
     ),
     "parameters": {
         "type": "object",
@@ -335,7 +338,9 @@ COACHING_INSTRUCTIONS = (
     "When the athlete states or changes a durable training goal, race target, target "
     "time, goal race date, or major priority, call update_training_goal before answering. "
     "Use the current overall training goal context to rewrite a complete updated goal "
-    "statement rather than saving only a fragment. After updating the goal, briefly "
+    "statement rather than saving only a fragment. When the athlete asks to remove, drop, "
+    "eliminate, pause, or deprioritize part of the goal, remove it from the saved goal text "
+    "entirely rather than saving text about the removal. After updating the goal, briefly "
     "acknowledge the change in the normal coaching reply. "
     "When the athlete shares a day-by-day or week-long schedule that appears to be their actual "
     "weekly training plan, call save_weekly_plan before answering. Do this even if they simply "
