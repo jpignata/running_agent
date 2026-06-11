@@ -362,6 +362,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("judged_soreness_long_run", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
+        self.assertIn("working_vdot_training_paces", results)
 
 
 def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):

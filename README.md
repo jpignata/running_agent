@@ -37,6 +37,7 @@ Runtime data lives under `.data/`, which is ignored by git:
 - `.data/athlete_profile.txt` - remembered coaching notes.
 - `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
 - `.data/coach_reflection.json` - the coach's private current training state.
+- `.data/pace_calibration.json` - current working VDOT and training pace calibration.
 - `.data/garmin_snapshots.json` - cached Garmin recovery snapshots and baseline data.
 - `.data/strava/activities.json` - synced Strava run summaries.
 - `.data/strava/details/<activity_id>.json` - synced detailed Strava activities with laps.
@@ -59,6 +60,7 @@ The coach builds replies from local context instead of treating each message as 
 - The current coach reflection in `.data/coach_reflection.json`, which captures compact
   private coach state: capacity, goal confidence, goal requirements/checkpoints, limiters,
   next emphasis, and watch items.
+- The current working VDOT and training pace calibration in `.data/pace_calibration.json`.
 - The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
   run outcomes.
 - Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for

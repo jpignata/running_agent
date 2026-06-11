@@ -9,6 +9,7 @@ from .coach_log import read_coach_log
 from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import training_goal_context
+from .pace_calibration import save_pace_calibration
 from .plan_store import weekly_plan_context
 from .storage import read_json_file, write_json_file
 from .storage_paths import COACH_REFLECTION_PATH
@@ -58,11 +59,20 @@ def generate_coach_reflection(
         "Use compact labeled bullets, not essay prose and not a user-facing coaching voice. Use "
         "recent Strava runs, Garmin trend context, the saved weekly plan, the overall goal, the "
         "coach log, and the previous reflection. Focus on durable coaching judgment, not a recap. "
-        "Include these labels exactly: Capacity, Goal confidence, Goal requirements/checkpoints, "
-        "Current limiter, Next emphasis, Watch items. Under Goal requirements/checkpoints, "
-        "translate the saved goal into concrete adaptations or timeline checkpoints that would "
-        "make the goal more credible; use ranges and confidence language when uncertain, and do "
-        "not invent a race date if one is not saved. Under Watch items, include confidence words "
+        "Include these labels exactly: Capacity, Working VDOT/pace calibration, Goal confidence, "
+        "Goal requirements/checkpoints, Current limiter, Next emphasis, Watch items. Under "
+        "Working VDOT/pace calibration, estimate the current VDOT level or range from recent "
+        "representative races, controlled quality workouts, longer-term aerobic patterns, and "
+        "caveats; include confidence and practical pace anchors when evidence supports them. "
+        "Under Goal requirements/checkpoints, compare the athlete's current working VDOT/pace "
+        "calibration to the saved goal pace. If there is a gap, state it plainly and describe "
+        "the fitness adaptations or checkpoints needed to close it, such as higher sustainable "
+        "volume, longer long runs, stronger threshold durability, marathon-pace segment "
+        "tolerance, or improved recovery consistency. Translate the saved goal into concrete "
+        "adaptations or timeline checkpoints that would make the goal more credible; use ranges "
+        "and confidence language when uncertain, and do not invent a race date if one is not "
+        "saved. Do not treat the goal pace as current fitness unless the evidence supports it. "
+        "Under Watch items, include confidence words "
         "such as high/medium/low when a claim is a hypothesis. Keep the whole reflection under "
         "180 words. Do not store user preferences or goals here unless they matter to the "
         "coaching thesis."
@@ -83,7 +93,39 @@ def generate_coach_reflection(
         max_output_tokens=450,
     )
     save_coach_reflection(reflection)
+    pace_calibration = _pace_calibration_from_reflection(reflection)
+    if pace_calibration:
+        save_pace_calibration(pace_calibration)
     return reflection
+
+
+def _pace_calibration_from_reflection(reflection_text: str) -> str:
+    lines = reflection_text.strip().splitlines()
+    capture = False
+    captured: list[str] = []
+    labels = {
+        "Capacity",
+        "Working VDOT/pace calibration",
+        "Goal confidence",
+        "Goal requirements/checkpoints",
+        "Current limiter",
+        "Next emphasis",
+        "Watch items",
+    }
+    for line in lines:
+        stripped = line.strip()
+        label = stripped.split(":", 1)[0]
+        if label == "Working VDOT/pace calibration":
+            capture = True
+            after = stripped.split(":", 1)[1].strip() if ":" in stripped else ""
+            if after:
+                captured.append(after)
+            continue
+        if capture and label in labels and ":" in stripped:
+            break
+        if capture and stripped:
+            captured.append(stripped)
+    return "\n".join(captured).strip()
 
 
 def reflection_coach_log_context(limit_runs: int = 12) -> str:

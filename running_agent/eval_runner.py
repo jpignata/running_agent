@@ -65,6 +65,7 @@ def run_case(
     original_query_local_runs = openai_client.query_local_runs
     original_get_local_run_details = openai_client.get_local_run_details
     original_coach_now = coach_prompt.coach_now
+    original_pace_calibration_context = coach_prompt.pace_calibration_context
 
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
@@ -82,6 +83,11 @@ def run_case(
     openai_client.save_weekly_plan = capture_save_weekly_plan
     openai_client.query_local_runs = capture_query_local_runs
     openai_client.get_local_run_details = capture_get_local_run_details
+    context = case.get("initial_context") or {}
+    coach_prompt.pace_calibration_context = lambda: context.get(
+        "pace_calibration",
+        "No pace calibration has been saved yet.",
+    )
     if case.get("current_date"):
         pinned_now = datetime.fromisoformat(str(case["current_date"])).replace(
             hour=12,
@@ -92,13 +98,13 @@ def run_case(
         )
         coach_prompt.coach_now = lambda: pinned_now
     try:
-        context = case.get("initial_context") or {}
         reply = _run_case_model_call(case, context, reply_func)
     finally:
         openai_client.save_weekly_plan = original_save_weekly_plan
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
         coach_prompt.coach_now = original_coach_now
+        coach_prompt.pace_calibration_context = original_pace_calibration_context
 
     checks = score_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
     return EvalResult(
@@ -319,6 +325,7 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
                                 "case_name": case.get("name"),
                                 "user_message": case.get("user_message"),
                                 "initial_context": case.get("initial_context") or {},
+                                "tool_results": case.get("tool_results") or {},
                                 "reply": reply,
                                 "criteria": judge.get("criteria", []),
                                 "pass_condition": judge.get("pass_condition", ""),

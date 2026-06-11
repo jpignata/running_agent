@@ -1,0 +1,41 @@
+{
+  "description": "Checks that training pace suggestions use a working VDOT estimate from representative races and controlled workouts instead of optimistic goal-driven extrapolation, and that paces stay internally ordered.",
+  "user_message": "Let's talk about my paces. Look at my recent data especially my race and suggest paces for me for things like easy, threshold, 5k, 10k, marathon, etc.",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 4 easy-to-moderate runs over the last 7 days. Recent prompt context does not include the athlete's race result.",
+    "recent_runs": "Recent runs:\n- Today easy: 5.00 mi at 8:31/mi\n- Yesterday easy: 4.00 mi at 8:42/mi\n- Wednesday threshold workout: 5 x 5 min controlled around 6:45-6:50/mi with 2 min jog recoveries.",
+    "training_goal": "Build toward a fall marathon while staying healthy."
+  },
+  "tool_results": {
+    "query_local_runs": "Matching synced Strava race-like runs, newest first, last 365 days:\n- id 900000001: North Jersey Pride Run: 3.15 mi on Sunday, Jun 7, 6:22/mi, avg HR 168 race-like; details synced"
+  },
+  "expected": {
+    "tool_calls": {
+      "called": [
+        {
+          "name": "query_local_runs",
+          "arguments": {
+            "races_only": true,
+            "days_min": 300
+          }
+        }
+      ]
+    },
+    "reply_must_include": ["6:22"],
+    "reply_must_not_include": ["sub-6"],
+    "reply_must_not_match": [
+      "(?im)^\\s*5k[^\\n]*(5:[0-5][0-9]|6:0[0-9]|6:10)"
+    ]
+  },
+  "judge": {
+    "criteria": [
+      "Uses a working VDOT-style estimate from the recent 6:22/mi 5K-ish race plus the controlled threshold workout rather than extrapolating from the marathon goal.",
+      "Does not infer a much faster 5K than the actual recent 6:22/mi race unless it gives concrete evidence for discounting that race; 5K ranges around 6:18-6:28/mi are acceptable, but 6:10/mi or faster is too aggressive.",
+      "Keeps the pace hierarchy internally consistent across race-equivalent or training categories.",
+      "Distinguishes VDOT training categories such as Easy, Marathon, Threshold, Interval, or Repetition from guessed 5K/10K race paces.",
+      "Presents the paces as practical training anchors with confidence/uncertainty rather than rigid proof of fitness."
+    ],
+    "pass_condition": "Pass only if every criterion is satisfied. Fail if 10K pace is faster than 5K pace, if the fastest end of the 5K range is 6:10/mi or faster, or if the reply dismisses the actual 6:22/mi race as unrepresentative without evidence. Do not fail a 5K range like 6:18-6:28/mi."
+  }
+}

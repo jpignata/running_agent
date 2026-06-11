@@ -12,12 +12,17 @@ class OpenAIClientTest(unittest.TestCase):
         "running_agent.coach_prompt.coach_reflection_context",
         return_value="Current coach thesis",
     )
+    @patch(
+        "running_agent.coach_prompt.pace_calibration_context",
+        return_value="Current VDOT and pace calibration:\nVDOT 50",
+    )
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
     def test_coaching_reply_includes_context_and_tools(
         self,
         post_json,
         _athlete_profile_context,
+        _pace_calibration_context,
         _coach_reflection_context,
     ) -> None:
         reply = coaching_reply(
@@ -30,8 +35,9 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertEqual(reply, "Reply")
         payload = post_json.call_args.args[1]
         self.assertIn("Athlete-specific profile:\nProfile note", payload["input"])
+        self.assertIn("Current VDOT and pace calibration", payload["input"])
         self.assertIn("Coaching philosophy:", payload["input"])
-        self.assertIn("Use VDOT-style thinking", payload["input"])
+        self.assertIn("Maintain a working VDOT level", payload["input"])
         self.assertIn(
             "Coach's private current training thesis:\nCurrent coach thesis",
             payload["input"],

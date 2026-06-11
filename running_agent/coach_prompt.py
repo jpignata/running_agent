@@ -9,6 +9,7 @@ from .coaching_guidance import (
     TRAINING_PROGRESSION_RUBRIC,
     coaching_philosophy_context,
 )
+from .pace_calibration import pace_calibration_context
 
 REMEMBER_NOTE_TOOL = {
     "type": "function",
@@ -256,6 +257,20 @@ COACHING_INSTRUCTIONS = (
     "Garmin readiness, Body Battery, HRV, stress, sleep, naps, resting HR, and VO2 max are "
     "context to interpret alongside the plan, recent workload, and athlete-specific "
     "profile; do not let one generic Garmin label override the training plan by itself. "
+    "When suggesting training or race paces, estimate a working VDOT level from the athlete's "
+    "recent evidence: representative races first, then controlled quality workouts, then "
+    "longer-term aerobic patterns as sanity checks. Use published VDOT-equivalent paces from "
+    "that working level for Easy, Marathon, Threshold, Interval, and Repetition guidance. "
+    "If the athlete asks for paces, VDOT, or pace calibration based on recent data or a recent "
+    "race, call query_local_runs with races_only=true before answering unless a current pace "
+    "calibration or the relevant race result is already present in the prompt. When you use a "
+    "race result for pace calibration, cite the observed race distance and average pace in the "
+    "reply so the athlete can audit the anchor. "
+    "Do not let an aspirational goal pace inflate current training paces. If evidence conflicts, "
+    "state the uncertainty and choose a conservative range. Do not make a same-distance or "
+    "shorter-distance race pace much faster than an actual recent race unless broader evidence "
+    "clearly supports a higher VDOT. Keep race-equivalent and training paces internally "
+    "consistent. "
     "When the athlete asks about Garmin readiness, recovery, sleep, naps, HRV, stress, resting "
     "HR, Body Battery, or whether recovery metrics should change today's training, call "
     "get_garmin_readiness or get_garmin_recovery_trend before answering unless the needed "
@@ -355,6 +370,7 @@ def build_coaching_input(
     athlete_profile_text: str | None = None,
     coach_reflection_text: str | None = None,
     coaching_philosophy_text: str | None = None,
+    pace_calibration_text: str | None = None,
 ) -> str:
     profile = (
         athlete_profile_text if athlete_profile_text is not None else athlete_profile_context()
@@ -363,6 +379,9 @@ def build_coaching_input(
         coaching_philosophy_text
         if coaching_philosophy_text is not None
         else coaching_philosophy_context()
+    )
+    pace_calibration = (
+        pace_calibration_text if pace_calibration_text is not None else pace_calibration_context()
     )
     prompt_parts = [
         "Current local date:",
@@ -379,6 +398,8 @@ def build_coaching_input(
         "",
         "Athlete-specific profile:",
         profile,
+        "",
+        pace_calibration,
         "",
         philosophy,
         "",

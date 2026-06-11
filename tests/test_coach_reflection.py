@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from running_agent.coach_reflection import (
+    _pace_calibration_from_reflection,
     coach_reflection_context,
     generate_coach_reflection,
     reflection_coach_log_context,
@@ -38,12 +39,25 @@ class CoachReflectionTest(unittest.TestCase):
     @patch("running_agent.coach_reflection.read_coach_log")
     @patch("running_agent.coach_reflection.training_goal_context", return_value="Goal")
     @patch("running_agent.coach_reflection.weekly_plan_context", return_value="Weekly plan")
+    @patch("running_agent.coach_reflection.save_pace_calibration")
     @patch("running_agent.coach_reflection.save_coach_reflection")
-    @patch("running_agent.openai_client.coaching_reply", return_value="Updated thesis")
+    @patch(
+        "running_agent.openai_client.coaching_reply",
+        return_value=(
+            "Capacity: Stable.\n\n"
+            "Working VDOT/pace calibration: VDOT 50, threshold around 6:55/mi.\n\n"
+            "Goal confidence: Moderate.\n\n"
+            "Goal requirements/checkpoints: Build durability.\n\n"
+            "Current limiter: Long runs.\n\n"
+            "Next emphasis: Easy days.\n\n"
+            "Watch items: Pace creep."
+        ),
+    )
     def test_generate_coach_reflection_rewrites_current_thesis(
         self,
         coaching_reply,
         save_coach_reflection,
+        save_pace_calibration,
         _weekly_plan_context,
         _training_goal_context,
         read_coach_log,
@@ -73,7 +87,7 @@ class CoachReflectionTest(unittest.TestCase):
 
         reflection = generate_coach_reflection(client, lookback_days=42)
 
-        self.assertEqual(reflection, "Updated thesis")
+        self.assertIn("Working VDOT/pace calibration", reflection)
         self.assertEqual(client.requested_days, 42)
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
@@ -85,7 +99,25 @@ class CoachReflectionTest(unittest.TestCase):
         self.assertEqual(kwargs["garmin_context"], "Garmin trend")
         self.assertFalse(kwargs["tools_enabled"])
         self.assertFalse(kwargs["include_coach_reflection"])
-        save_coach_reflection.assert_called_once_with("Updated thesis")
+        save_coach_reflection.assert_called_once_with(reflection)
+        save_pace_calibration.assert_called_once_with("VDOT 50, threshold around 6:55/mi.")
+
+    def test_pace_calibration_from_reflection_extracts_section(self) -> None:
+        reflection = "\n".join(
+            [
+                "Capacity: Stable.",
+                "Working VDOT/pace calibration: VDOT 50, confidence medium.",
+                "Easy 8:05-8:45/mi; threshold 6:55/mi.",
+                "Goal confidence: Moderate.",
+            ]
+        )
+
+        calibration = _pace_calibration_from_reflection(reflection)
+
+        self.assertEqual(
+            calibration,
+            "VDOT 50, confidence medium.\nEasy 8:05-8:45/mi; threshold 6:55/mi.",
+        )
 
     @patch("running_agent.coach_reflection.read_coach_log")
     def test_reflection_coach_log_context_dedupes_runs_and_uses_latest_week_review(
