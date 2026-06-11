@@ -51,8 +51,6 @@ The coach builds replies from local context instead of treating each message as 
 
 - Recent Strava runs, using a four-week default lookback for normal chat and summaries,
   including detailed laps when they matter, such as workouts, races, and long runs.
-- Synced local Strava activity history in `.data/strava/`, with compact run summaries
-  and per-activity detail files for lap/split lookup.
 - The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
 - The saved training goal in `.data/training_goal.json`.
 - Athlete-specific notes in `.data/athlete_profile.txt`.
@@ -63,13 +61,18 @@ The coach builds replies from local context instead of treating each message as 
 - The current working VDOT and training pace calibration in `.data/pace_calibration.json`.
 - The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
   run outcomes.
+- Synced local Strava activity history in `.data/strava/`, with compact run summaries
+  and per-activity detail files for lap/split lookup.
 - Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for
   sleep, resting heart rate, HRV, stress, Body Battery low, and training readiness.
 - Short in-process conversation history while the bot is running.
 
-### Strava Sync And Lookup
+### Local Coaching State
 
-The bot uses Strava in two different ways:
+The bot keeps some derived coaching state locally so every reply does not have to rediscover
+the same facts from scratch.
+
+The Strava integration has two paths:
 
 - Recent training summaries still use the Strava client directly.
 - Detailed activity lookup tools read from the local store in `.data/strava/`.
@@ -84,16 +87,16 @@ That command saves run summaries to `.data/strava/activities.json` and detailed 
 JSON to `.data/strava/details/`. Telegram polling and `/check` also save detailed activity
 JSON when a new run appears, so the local store stays warm over time.
 
-Regenerate the coach's private training state with:
+Regenerate the coach's private training state and working pace calibration with:
 
 ```bash
 python -m running_agent reflect --days 42
 ```
 
 That command rewrites `.data/coach_reflection.json` from recent Strava, Garmin, plan, goal,
-and coach-log context. Future model replies include the current reflection as private coaching
-context, including concrete goal requirements and checkpoints when the saved goal supports them.
-The Telegram scheduler also refreshes this reflection once per day after 7:00pm Eastern.
+and coach-log context. It also extracts the current working VDOT and training pace calibration
+into `.data/pace_calibration.json`. Future model replies include both pieces of state.
+The Telegram scheduler refreshes them once per day after 7:00pm Eastern.
 
 When you ask a natural-language question like `what were the splits from my track workout
 last week?`, the model can call local lookup tools to search synced runs and load detailed
@@ -226,6 +229,42 @@ To print internal debug events in addition to received/sent message lines:
 python -m running_agent telegram --debug-log
 ```
 
+### Using The Coach
+
+Most interactions should be natural-language coaching requests. The visible slash commands
+are mostly for inspection and diagnostics:
+
+- `/recent` - summarize recent Strava run training
+- `/plan` - show the current weekly plan
+- `/goal` - show the current overall training goal
+- `/preferences` - show remembered coaching notes and preferences
+- `/check` - check for newly synced Strava runs now
+- Any other message - chat with the coach using recent Strava context
+
+The coach can remember natural-language notes when chatting. For example, if you say
+`remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
+store that in `.data/athlete_profile.txt`, and use it in future coaching.
+
+The same model-tool pattern is available for goals. If you say something like
+`my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
+`.data/training_goal.json` so future coaching uses the updated target.
+
+Weekly plans can also be saved through natural chat. If you say something like
+`here is my plan for next week`, the model may rewrite it into the plain-text weekly plan
+format and save it in `.data/weekly_plan.json`.
+
+Telegram photo messages are supported too. If you send an image such as a course screenshot,
+with or without a caption, the bot downloads the Telegram image in memory and sends it to the
+model alongside the usual coaching context. It does not save the image to disk.
+
+Garmin context is also available through natural chat. If you ask about readiness, sleep,
+HRV, Body Battery, stress, resting HR, or whether recovery should change today's training,
+the model may call its local Garmin-readiness or Garmin-trend tools. The older `/garmin`
+and `/garminweek` diagnostic commands still work, but they are no longer part of the primary
+help surface.
+
+### Local Diagnostics
+
 To test the coach locally without sending Telegram messages, use the REPL:
 
 ```bash
@@ -253,19 +292,23 @@ python -m running_agent preview weekly --date 2026-06-07
 Preview output includes whether the scheduler would normally send, skip reasons, tools status,
 data sources, and the generated message.
 
+### Evals
+
 To run local AI behavior evals:
 
 ```bash
 python -m running_agent evals
 python -m running_agent evals --case adjust_existing_weekly_plan
 python -m running_agent evals --case image_plan_update_from_screenshot
-python -m running_agent evals --case judged_soreness_long_run --debug
+python -m running_agent evals --case working_vdot_training_paces --debug
 ```
 
-Without `--case`, the command runs all eval cases. The initial evals check that the model
-updates weekly plans by calling the plan-saving tool, saving a complete revised plan, and
-preserving unchanged days, including from a screenshot plus caption. Some evals also use a
-judge model to make a criteria-based pass/fail call for subjective coaching quality; set
+Without `--case`, the command runs all eval cases. Current evals cover weekly plan updates,
+screenshot plan updates, hypothetical plan suggestions that must not be saved, local race
+recall, working VDOT pace calibration, plain-text Telegram formatting, and judged coaching
+quality for subjective safety cases.
+
+Some evals use a judge model to make a criteria-based pass/fail call; set
 `OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls use
 temperature `0.1`; set `OPENAI_EVAL_TEMPERATURE` to override it. By default, eval output
 only shows pass/fail checks; add `--debug` to include saved plans, tool calls, and model
@@ -274,49 +317,9 @@ runs judge-model criteria checks, and cases can use either or both. Tool interac
 rules live under `expected.tool_calls.called` and `expected.tool_calls.not_called`.
 Saved-plan content checks live under `expected.plan`.
 
-Most interactions should be natural-language coaching requests. The visible slash commands
-are mostly for inspection and diagnostics:
+### Scheduler Details
 
-- `/recent` - summarize recent Strava run training
-- `/plan` - show the current weekly plan
-- `/goal` - show the current overall training goal
-- `/preferences` - show remembered coaching notes and preferences
-- `/check` - check for newly synced Strava runs now
-- Any other message - chat with the coach using recent Strava context
-
-The coach can also remember natural-language notes when chatting. For example, if you say
-`remember that I prefer long runs on Saturday`, the model may call its local note-saving tool,
-store that in `.data/athlete_profile.txt`, and use it in future coaching.
-
-Telegram photo messages are supported too. If you send an image such as a course screenshot,
-with or without a caption, the bot downloads the Telegram image in memory and sends it to the
-model alongside the usual coaching context. It does not save the image to disk.
-
-The same model-tool pattern is available for goals. If you say something like
-`my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
-`.data/training_goal.json` so future coaching uses the updated target.
-
-Weekly plans can also be saved through natural chat. If you say something like
-`here is my plan for next week`, the model may rewrite it into the plain-text weekly plan
-format and save it in `.data/weekly_plan.json`.
-
-Garmin context is also available through natural chat. If you ask about readiness, sleep,
-HRV, Body Battery, stress, resting HR, or whether recovery should change today's training,
-the model may call its local Garmin-readiness or Garmin-trend tools. The older `/garmin`
-and `/garminweek` diagnostic commands still work, but they are no longer part of the primary
-help surface.
-
-The Telegram process checks Strava every five minutes by default, sends a short coaching
-note when a new run appears, sends one morning workout check-in after 5:30am Eastern when
-today's weekly plan has a matched workout that has not already been completed, sends one
-end-of-day report after 8:30pm Eastern Monday through Saturday when there was a completed
-run, and sends one Sunday evening review plus next-week plan idea after 6:00pm Eastern.
-If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
-tick instead of marking that note sent.
-It also refreshes recent Strava run summaries once per hour so later Strava edits such as
-renames and race tags are picked up, refreshes the Garmin snapshot cache once per day after
-5:00am Eastern, and refreshes the coach reflection once per day after 7:00pm Eastern. Change
-the polling interval with:
+Change the Telegram polling interval with:
 
 ```bash
 python -m running_agent telegram --poll-seconds 120 --days 28
@@ -337,6 +340,10 @@ nothing.
 The end-of-day report briefly recaps today's exercise, then gives a sleep, recovery, or
 next-day note to keep in mind. It does not send on Sundays because the weekly review already
 covers the day and next week. It also stays quiet on days without a completed Strava run.
+
+If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
+tick instead of marking that note sent. The process also refreshes recent Strava run summaries
+once per hour so later Strava edits such as renames and race tags are picked up.
 
 ### Strava Debugging
 
