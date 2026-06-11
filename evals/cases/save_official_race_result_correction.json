@@ -1,0 +1,29 @@
+{
+  "description": "Checks that when the athlete corrects a race result, the bot saves the official result instead of relying on GPS activity time or Strava best efforts.",
+  "current_date": "2026-06-11",
+  "user_message": "Neither Strava number is right. My official North Jersey Pride Run result was 19:59 for the 5K.",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: rest or cross-training\nFriday: 5 easy\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 5 runs over the last 7 days. Recent training includes the North Jersey Pride Run.",
+    "recent_runs": "Recent runs:\n- Sunday, Jun 7 North Jersey Pride Run: full GPS activity 3.15 mi in 20:02; Strava best effort says 5K in 19:46.\n- Wednesday threshold workout: 5 x 5 min around 6:50/mi.",
+    "training_goal": "Primary goal: NYC Marathon on November 1, 2026 under 3:10. Secondary goal: beat 19:59 in the 5K on September 26.",
+    "pace_calibration": "Current VDOT and pace calibration:\nNo trusted official race result has been saved yet."
+  },
+  "expected": {
+    "tool_calls": {
+      "called": [
+        {
+          "name": "save_race_result",
+          "arguments": {
+            "race_name": "North Jersey Pride Run",
+            "race_date": "2026-06-07",
+            "distance": "5K",
+            "time": "19:59"
+          }
+        }
+      ]
+    },
+    "reply_must_include": ["19:59", "official"],
+    "reply_must_not_include": ["19:46", "20:02"]
+  }
+}

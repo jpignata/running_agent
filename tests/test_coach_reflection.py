@@ -82,6 +82,13 @@ class CoachReflectionTest(unittest.TestCase):
                     "distance": 5068.1,
                     "moving_time": 20 * 60 + 2,
                     "workout_type": 1,
+                    "best_efforts": [
+                        {
+                            "name": "5K",
+                            "distance": 5000,
+                            "moving_time": 19 * 60 + 59,
+                        }
+                    ],
                     "start_date_local": "2026-06-01T06:00:00Z",
                 }
             ]
@@ -102,7 +109,9 @@ class CoachReflectionTest(unittest.TestCase):
         self.assertFalse(kwargs["tools_enabled"])
         self.assertFalse(kwargs["include_coach_reflection"])
         self.assertIn("Deterministic race-derived VDOT context", kwargs["pace_calibration_text"])
-        self.assertIn("VDOT 49.7", kwargs["pace_calibration_text"])
+        self.assertIn("5K in 19:59 from Strava best effort", kwargs["pace_calibration_text"])
+        self.assertIn("full activity 3.15 mi in 20:02", kwargs["pace_calibration_text"])
+        self.assertIn("VDOT 49.9", kwargs["pace_calibration_text"])
         self.assertIn("Easy 8:16-9:06/mi", kwargs["pace_calibration_text"])
         save_coach_reflection.assert_called_once_with(reflection)
         save_pace_calibration.assert_called_once_with("VDOT 50, threshold around 6:55/mi.")

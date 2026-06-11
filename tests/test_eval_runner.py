@@ -384,6 +384,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
+        self.assertIn("save_official_race_result_correction", results)
         self.assertIn("strategic_5k_progression_avoids_current_week_pivot", results)
         self.assertIn("uses_deterministic_vdot_table_paces", results)
         self.assertIn("uses_saved_vdot_pace_calibration", results)

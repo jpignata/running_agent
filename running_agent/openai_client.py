@@ -19,6 +19,7 @@ from .coach_prompt import (
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan
+from .race_results import save_race_result
 from .strava_tools import get_local_run_details, query_local_runs
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
@@ -161,6 +162,8 @@ def _handle_tool_calls(
             output = _execute_update_goal_tool(call)
         elif call.get("name") == "save_weekly_plan":
             output = _execute_save_weekly_plan_tool(call)
+        elif call.get("name") == "save_race_result":
+            output = _execute_save_race_result_tool(call)
         elif call.get("name") == "query_local_runs":
             output = _execute_query_local_runs_tool(call)
         elif call.get("name") == "get_local_run_details":
@@ -213,6 +216,20 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
     plan = _clean_saved_weekly_plan(plan)
     save_weekly_plan(plan)
     return _tool_output(call["call_id"], {"saved": True})
+
+
+def _execute_save_race_result_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    result = save_race_result(
+        race_name=str(arguments.get("race_name") or ""),
+        race_date=str(arguments.get("race_date") or ""),
+        distance=str(arguments.get("distance") or ""),
+        time=str(arguments.get("time") or ""),
+        source=str(arguments.get("source") or "athlete"),
+    )
+    return _tool_output(call["call_id"], {"saved": True, "result": result})
 
 
 def _clean_saved_weekly_plan(plan: str) -> str:

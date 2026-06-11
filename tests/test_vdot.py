@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from running_agent.vdot import race_vdot_context, race_vdot_estimate, vdot_from_performance
 
@@ -30,6 +31,68 @@ class VdotTest(unittest.TestCase):
         self.assertEqual(estimate.race_label, "5K")
         self.assertAlmostEqual(estimate.vdot, 49.7, places=1)
         self.assertEqual(estimate.table_vdot, 50)
+        self.assertEqual(estimate.source, "full activity")
+
+    def test_race_estimate_prefers_standard_distance_best_effort(self) -> None:
+        estimate = race_vdot_estimate(
+            {
+                "type": "Run",
+                "name": "North Jersey Pride Run",
+                "distance": 5068.1,
+                "moving_time": 20 * 60 + 2,
+                "workout_type": 1,
+                "best_efforts": [
+                    {
+                        "name": "5K",
+                        "distance": 5000,
+                        "moving_time": 19 * 60 + 59,
+                    }
+                ],
+            }
+        )
+
+        self.assertIsNotNone(estimate)
+        assert estimate is not None
+        self.assertEqual(estimate.race_label, "5K")
+        self.assertEqual(estimate.performance_seconds, 19 * 60 + 59)
+        self.assertEqual(estimate.observed_seconds, 20 * 60 + 2)
+        self.assertEqual(estimate.source, "Strava best effort")
+        self.assertAlmostEqual(estimate.vdot, 49.9, places=1)
+        self.assertEqual(estimate.table_vdot, 50)
+
+    @patch("running_agent.vdot.official_result_for_activity")
+    def test_race_estimate_prefers_official_result_over_best_effort(
+        self,
+        official_result_for_activity,
+    ) -> None:
+        official_result_for_activity.return_value = {
+            "distance": "5K",
+            "distance_meters": 5000.0,
+            "time_seconds": 19 * 60 + 59,
+        }
+
+        estimate = race_vdot_estimate(
+            {
+                "type": "Run",
+                "name": "North Jersey Pride Run",
+                "distance": 5068.1,
+                "moving_time": 20 * 60 + 2,
+                "workout_type": 1,
+                "best_efforts": [
+                    {
+                        "name": "5K",
+                        "distance": 5000,
+                        "moving_time": 19 * 60 + 46,
+                    }
+                ],
+            }
+        )
+
+        self.assertIsNotNone(estimate)
+        assert estimate is not None
+        self.assertEqual(estimate.performance_seconds, 19 * 60 + 59)
+        self.assertEqual(estimate.source, "official saved race result")
+        self.assertAlmostEqual(estimate.vdot, 49.9, places=1)
 
     def test_race_vdot_context_includes_table_paces(self) -> None:
         context = race_vdot_context(
@@ -40,11 +103,20 @@ class VdotTest(unittest.TestCase):
                     "distance": 5068.1,
                     "moving_time": 20 * 60 + 2,
                     "workout_type": 1,
+                    "best_efforts": [
+                        {
+                            "name": "5K",
+                            "distance": 5000,
+                            "moving_time": 19 * 60 + 59,
+                        }
+                    ],
                 }
             ]
         )
 
-        self.assertIn("VDOT 49.7", context)
+        self.assertIn("5K in 19:59 from Strava best effort", context)
+        self.assertIn("full activity 3.15 mi in 20:02", context)
+        self.assertIn("VDOT 49.9", context)
         self.assertIn("VDOT 50 paces", context)
         self.assertIn("Easy 8:16-9:06/mi", context)
         self.assertIn("Marathon 7:18/mi", context)

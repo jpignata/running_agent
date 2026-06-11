@@ -10,6 +10,7 @@ from .coaching_guidance import (
     coaching_philosophy_context,
 )
 from .pace_calibration import pace_calibration_context
+from .race_results import race_results_context
 
 REMEMBER_NOTE_TOOL = {
     "type": "function",
@@ -85,6 +86,45 @@ SAVE_WEEKLY_PLAN_TOOL = {
             }
         },
         "required": ["plan"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+
+SAVE_RACE_RESULT_TOOL = {
+    "type": "function",
+    "name": "save_race_result",
+    "description": (
+        "Save an official race result provided by the athlete for future coaching and VDOT "
+        "calibration. Use this when the athlete gives a race name or clear race context plus "
+        "a standard distance and finish time, especially when correcting GPS activity time or "
+        "Strava best-effort data. Do not use this for workout reps or guessed race results."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "race_name": {
+                "type": "string",
+                "description": "Race name or concise identifying label.",
+            },
+            "race_date": {
+                "type": "string",
+                "description": "Race date in YYYY-MM-DD format if known.",
+            },
+            "distance": {
+                "type": "string",
+                "description": "Race distance such as 5K, 10K, half marathon, marathon, or 1 mile.",
+            },
+            "time": {
+                "type": "string",
+                "description": "Official finish time, such as 19:59 or 3:09:45.",
+            },
+            "source": {
+                "type": "string",
+                "description": "Where the result came from, usually athlete.",
+            },
+        },
+        "required": ["race_name", "race_date", "distance", "time", "source"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -207,6 +247,7 @@ COACHING_TOOLS = [
     REMEMBER_NOTE_TOOL,
     UPDATE_GOAL_TOOL,
     SAVE_WEEKLY_PLAN_TOOL,
+    SAVE_RACE_RESULT_TOOL,
     QUERY_LOCAL_RUNS_TOOL,
     GET_LOCAL_RUN_DETAILS_TOOL,
     GET_GARMIN_READINESS_TOOL,
@@ -271,7 +312,10 @@ COACHING_INSTRUCTIONS = (
     "race, call query_local_runs with races_only=true before answering unless a current pace "
     "calibration or the relevant race result is already present in the prompt. When you use a "
     "race result for pace calibration, cite the observed race distance and average pace in the "
-    "reply so the athlete can audit the anchor. "
+    "reply so the athlete can audit the anchor. If the athlete gives or corrects an official "
+    "race result, such as an official 5K time that differs from the full GPS activity or Strava "
+    "best effort, call save_race_result before answering. Treat saved official race results as "
+    "more authoritative than GPS activity duration or Strava best efforts for VDOT calibration. "
     "Do not let an aspirational goal pace inflate current training paces. If evidence conflicts, "
     "state the uncertainty and choose a conservative range. Do not make a same-distance or "
     "shorter-distance race pace much faster than an actual recent race unless broader evidence "
@@ -391,6 +435,7 @@ def build_coaching_input(
     pace_calibration = (
         pace_calibration_text if pace_calibration_text is not None else pace_calibration_context()
     )
+    race_results = race_results_context()
     prompt_parts = [
         "Current local date:",
         coach_now().strftime("%A, %B %-d, %Y"),
@@ -406,6 +451,8 @@ def build_coaching_input(
         "",
         "Athlete-specific profile:",
         profile,
+        "",
+        race_results,
         "",
         pace_calibration,
         "",

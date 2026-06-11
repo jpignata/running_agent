@@ -60,8 +60,10 @@ def run_case(
     judge_func: JudgeFunc | None = None,
 ) -> EvalResult:
     saved_plans: list[str] = []
+    saved_race_results: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
     original_save_weekly_plan = openai_client.save_weekly_plan
+    original_save_race_result = openai_client.save_race_result
     original_query_local_runs = openai_client.query_local_runs
     original_get_local_run_details = openai_client.get_local_run_details
     original_coach_now = coach_prompt.coach_now
@@ -73,6 +75,12 @@ def run_case(
         tool_calls.append({"name": "save_weekly_plan", "arguments": {"plan": plan_text}})
         return {"text": plan_text}
 
+    def capture_save_race_result(**kwargs):
+        result = dict(kwargs)
+        saved_race_results.append(result)
+        tool_calls.append({"name": "save_race_result", "arguments": result})
+        return result
+
     def capture_query_local_runs(**kwargs):
         tool_calls.append({"name": "query_local_runs", "arguments": dict(kwargs)})
         return _tool_result(case, "query_local_runs")
@@ -82,6 +90,7 @@ def run_case(
         return _tool_result(case, "get_local_run_details")
 
     openai_client.save_weekly_plan = capture_save_weekly_plan
+    openai_client.save_race_result = capture_save_race_result
     openai_client.query_local_runs = capture_query_local_runs
     openai_client.get_local_run_details = capture_get_local_run_details
     context = case.get("initial_context") or {}
@@ -106,6 +115,7 @@ def run_case(
         reply = _run_case_model_call(case, context, reply_func)
     finally:
         openai_client.save_weekly_plan = original_save_weekly_plan
+        openai_client.save_race_result = original_save_race_result
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
         coach_prompt.coach_now = original_coach_now

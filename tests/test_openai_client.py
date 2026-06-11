@@ -49,6 +49,7 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("remember_coaching_note", tools)
         self.assertIn("update_training_goal", tools)
         self.assertIn("save_weekly_plan", tools)
+        self.assertIn("save_race_result", tools)
         self.assertIn("query_local_runs", tools)
         self.assertIn("get_local_run_details", tools)
         self.assertIn("get_garmin_readiness", tools)
@@ -66,6 +67,7 @@ class OpenAIClientTest(unittest.TestCase):
             payload["instructions"],
         )
         self.assertIn("day-by-day lists with workout details", payload["instructions"])
+        self.assertIn("official race result", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertNotIn("temperature", payload)
 
@@ -441,6 +443,64 @@ class OpenAIClientTest(unittest.TestCase):
                     "type": "function_call_output",
                     "call_id": "call_strava",
                     "output": '{"result": "Race: 6.20 mi"}',
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.save_race_result")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "save_race_result",
+                        "call_id": "call_race",
+                        "arguments": (
+                            '{"race_name": "North Jersey Pride Run", '
+                            '"race_date": "2026-06-07", "distance": "5K", '
+                            '"time": "19:59", "source": "athlete"}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "I saved the official 5K result."},
+        ],
+    )
+    def test_coaching_reply_executes_save_race_result_tool(
+        self,
+        post_json,
+        save_race_result,
+        _athlete_profile_context,
+    ) -> None:
+        save_race_result.return_value = {"race_name": "North Jersey Pride Run"}
+
+        reply = coaching_reply(
+            "Actually my official 5K time was 19:59.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "I saved the official 5K result.")
+        save_race_result.assert_called_once_with(
+            race_name="North Jersey Pride Run",
+            race_date="2026-06-07",
+            distance="5K",
+            time="19:59",
+            source="athlete",
+        )
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_race",
+                    "output": '{"saved": true, "result": {"race_name": "North Jersey Pride Run"}}',
                 }
             ],
         )
