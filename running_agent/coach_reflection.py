@@ -61,9 +61,14 @@ def generate_coach_reflection(
         "coach log, and the previous reflection. Focus on durable coaching judgment, not a recap. "
         "Include these labels exactly: Capacity, Working VDOT/pace calibration, Goal confidence, "
         "Goal requirements/checkpoints, Current limiter, Next emphasis, Watch items. Under "
-        "Working VDOT/pace calibration, estimate the current VDOT level or range from recent "
+        "Working VDOT/pace calibration, estimate the current VDOT value or range from recent "
         "representative races, controlled quality workouts, longer-term aerobic patterns, and "
         "caveats; include confidence and practical pace anchors when evidence supports them. "
+        "Use Daniels-style pace category names precisely: Easy, Marathon, Threshold, Interval, "
+        "and Repetition. Do not label 10K pace, controlled long reps, or cruise intervals as "
+        "Interval pace; if useful, call them 10K/long-rep support separately. If there is not "
+        "enough evidence to set true Interval or Repetition paces, omit them rather than "
+        "inventing them or using a slower support pace under the wrong label. "
         "Under Goal requirements/checkpoints, compare the athlete's current working VDOT/pace "
         "calibration to the saved goal pace. If there is a gap, state it plainly and describe "
         "the fitness adaptations or checkpoints needed to close it, such as higher sustainable "
@@ -85,11 +90,12 @@ def generate_coach_reflection(
         training_goal=training_goal_context(),
         coach_log=(
             f"{reflection_coach_log_context()}\n\n"
-            f"Previous coach reflection:\n{coach_reflection_context()}"
+            f"Previous coach reflection:\n{_reflection_without_pace_calibration(coach_reflection_context())}"
         ),
         garmin_context=safe_garmin_weekly_context(days=14),
         tools_enabled=False,
         include_coach_reflection=False,
+        pace_calibration_text="No pace calibration has been saved yet.",
         max_output_tokens=450,
     )
     save_coach_reflection(reflection)
@@ -126,6 +132,32 @@ def _pace_calibration_from_reflection(reflection_text: str) -> str:
         if capture and stripped:
             captured.append(stripped)
     return "\n".join(captured).strip()
+
+
+def _reflection_without_pace_calibration(reflection_text: str) -> str:
+    lines = reflection_text.strip().splitlines()
+    output: list[str] = []
+    skipping = False
+    labels = {
+        "Capacity",
+        "Working VDOT/pace calibration",
+        "Goal confidence",
+        "Goal requirements/checkpoints",
+        "Current limiter",
+        "Next emphasis",
+        "Watch items",
+    }
+    for line in lines:
+        stripped = line.strip()
+        label = stripped.split(":", 1)[0]
+        if label == "Working VDOT/pace calibration":
+            skipping = True
+            continue
+        if skipping and label in labels and ":" in stripped:
+            skipping = False
+        if not skipping:
+            output.append(line)
+    return "\n".join(output).strip()
 
 
 def reflection_coach_log_context(limit_runs: int = 12) -> str:

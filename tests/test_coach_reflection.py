@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from running_agent.coach_reflection import (
     _pace_calibration_from_reflection,
+    _reflection_without_pace_calibration,
     coach_reflection_context,
     generate_coach_reflection,
     reflection_coach_log_context,
@@ -99,6 +100,7 @@ class CoachReflectionTest(unittest.TestCase):
         self.assertEqual(kwargs["garmin_context"], "Garmin trend")
         self.assertFalse(kwargs["tools_enabled"])
         self.assertFalse(kwargs["include_coach_reflection"])
+        self.assertEqual(kwargs["pace_calibration_text"], "No pace calibration has been saved yet.")
         save_coach_reflection.assert_called_once_with(reflection)
         save_pace_calibration.assert_called_once_with("VDOT 50, threshold around 6:55/mi.")
 
@@ -118,6 +120,22 @@ class CoachReflectionTest(unittest.TestCase):
             calibration,
             "VDOT 50, confidence medium.\nEasy 8:05-8:45/mi; threshold 6:55/mi.",
         )
+
+    def test_reflection_without_pace_calibration_removes_only_pace_section(self) -> None:
+        reflection = "\n".join(
+            [
+                "Capacity: Stable.",
+                "Working VDOT/pace calibration: Bad old interval pace.",
+                "More stale pace text.",
+                "Goal confidence: Moderate.",
+            ]
+        )
+
+        cleaned = _reflection_without_pace_calibration(reflection)
+
+        self.assertIn("Capacity: Stable.", cleaned)
+        self.assertIn("Goal confidence: Moderate.", cleaned)
+        self.assertNotIn("Bad old interval pace", cleaned)
 
     @patch("running_agent.coach_reflection.read_coach_log")
     def test_reflection_coach_log_context_dedupes_runs_and_uses_latest_week_review(

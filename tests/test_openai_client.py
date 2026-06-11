@@ -37,7 +37,7 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("Athlete-specific profile:\nProfile note", payload["input"])
         self.assertIn("Current VDOT and pace calibration", payload["input"])
         self.assertIn("Coaching philosophy:", payload["input"])
-        self.assertIn("Maintain a working VDOT level", payload["input"])
+        self.assertIn("Maintain a working VDOT", payload["input"])
         self.assertIn(
             "Coach's private current training thesis:\nCurrent coach thesis",
             payload["input"],

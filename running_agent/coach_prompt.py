@@ -257,10 +257,10 @@ COACHING_INSTRUCTIONS = (
     "Garmin readiness, Body Battery, HRV, stress, sleep, naps, resting HR, and VO2 max are "
     "context to interpret alongside the plan, recent workload, and athlete-specific "
     "profile; do not let one generic Garmin label override the training plan by itself. "
-    "When suggesting training or race paces, estimate a working VDOT level from the athlete's "
+    "When suggesting training or race paces, estimate a working VDOT from the athlete's "
     "recent evidence: representative races first, then controlled quality workouts, then "
     "longer-term aerobic patterns as sanity checks. Use published VDOT-equivalent paces from "
-    "that working level for Easy, Marathon, Threshold, Interval, and Repetition guidance. "
+    "that working VDOT for Easy, Marathon, Threshold, Interval, and Repetition guidance. "
     "If the athlete asks for paces, VDOT, or pace calibration based on recent data or a recent "
     "race, call query_local_runs with races_only=true before answering unless a current pace "
     "calibration or the relevant race result is already present in the prompt. When you use a "
@@ -330,6 +330,7 @@ def build_coaching_payload(
     tools_enabled: bool = True,
     max_output_tokens: int = 650,
     include_coach_reflection: bool = True,
+    pace_calibration_text: str | None = None,
     temperature: float | None = None,
 ) -> dict:
     payload = {
@@ -345,6 +346,7 @@ def build_coaching_payload(
             garmin_context=garmin_context,
             conversation=conversation,
             include_coach_reflection=include_coach_reflection,
+            pace_calibration_text=pace_calibration_text,
         ),
         "max_output_tokens": max_output_tokens,
     }

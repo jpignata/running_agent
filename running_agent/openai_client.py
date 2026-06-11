@@ -37,6 +37,7 @@ def coaching_reply(
     tools_enabled: bool = True,
     max_output_tokens: int = 650,
     include_coach_reflection: bool = True,
+    pace_calibration_text: str | None = None,
     temperature: float | None = None,
 ) -> str:
     load_env_file()
@@ -57,6 +58,7 @@ def coaching_reply(
         tools_enabled=tools_enabled,
         max_output_tokens=max_output_tokens,
         include_coach_reflection=include_coach_reflection,
+        pace_calibration_text=pace_calibration_text,
         temperature=temperature,
     )
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
