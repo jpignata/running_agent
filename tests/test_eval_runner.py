@@ -360,9 +360,10 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("hypothetical_plan_no_save", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)
+        self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
-        self.assertIn("working_vdot_training_paces", results)
+        self.assertIn("uses_saved_vdot_pace_calibration", results)
 
 
 def load_case_path(filename: str = "adjust_existing_weekly_plan.json"):

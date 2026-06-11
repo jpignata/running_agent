@@ -1,0 +1,28 @@
+{
+  "description": "Checks that when a saved working VDOT pace calibration exists, the bot uses it directly instead of re-retrieving races or upgrading paces from the goal.",
+  "user_message": "Let's talk about my paces. What should I use for easy, threshold, marathon, interval, and faster reps?",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 4 easy-to-moderate runs over the last 7 days.",
+    "recent_runs": "Recent runs:\n- Today easy: 5.00 mi at 8:31/mi\n- Yesterday easy: 4.00 mi at 8:42/mi",
+    "training_goal": "Build toward a fall marathon, with a long-term goal of sub-3:10.",
+    "pace_calibration": "Current VDOT and pace calibration, last updated Thursday, Jun 11:\nWorking VDOT around 50, confidence medium. Use published VDOT 50-style paces as current training anchors: Easy 8:05-8:45/mi, Marathon 7:25-7:40/mi, Threshold 6:55-7:10/mi, Interval 6:15-6:25/mi, Repetition 5:45-6:00/mi. Goal pace for sub-3:10 is about 7:15/mi, but do not treat that as current marathon fitness until long-run durability improves."
+  },
+  "expected": {
+    "tool_calls": {
+      "not_called": ["query_local_runs"]
+    },
+    "reply_must_include": ["6:55", "7:25"],
+    "reply_must_not_include": ["current marathon fitness is 7:15"]
+  },
+  "judge": {
+    "criteria": [
+      "Uses the saved working VDOT 50 pace calibration as the primary source for the pace recommendations.",
+      "Includes current training anchors for Easy, Marathon, Threshold, Interval, and Repetition or faster reps that are consistent with the saved calibration.",
+      "Does not re-estimate paces upward from the sub-3:10 goal.",
+      "Separates current marathon training pace from the future goal pace around 7:15/mi.",
+      "Presents the paces as current working anchors with appropriate uncertainty."
+    ],
+    "pass_condition": "Pass only if every criterion is satisfied. Fail if the reply ignores the saved calibration, calls query_local_runs, or treats 7:15/mi as current marathon fitness."
+  }
+}

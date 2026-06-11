@@ -1,5 +1,5 @@
 {
-  "description": "Checks that training pace suggestions use a working VDOT estimate from representative races and controlled workouts instead of optimistic goal-driven extrapolation, and that paces stay internally ordered.",
+  "description": "Checks that pace-calibration requests with no saved pace context retrieve recent race evidence before estimating working VDOT and training paces.",
   "user_message": "Let's talk about my paces. Look at my recent data especially my race and suggest paces for me for things like easy, threshold, 5k, 10k, marathon, etc.",
   "initial_context": {
     "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
