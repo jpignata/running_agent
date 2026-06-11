@@ -52,7 +52,12 @@ class EvalRunnerTest(unittest.TestCase):
         result = run_case(load_case_path(), reply_func=lambda *_args, **_kwargs: "OK")
 
         self.assertFalse(result.passed)
-        self.assertIn("expected exactly one save_weekly_plan call", result.checks[0].message)
+        self.assertTrue(
+            any(
+                "expected exactly one save_weekly_plan call" in check.message
+                for check in result.checks
+            )
+        )
 
     @patch("running_agent.eval_runner.openai_client.image_coaching_reply")
     def test_image_plan_eval_uses_image_reply_path(self, image_coaching_reply) -> None:
@@ -113,7 +118,50 @@ class EvalRunnerTest(unittest.TestCase):
         )
 
         self.assertFalse(result.passed)
-        self.assertIn("expected query_local_runs call", result.checks[0].message)
+        self.assertIn("expected query_local_runs to be called", result.checks[0].message)
+
+    def test_tool_call_not_called_eval_passes_when_tool_is_not_called(self) -> None:
+        result = run_case(
+            {
+                "name": "hypothetical_plan",
+                "user_message": "What might next week look like?",
+                "expected": {
+                    "tool_calls": {
+                        "not_called": ["save_weekly_plan"],
+                    }
+                },
+            },
+            reply_func=lambda *_args, **_kwargs: "Next week could stay mostly easy.",
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertTrue(
+            any(
+                "expected save_weekly_plan not to be called" in check.message
+                for check in result.checks
+            )
+        )
+
+    def test_tool_call_not_called_eval_fails_when_tool_is_called(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.save_weekly_plan("Monday: 5 easy")
+            return "I saved that as next week."
+
+        result = run_case(
+            {
+                "name": "hypothetical_plan",
+                "user_message": "What might next week look like?",
+                "expected": {
+                    "tool_calls": {
+                        "not_called": ["save_weekly_plan"],
+                    }
+                },
+            },
+            reply_func=fake_reply,
+        )
+
+        self.assertFalse(result.passed)
+        self.assertIn("expected save_weekly_plan not to be called", result.checks[0].message)
 
     def test_judged_reply_eval_passes_with_fake_judge(self) -> None:
         def fake_judge(_case, _reply):
@@ -288,6 +336,7 @@ class EvalRunnerTest(unittest.TestCase):
         results = run_evals()
 
         self.assertIn("adjust_existing_weekly_plan", results)
+        self.assertIn("hypothetical_plan_no_save", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)
         self.assertIn("plain_text_reply_format", results)

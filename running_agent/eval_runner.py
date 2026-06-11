@@ -65,6 +65,7 @@ def run_case(
 
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
+        tool_calls.append({"name": "save_weekly_plan", "arguments": {"plan": plan_text}})
         return {"text": plan_text}
 
     def capture_query_local_runs(**kwargs):
@@ -147,11 +148,11 @@ def score_plan_adjustment(
     case: dict[str, Any],
     saved_plans: list[str],
 ) -> list[EvalCheck]:
-    expected = case.get("expected") or {}
+    expected = (case.get("expected") or {}).get("plan") or {}
     checks = [
         EvalCheck(
             len(saved_plans) == 1,
-            f"expected exactly one {expected.get('tool_call', 'tool')} call; got {len(saved_plans)}",
+            f"expected exactly one save_weekly_plan call; got {len(saved_plans)}",
         )
     ]
     if len(saved_plans) != 1:
@@ -217,12 +218,9 @@ def score_expected(
     reply: str,
 ) -> list[EvalCheck]:
     expected = case.get("expected") or {}
-    if expected.get("tool_call") == "save_weekly_plan":
-        checks = score_plan_adjustment(case, saved_plans)
-    elif expected.get("tool_call"):
-        checks = score_tool_call(case, tool_calls)
-    else:
-        checks = []
+    checks = score_tool_calls(expected, tool_calls)
+    if _expects_tool_called(expected, "save_weekly_plan"):
+        checks.extend(score_plan_adjustment(case, saved_plans))
     checks.extend(score_reply_rules(expected, reply))
     return checks
 
@@ -326,37 +324,83 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
     return _parse_judge_response(text)
 
 
-def score_tool_call(
-    case: dict[str, Any],
+def score_tool_calls(
+    expected: dict[str, Any],
     tool_calls: list[dict[str, Any]],
 ) -> list[EvalCheck]:
-    expected = case.get("expected") or {}
-    expected_tool = expected.get("tool_call")
-    matching_calls = [call for call in tool_calls if call.get("name") == expected_tool]
-    checks = [
-        EvalCheck(
-            bool(matching_calls),
-            f"expected {expected_tool} call; got {[call.get('name') for call in tool_calls]}",
+    checks: list[EvalCheck] = []
+    actual_names = [str(call.get("name")) for call in tool_calls]
+    tool_expectations = expected.get("tool_calls") or {}
+
+    for spec in _tool_call_specs(tool_expectations.get("called")):
+        name = spec["name"]
+        matching_calls = [call for call in tool_calls if call.get("name") == name]
+        checks.append(
+            EvalCheck(
+                bool(matching_calls),
+                f"expected {name} to be called; got {actual_names}",
+            )
         )
-    ]
-    if matching_calls and expected_tool == "query_local_runs":
-        args = matching_calls[0].get("arguments") or {}
-        query_expected = expected.get("query_local_runs") or {}
-        if "races_only" in query_expected:
-            checks.append(
-                EvalCheck(
-                    args.get("races_only") is query_expected["races_only"],
-                    f"query_local_runs races_only is {query_expected['races_only']}; got {args.get('races_only')}",
-                )
+        if matching_calls:
+            checks.extend(score_tool_arguments(name, matching_calls[0], spec))
+
+    for spec in _tool_call_specs(tool_expectations.get("not_called")):
+        name = spec["name"]
+        matching_calls = [call for call in tool_calls if call.get("name") == name]
+        checks.append(
+            EvalCheck(
+                not matching_calls,
+                f"expected {name} not to be called; got {actual_names}",
             )
-        if "days_min" in query_expected:
-            checks.append(
-                EvalCheck(
-                    int(args.get("days") or 0) >= int(query_expected["days_min"]),
-                    f"query_local_runs days >= {query_expected['days_min']}; got {args.get('days')}",
-                )
-            )
+        )
     return checks
+
+
+def score_tool_arguments(
+    name: str,
+    call: dict[str, Any],
+    spec: dict[str, Any],
+) -> list[EvalCheck]:
+    expected_args = spec.get("arguments") or {}
+    actual_args = call.get("arguments") or {}
+    checks: list[EvalCheck] = []
+    for key, expected_value in expected_args.items():
+        if key == "days_min":
+            actual_value = int(actual_args.get("days") or 0)
+            checks.append(
+                EvalCheck(
+                    actual_value >= int(expected_value),
+                    f"{name} days >= {expected_value}; got {actual_args.get('days')}",
+                )
+            )
+            continue
+        checks.append(
+            EvalCheck(
+                actual_args.get(key) == expected_value,
+                f"{name} {key} is {expected_value!r}; got {actual_args.get(key)!r}",
+            )
+        )
+    return checks
+
+
+def _expects_tool_called(expected: dict[str, Any], name: str) -> bool:
+    tool_expectations = expected.get("tool_calls") or {}
+    return any(spec["name"] == name for spec in _tool_call_specs(tool_expectations.get("called")))
+
+
+def _tool_call_specs(value: Any) -> list[dict[str, Any]]:
+    if not value:
+        return []
+    raw_specs = value if isinstance(value, list) else [value]
+    specs: list[dict[str, Any]] = []
+    for raw in raw_specs:
+        if isinstance(raw, str):
+            specs.append({"name": raw})
+        elif isinstance(raw, dict) and isinstance(raw.get("name"), str):
+            specs.append(dict(raw))
+        else:
+            raise RuntimeError(f"Tool call expectation must be a tool name or object: {raw!r}")
+    return specs
 
 
 def format_eval_results(results: list[EvalResult], debug: bool = False) -> str:

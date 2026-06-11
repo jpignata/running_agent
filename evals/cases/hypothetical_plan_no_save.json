@@ -1,0 +1,17 @@
+{
+  "description": "Checks that the bot treats a hypothetical next-week training plan as advice and does not save it as the athlete's actual weekly plan.",
+  "user_message": "What might next week look like if I wanted to build toward 40 miles?",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: 6 easy\nThursday: 7 easy\nFriday: rest\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 5 runs over the last 7 days. Recent training is steady around the mid-30s mileage range with no major red flags.",
+    "recent_runs": "Recent runs:\n- Today easy run: 5.00 mi at 8:35/mi, avg HR 138.\n- Yesterday easy run: 4.00 mi at 8:42/mi, avg HR 136.\n- Saturday long run: 12.00 mi at 8:20/mi, avg HR 145.",
+    "training_goal": "Build consistently for a fall marathon while staying healthy."
+  },
+  "expected": {
+    "tool_calls": {
+      "not_called": ["save_weekly_plan"]
+    },
+    "reply_must_include": ["week", "miles"],
+    "reply_max_chars": 1600
+  }
+}

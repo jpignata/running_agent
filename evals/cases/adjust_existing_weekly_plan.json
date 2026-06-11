@@ -8,13 +8,17 @@
     "training_goal": "Build consistently for a fall marathon while staying healthy."
   },
   "expected": {
-    "tool_call": "save_weekly_plan",
-    "required_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-    "must_include": {
-      "Tuesday": ["5", "easy"],
-      "Thursday": ["4x1200"],
-      "Saturday": ["14", "long"]
+    "tool_calls": {
+      "called": ["save_weekly_plan"]
     },
-    "must_preserve_days": ["Monday", "Wednesday", "Friday", "Saturday", "Sunday"]
+    "plan": {
+      "required_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "must_include": {
+        "Tuesday": ["5", "easy"],
+        "Thursday": ["4x1200"],
+        "Saturday": ["14", "long"]
+      },
+      "must_preserve_days": ["Monday", "Wednesday", "Friday", "Saturday", "Sunday"]
+    }
   }
 }

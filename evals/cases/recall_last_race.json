@@ -12,10 +12,16 @@
     "get_local_run_details": "Run details:\n- Name: Riverfront 5K\n- Distance: 3.10 mi\n- Moving time: 19:42\n- Average pace: 6:21/mi\n- Average HR: 168 bpm"
   },
   "expected": {
-    "tool_call": "query_local_runs",
-    "query_local_runs": {
-      "races_only": true,
-      "days_min": 300
+    "tool_calls": {
+      "called": [
+        {
+          "name": "query_local_runs",
+          "arguments": {
+            "races_only": true,
+            "days_min": 300
+          }
+        }
+      ]
     },
     "reply_must_include": ["6:21", "Riverfront 5K"]
   }
