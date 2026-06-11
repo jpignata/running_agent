@@ -5,11 +5,13 @@ import json
 import os
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
-from . import openai_client
+from . import coach_prompt, openai_client
 from .auth import load_env_file
+from .coach_time import COACH_TIME_ZONE
 from .plan_store import parse_weekly_plan
 
 CASE_DIR = Path(__file__).resolve().parent.parent / "evals" / "cases"
@@ -62,6 +64,7 @@ def run_case(
     original_save_weekly_plan = openai_client.save_weekly_plan
     original_query_local_runs = openai_client.query_local_runs
     original_get_local_run_details = openai_client.get_local_run_details
+    original_coach_now = coach_prompt.coach_now
 
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
@@ -79,6 +82,15 @@ def run_case(
     openai_client.save_weekly_plan = capture_save_weekly_plan
     openai_client.query_local_runs = capture_query_local_runs
     openai_client.get_local_run_details = capture_get_local_run_details
+    if case.get("current_date"):
+        pinned_now = datetime.fromisoformat(str(case["current_date"])).replace(
+            hour=12,
+            minute=0,
+            second=0,
+            microsecond=0,
+            tzinfo=COACH_TIME_ZONE,
+        )
+        coach_prompt.coach_now = lambda: pinned_now
     try:
         context = case.get("initial_context") or {}
         reply = _run_case_model_call(case, context, reply_func)
@@ -86,6 +98,7 @@ def run_case(
         openai_client.save_weekly_plan = original_save_weekly_plan
         openai_client.query_local_runs = original_query_local_runs
         openai_client.get_local_run_details = original_get_local_run_details
+        coach_prompt.coach_now = original_coach_now
 
     checks = score_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
     return EvalResult(

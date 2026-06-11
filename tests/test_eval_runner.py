@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from running_agent import openai_client
+from running_agent import coach_prompt, openai_client
 from running_agent.eval_runner import (
     EvalCheck,
     EvalResult,
@@ -119,6 +119,27 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertFalse(result.passed)
         self.assertIn("expected query_local_runs to be called", result.checks[0].message)
+
+    @patch("running_agent.eval_runner.openai_client.coaching_reply")
+    def test_run_case_can_pin_current_date(self, coaching_reply) -> None:
+        original_coach_now = coach_prompt.coach_now
+
+        def fake_coaching_reply(*_args, **_kwargs) -> str:
+            self.assertEqual(coach_prompt.coach_now().date().isoformat(), "2026-06-09")
+            return "Pinned date reply."
+
+        coaching_reply.side_effect = fake_coaching_reply
+
+        result = run_case(
+            {
+                "name": "pinned_date",
+                "current_date": "2026-06-09",
+                "user_message": "What is tomorrow?",
+            }
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertIs(coach_prompt.coach_now, original_coach_now)
 
     def test_tool_call_not_called_eval_passes_when_tool_is_not_called(self) -> None:
         result = run_case(

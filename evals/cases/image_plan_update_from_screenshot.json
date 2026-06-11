@@ -1,6 +1,7 @@
 {
   "description": "Checks that the bot can read a workout screenshot, replace the target day in the saved weekly plan, preserve unchanged days, and omit source metadata.",
   "input_kind": "image",
+  "current_date": "2026-06-09",
   "user_message": "Update my plan and make this what I'm doing tomorrow.",
   "image_path": "evals/fixtures/plan_update_screenshot.jpg",
   "mime_type": "image/jpeg",
