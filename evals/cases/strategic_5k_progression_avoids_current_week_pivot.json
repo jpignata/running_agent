@@ -1,0 +1,24 @@
+{
+  "description": "Checks that strategic 5K progression advice stays at the requested planning level instead of pivoting into today's saved weekly plan.",
+  "current_date": "2026-06-11",
+  "user_message": "Okay, so what's a realistic 5k progression? I want to get faster in the 5k.",
+  "initial_context": {
+    "weekly_plan": "Monday: 5 easy\nTuesday: 4 easy\nWednesday: workout\nThursday: rest or cross-training\nFriday: 5 easy\nSaturday: 12 long\nSunday: 4 recovery",
+    "training_summary": "Reviewed 5 runs over the last 7 days. Recent training is steady with one controlled threshold workout.",
+    "recent_runs": "Recent runs:\n- Sunday race: 5K in 20:02, avg HR 168.\n- Wednesday threshold workout: 5 x 5 min around 6:50/mi with controlled recoveries.\n- Tuesday easy: 4.00 mi at 8:42/mi.",
+    "training_goal": "Primary goal: NYC Marathon on November 1, 2026 under 3:10. Secondary goal: beat 19:59 in the 5K on September 26.",
+    "pace_calibration": "Current VDOT and pace calibration, last updated Thursday, Jun 11:\nBest anchor is the 5K in 20:02, VDOT 49.7, so use VDOT 50 conservatively. Easy 8:16-9:06/mi, Marathon 7:18/mi, Threshold 6:52/mi."
+  },
+  "expected": {
+    "reply_must_include": ["5k", "progression"],
+    "reply_must_not_include": [
+      "today",
+      "Thursday",
+      "saved plan",
+      "rest or cross-training",
+      "Friday",
+      "Saturday",
+      "this week"
+    ]
+  }
+}
