@@ -229,6 +229,12 @@ To print internal debug events in addition to received/sent message lines:
 python -m running_agent telegram --debug-log
 ```
 
+To print interaction traces for Telegram messages and scheduled ticks:
+
+```bash
+python -m running_agent telegram --trace-log
+```
+
 ### Using The Coach
 
 Most interactions should be natural-language coaching requests. The visible slash commands
@@ -274,6 +280,16 @@ python -m running_agent repl
 The REPL talks to the same coach agent as Telegram. Type `/help` to list chat commands,
 `/tick` to run due scheduled checks, and `/quit` to exit. By default it hides rx/tx log
 lines; add `--debug-log` to see them.
+
+To print one-line interaction traces for each REPL message or scheduled tick:
+
+```bash
+python -m running_agent repl --trace-log
+```
+
+Each trace has a `trace_id`, source, interaction type, start line, end line, status, and
+duration. Traces are grouped around one top-level interaction, such as one chat message or
+one scheduled tick. They go to stdout only and do not write disk logs.
 
 To inspect the context a normal chat reply would send to the model without calling OpenAI:
 

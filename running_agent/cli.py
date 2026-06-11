@@ -130,6 +130,11 @@ def _main() -> int:
         action="store_true",
         help="Print internal debug log events to stdout.",
     )
+    telegram.add_argument(
+        "--trace-log",
+        action="store_true",
+        help="Print one-line interaction trace start/end events to stdout.",
+    )
 
     repl = subparsers.add_parser(
         "repl",
@@ -145,6 +150,11 @@ def _main() -> int:
         "--debug-log",
         action="store_true",
         help="Print internal debug log events and rx/tx log lines.",
+    )
+    repl.add_argument(
+        "--trace-log",
+        action="store_true",
+        help="Print one-line interaction trace start/end events to stdout.",
     )
 
     args = parser.parse_args()
@@ -223,6 +233,8 @@ def _main() -> int:
     if args.command == "telegram":
         if args.debug_log:
             os.environ["RUNNING_AGENT_DEBUG_LOG"] = "1"
+        if args.trace_log:
+            os.environ["RUNNING_AGENT_TRACE_LOG"] = "1"
         if args.no_restart:
             transport = TelegramTransport(poll_seconds=args.poll_seconds, lookback_days=args.days)
             transport.run_forever()
@@ -235,7 +247,9 @@ def _main() -> int:
         return 0
 
     if args.command == "repl":
-        if not args.debug_log:
+        if args.trace_log:
+            os.environ["RUNNING_AGENT_TRACE_LOG"] = "1"
+        if not args.debug_log and not args.trace_log:
             os.environ["RUNNING_AGENT_QUIET_LOG"] = "1"
         state = load_agent_state(STATE_PATH)
         coach = CoachAgent(

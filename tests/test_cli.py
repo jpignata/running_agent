@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import Mock, patch
 
@@ -130,6 +131,40 @@ class CliTest(unittest.TestCase):
         eval_runner_main.assert_called_once_with(
             ["--case", "adjust_existing_weekly_plan", "--debug"]
         )
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("running_agent.cli.save_agent_state")
+    @patch("running_agent.cli.load_agent_state", return_value={})
+    @patch("running_agent.cli.ReplTransport")
+    @patch("running_agent.cli.CoachAgent")
+    @patch("sys.argv", ["running-agent", "repl", "--trace-log"])
+    def test_repl_trace_log_sets_trace_env(
+        self,
+        coach_agent,
+        repl_transport,
+        _load_agent_state,
+        _save_agent_state,
+    ) -> None:
+        repl_transport.return_value.run.return_value = None
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(os.environ["RUNNING_AGENT_TRACE_LOG"], "1")
+        self.assertNotIn("RUNNING_AGENT_QUIET_LOG", os.environ)
+        repl_transport.assert_called_once_with(coach_agent.return_value)
+
+    @patch.dict(os.environ, {}, clear=True)
+    @patch("running_agent.cli.TelegramTransport")
+    @patch("sys.argv", ["running-agent", "telegram", "--no-restart", "--trace-log"])
+    def test_telegram_trace_log_sets_trace_env(self, telegram_transport) -> None:
+        telegram_transport.return_value.run_forever.return_value = None
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(os.environ["RUNNING_AGENT_TRACE_LOG"], "1")
+        telegram_transport.return_value.run_forever.assert_called_once_with()
 
 
 if __name__ == "__main__":

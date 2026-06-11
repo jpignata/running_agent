@@ -4,7 +4,13 @@ import os
 import unittest
 from unittest.mock import patch
 
-from running_agent.event_log import DEBUG_STDOUT_ENV, QUIET_STDOUT_ENV, log_event
+from running_agent.event_log import (
+    DEBUG_STDOUT_ENV,
+    QUIET_STDOUT_ENV,
+    TRACE_STDOUT_ENV,
+    log_event,
+    start_trace,
+)
 
 
 class EventLogTest(unittest.TestCase):
@@ -39,6 +45,45 @@ class EventLogTest(unittest.TestCase):
             log_event("rx", {"chat_id": 123, "text": "hello"})
 
         print_mock.assert_not_called()
+
+    def test_trace_events_print_only_when_enabled(self) -> None:
+        with patch.dict(os.environ, {}, clear=True), patch("builtins.print") as print_mock:
+            trace = start_trace(source="repl", interaction="message", command="/ping")
+            trace.close(reply_count=1)
+
+        print_mock.assert_not_called()
+
+        with (
+            patch.dict(os.environ, {TRACE_STDOUT_ENV: "1"}, clear=True),
+            patch("builtins.print") as print_mock,
+        ):
+            trace = start_trace(source="repl", interaction="message", command="/ping")
+            trace.close(reply_count=1)
+
+        lines = [call.args[0] for call in print_mock.call_args_list]
+        self.assertTrue(any(" trace_start " in line for line in lines))
+        self.assertTrue(any(" trace_end " in line for line in lines))
+        self.assertTrue(any("source=repl" in line for line in lines))
+        self.assertTrue(any("interaction=message" in line for line in lines))
+        self.assertTrue(any("reply_count=1" in line for line in lines))
+
+    def test_active_trace_id_is_added_to_nested_events(self) -> None:
+        with (
+            patch.dict(
+                os.environ,
+                {TRACE_STDOUT_ENV: "1", DEBUG_STDOUT_ENV: "1"},
+                clear=True,
+            ),
+            patch("builtins.print") as print_mock,
+        ):
+            trace = start_trace(source="repl", interaction="message")
+            log_event("debug", {"message": "inside"})
+            trace.close()
+
+        debug_line = next(
+            call.args[0] for call in print_mock.call_args_list if " debug " in call.args[0]
+        )
+        self.assertIn(f"trace_id={trace.trace_id}", debug_line)
 
 
 if __name__ == "__main__":

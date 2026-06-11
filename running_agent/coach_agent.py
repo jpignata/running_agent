@@ -24,7 +24,7 @@ from .evening_report import (
     mark_evening_report_sent,
     should_send_evening_report,
 )
-from .event_log import log_event
+from .event_log import log_event, start_trace
 from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
@@ -137,34 +137,59 @@ class CoachAgent:
         self._save_state = save_state or (lambda: None)
         self.conversation: list[dict[str, str]] = []
 
-    def handle_message(self, text: str) -> list[str]:
+    def handle_message(self, text: str, source: str = "coach") -> list[str]:
         text = text.strip()
         if not text:
             return []
         command = text.split()[0].lower()
+        trace = start_trace(
+            source=source,
+            interaction="message",
+            command=command,
+            chars=len(text),
+        )
         log_event("debug", {"message": "coach_handle_message_start", "command": command})
+        status = "ok"
+        replies: list[str] = []
         try:
             replies = self._handle_message(text, command)
         except RuntimeError as error:
+            status = "error"
             replies = [f"Something failed while coaching: {error}"]
-        log_event("debug", {"message": "coach_handle_message_done", "command": command})
+            trace.add(error=repr(error))
+        except Exception as error:
+            status = "error"
+            trace.add(error=repr(error))
+            raise
+        finally:
+            log_event("debug", {"message": "coach_handle_message_done", "command": command})
+            trace.close(status=status, reply_count=len(replies))
         return replies
 
-    def tick(self) -> list[str]:
+    def tick(self, source: str = "scheduler") -> list[str]:
+        trace = start_trace(source=source, interaction="tick")
         messages: list[str] = []
-        self.refresh_recent_strava_summaries_if_due()
-        self.refresh_garmin_cache_if_due()
-        self.refresh_coach_reflection_if_due()
-        daily = self.daily_checkin_if_due()
-        if daily:
-            messages.append(daily)
-        sunday = self.sunday_plan_if_due()
-        if sunday:
-            messages.append(sunday)
-        evening = self.evening_report_if_due()
-        if evening:
-            messages.append(evening)
-        return messages
+        status = "ok"
+        try:
+            self.refresh_recent_strava_summaries_if_due()
+            self.refresh_garmin_cache_if_due()
+            self.refresh_coach_reflection_if_due()
+            daily = self.daily_checkin_if_due()
+            if daily:
+                messages.append(daily)
+            sunday = self.sunday_plan_if_due()
+            if sunday:
+                messages.append(sunday)
+            evening = self.evening_report_if_due()
+            if evening:
+                messages.append(evening)
+            return messages
+        except Exception as error:
+            status = "error"
+            trace.add(error=repr(error))
+            raise
+        finally:
+            trace.close(status=status, message_count=len(messages))
 
     def seed_seen_activities(self) -> None:
         if self.state.get("seen_activity_ids"):

@@ -103,7 +103,7 @@ class TelegramTransportTest(unittest.TestCase):
         transport._deliver_scheduled_messages()
 
         self.assertEqual(telegram.messages, [("123", "Scheduled note")])
-        transport.coach.tick.assert_called_once_with()
+        transport.coach.tick.assert_called_once_with(source="telegram_scheduler")
 
     @patch.dict(
         "os.environ",

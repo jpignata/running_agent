@@ -107,7 +107,10 @@ class TelegramTransport:
                 )
             else:
                 log_event("rx", {"chat_id": chat_id, "text": text})
-                self._deliver_messages(self.coach.handle_message(text), chat_id=chat_id)
+                self._deliver_messages(
+                    self.coach.handle_message(text, source="telegram"),
+                    chat_id=chat_id,
+                )
         self._save_state()
 
     def _chat_allowed(self, chat_id: int) -> bool:
@@ -146,7 +149,7 @@ class TelegramTransport:
     def _deliver_scheduled_messages(self) -> None:
         if not self.allowed_chat_id:
             return
-        self._deliver_messages(self.coach.tick())
+        self._deliver_messages(self.coach.tick(source="telegram_scheduler"))
 
     def _save_state(self) -> None:
         save_agent_state(self.state, self.state_path)

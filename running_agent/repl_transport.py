@@ -25,7 +25,7 @@ class ReplTransport:
             if text.lower() in {"/quit", "/exit"}:
                 return
 
-            self._print_messages(self.coach.handle_message(text))
+            self._print_messages(self.coach.handle_message(text, source="repl"))
 
     def _print_messages(self, messages: list[str]) -> None:
         for message in messages:
