@@ -78,9 +78,10 @@ class CoachReflectionTest(unittest.TestCase):
             [
                 {
                     "type": "Run",
-                    "name": "Long Run",
-                    "distance": 10 * METERS_PER_MILE,
-                    "moving_time": 80 * 60,
+                    "name": "North Jersey Pride Run",
+                    "distance": 5068.1,
+                    "moving_time": 20 * 60 + 2,
+                    "workout_type": 1,
                     "start_date_local": "2026-06-01T06:00:00Z",
                 }
             ]
@@ -92,7 +93,7 @@ class CoachReflectionTest(unittest.TestCase):
         self.assertEqual(client.requested_days, 42)
         kwargs = coaching_reply.call_args.kwargs
         self.assertIn("Reviewed 1 runs over the last 42 days.", kwargs["training_summary"])
-        self.assertIn("Long Run: 10.00 mi", kwargs["recent_runs"])
+        self.assertIn("North Jersey Pride Run: 3.15 mi", kwargs["recent_runs"])
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertIn("Long Run: 10.00 mi", kwargs["coach_log"])
@@ -100,7 +101,9 @@ class CoachReflectionTest(unittest.TestCase):
         self.assertEqual(kwargs["garmin_context"], "Garmin trend")
         self.assertFalse(kwargs["tools_enabled"])
         self.assertFalse(kwargs["include_coach_reflection"])
-        self.assertEqual(kwargs["pace_calibration_text"], "No pace calibration has been saved yet.")
+        self.assertIn("Deterministic race-derived VDOT context", kwargs["pace_calibration_text"])
+        self.assertIn("VDOT 49.7", kwargs["pace_calibration_text"])
+        self.assertIn("Easy 8:16-9:06/mi", kwargs["pace_calibration_text"])
         save_coach_reflection.assert_called_once_with(reflection)
         save_pace_calibration.assert_called_once_with("VDOT 50, threshold around 6:55/mi.")
 

@@ -15,6 +15,7 @@ from .storage import read_json_file, write_json_file
 from .storage_paths import COACH_REFLECTION_PATH
 from .strava_client import StravaClient
 from .time_format import human_datetime
+from .vdot import race_vdot_context
 
 REFLECTION_PATH = COACH_REFLECTION_PATH
 
@@ -61,9 +62,10 @@ def generate_coach_reflection(
         "coach log, and the previous reflection. Focus on durable coaching judgment, not a recap. "
         "Include these labels exactly: Capacity, Working VDOT/pace calibration, Goal confidence, "
         "Goal requirements/checkpoints, Current limiter, Next emphasis, Watch items. Under "
-        "Working VDOT/pace calibration, estimate the current VDOT value or range from recent "
-        "representative races, controlled quality workouts, longer-term aerobic patterns, and "
-        "caveats; include confidence and practical pace anchors when evidence supports them. "
+        "Working VDOT/pace calibration, use any deterministic race-derived VDOT context as the "
+        "numeric starting point. Then use representative races, controlled quality workouts, "
+        "longer-term aerobic patterns, and caveats to set confidence and decide whether to be "
+        "more conservative; include practical pace anchors when evidence supports them. "
         "Use Daniels-style pace category names precisely: Easy, Marathon, Threshold, Interval, "
         "and Repetition. Do not label 10K pace, controlled long reps, or cruise intervals as "
         "Interval pace; if useful, call them 10K/long-rep support separately. If there is not "
@@ -95,7 +97,7 @@ def generate_coach_reflection(
         garmin_context=safe_garmin_weekly_context(days=14),
         tools_enabled=False,
         include_coach_reflection=False,
-        pace_calibration_text="No pace calibration has been saved yet.",
+        pace_calibration_text=race_vdot_context(activities),
         max_output_tokens=450,
     )
     save_coach_reflection(reflection)
