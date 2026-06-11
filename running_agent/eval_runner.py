@@ -66,6 +66,7 @@ def run_case(
     original_get_local_run_details = openai_client.get_local_run_details
     original_coach_now = coach_prompt.coach_now
     original_pace_calibration_context = coach_prompt.pace_calibration_context
+    original_coach_reflection_context = coach_prompt.coach_reflection_context
 
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
@@ -88,6 +89,10 @@ def run_case(
         "pace_calibration",
         "No pace calibration has been saved yet.",
     )
+    coach_prompt.coach_reflection_context = lambda: context.get(
+        "coach_reflection",
+        "No coach reflection has been recorded yet.",
+    )
     if case.get("current_date"):
         pinned_now = datetime.fromisoformat(str(case["current_date"])).replace(
             hour=12,
@@ -105,6 +110,7 @@ def run_case(
         openai_client.get_local_run_details = original_get_local_run_details
         coach_prompt.coach_now = original_coach_now
         coach_prompt.pace_calibration_context = original_pace_calibration_context
+        coach_prompt.coach_reflection_context = original_coach_reflection_context
 
     checks = score_case(case, saved_plans, tool_calls, reply, judge_func=judge_func)
     return EvalResult(

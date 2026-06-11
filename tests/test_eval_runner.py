@@ -141,6 +141,27 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertIs(coach_prompt.coach_now, original_coach_now)
 
+    @patch("running_agent.eval_runner.openai_client.coaching_reply")
+    def test_run_case_isolates_coach_reflection_context(self, coaching_reply) -> None:
+        original_coach_reflection_context = coach_prompt.coach_reflection_context
+
+        def fake_coaching_reply(*_args, **_kwargs) -> str:
+            self.assertEqual(coach_prompt.coach_reflection_context(), "Fixture reflection")
+            return "Fixture reply."
+
+        coaching_reply.side_effect = fake_coaching_reply
+
+        result = run_case(
+            {
+                "name": "fixture_reflection",
+                "user_message": "What are my paces?",
+                "initial_context": {"coach_reflection": "Fixture reflection"},
+            }
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertIs(coach_prompt.coach_reflection_context, original_coach_reflection_context)
+
     def test_tool_call_not_called_eval_passes_when_tool_is_not_called(self) -> None:
         result = run_case(
             {
@@ -363,6 +384,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)
+        self.assertIn("uses_deterministic_vdot_table_paces", results)
         self.assertIn("uses_saved_vdot_pace_calibration", results)
 
 
