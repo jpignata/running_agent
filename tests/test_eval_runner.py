@@ -196,6 +196,27 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertIs(coach_prompt.coach_reflection_context, original_coach_reflection_context)
 
+    @patch("running_agent.eval_runner.openai_client.coaching_reply")
+    def test_run_case_isolates_race_results_context(self, coaching_reply) -> None:
+        original_race_results_context = coach_prompt.race_results_context
+
+        def fake_coaching_reply(*_args, **_kwargs) -> str:
+            self.assertEqual(coach_prompt.race_results_context(), "Fixture race results")
+            return "Fixture reply."
+
+        coaching_reply.side_effect = fake_coaching_reply
+
+        result = run_case(
+            {
+                "name": "fixture_race_results",
+                "user_message": "What are my paces?",
+                "initial_context": {"race_results": "Fixture race results"},
+            }
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertIs(coach_prompt.race_results_context, original_race_results_context)
+
     def test_tool_call_not_called_eval_passes_when_tool_is_not_called(self) -> None:
         result = run_case(
             {

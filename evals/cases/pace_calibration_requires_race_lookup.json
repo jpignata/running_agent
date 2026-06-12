@@ -8,7 +8,8 @@
     "training_goal": "Build toward a fall marathon while staying healthy."
   },
   "tool_results": {
-    "query_local_runs": "Matching synced Strava race-like runs, newest first, last 365 days:\n- id 900000001: North Jersey Pride Run: 3.15 mi on Sunday, Jun 7, 6:22/mi, avg HR 168 race-like; details synced"
+    "query_local_runs": "Matching synced Strava race-like runs, newest first, last 365 days:\n- id 900000001: North Jersey Pride Run: 3.15 mi on Sunday, Jun 7, 6:22/mi, avg HR 168 race-like; details synced",
+    "get_local_run_details": "North Jersey Pride Run: 3.15 mi on Sunday, Jun 7, 6:22/mi, avg HR 168.\nRun details:\n- Distance: 3.15 mi\n- Moving time: 20:02\n- Average pace: 6:22/mi\n- Classification: race-like"
   },
   "expected": {
     "tool_calls": {

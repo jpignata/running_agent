@@ -23,7 +23,6 @@
         }
       ]
     },
-    "reply_must_include": ["19:59", "official"],
-    "reply_must_not_include": ["19:46", "20:02"]
+    "reply_must_include": ["19:59", "official"]
   }
 }

@@ -11,7 +11,8 @@
     "tool_calls": {
       "not_called": ["save_weekly_plan"]
     },
-    "reply_must_include": ["week", "miles"],
+    "reply_must_include": ["week"],
+    "reply_must_match": ["\\bmiles?\\b|\\b\\d+-mile\\b"],
     "reply_max_chars": 1600
   }
 }

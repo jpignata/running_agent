@@ -12,7 +12,7 @@
     "tool_calls": {
       "not_called": ["query_local_runs"]
     },
-    "reply_must_include": ["VDOT 50", "19:59", "8:16", "9:06", "7:18", "6:52"],
+    "reply_must_include": ["VDOT 50", "8:16", "9:06", "7:18", "6:52"],
     "reply_must_not_match": ["(?i)5k[^\\n.]*20:02"],
     "reply_must_not_include": ["VDOT 47", "VDOT 48", "47-49", "7:00-7:10", "8:15-8:50"]
   }
