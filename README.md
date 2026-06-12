@@ -300,6 +300,34 @@ My main goal is Chicago Marathon on Oct 11, target 3:20, stay healthy.
 The model may call its goal-update tool and rewrite the saved goal. The older `/setgoal`
 command still works, but it is no longer part of the primary help surface.
 
+### Scheduler Details
+
+Change the Telegram polling interval with:
+
+```bash
+python -m running_agent telegram --poll-seconds 120 --days 28
+```
+
+When a new run syncs, the bot appends a compact local coach-log entry to `.data/coach_log.jsonl`
+with the matched planned workout and completed run headline. This file is ignored by git and
+used as context for future plan suggestions.
+
+The same new-run check also stores the Strava summary and detailed activity JSON under
+`.data/strava/`, so future chat questions can look up that run's laps and splits locally.
+
+The morning check-in uses Garmin readiness context when configured, plus today's matched
+plan, the last week of runs, the coach log, and your overall goal. If there is no workout
+scheduled for the day or Strava already has a completed run for that date, the bot sends
+nothing.
+
+The end-of-day report briefly recaps today's exercise, then gives a sleep, recovery, or
+next-day note to keep in mind. It does not send on Sundays because the weekly review already
+covers the day and next week. It also stays quiet on days without a completed Strava run.
+
+If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
+tick instead of marking that note sent. The process also refreshes recent Strava run summaries
+once per hour so later Strava edits such as renames and race tags are picked up.
+
 ## Development
 
 ### Tests
@@ -373,59 +401,3 @@ replies. Eval cases are key-driven: `expected` runs deterministic rule checks, `
 runs judge-model criteria checks, and cases can use either or both. Tool interaction
 rules live under `expected.tool_calls.called` and `expected.tool_calls.not_called`.
 Saved-plan content checks live under `expected.plan`.
-
-## Operations
-
-### Scheduler Details
-
-Change the Telegram polling interval with:
-
-```bash
-python -m running_agent telegram --poll-seconds 120 --days 28
-```
-
-When a new run syncs, the bot appends a compact local coach-log entry to `.data/coach_log.jsonl`
-with the matched planned workout and completed run headline. This file is ignored by git and
-used as context for future plan suggestions.
-
-The same new-run check also stores the Strava summary and detailed activity JSON under
-`.data/strava/`, so future chat questions can look up that run's laps and splits locally.
-
-The morning check-in uses Garmin readiness context when configured, plus today's matched
-plan, the last week of runs, the coach log, and your overall goal. If there is no workout
-scheduled for the day or Strava already has a completed run for that date, the bot sends
-nothing.
-
-The end-of-day report briefly recaps today's exercise, then gives a sleep, recovery, or
-next-day note to keep in mind. It does not send on Sundays because the weekly review already
-covers the day and next week. It also stays quiet on days without a completed Strava run.
-
-If OpenAI is unavailable for a scheduled note, the bot sends nothing and retries on the next
-tick instead of marking that note sent. The process also refreshes recent Strava run summaries
-once per hour so later Strava edits such as renames and race tags are picked up.
-
-### Strava Debugging
-
-Find the latest synced Strava run summary:
-
-```bash
-jq -r '
-  to_entries
-  | map(.value)
-  | map(select(.type == "Run"))
-  | sort_by(.start_date_local // .start_date)
-  | reverse
-  | .[0]
-  | "\(.id)  \(.start_date_local // .start_date)  \(.name)"
-' .data/strava/activities.json
-```
-
-Inspect lap rows for a detailed synced activity:
-
-```bash
-jq -r '
-  .laps[]
-  | [.lap_index, .distance, .moving_time, .elapsed_time]
-  | @tsv
-' .data/strava/details/ACTIVITY_ID.json
-```
