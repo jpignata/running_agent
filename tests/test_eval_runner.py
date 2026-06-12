@@ -316,6 +316,7 @@ class EvalRunnerTest(unittest.TestCase):
                 "user_message": "Quick read?",
                 "expected": {
                     "reply_max_chars": 50,
+                    "reply_must_match": ["easy tomorrow"],
                     "reply_must_not_include": ["**"],
                     "reply_must_not_match": ["^\\s*[-*]\\s"],
                 },
@@ -325,6 +326,9 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertTrue(any("reply length <= 50" in check.message for check in result.checks))
+        self.assertTrue(
+            any("reply matches /easy tomorrow/" in check.message for check in result.checks)
+        )
 
     def test_rule_eval_fails_on_forbidden_formatting(self) -> None:
         result = run_case(
@@ -412,6 +416,7 @@ class EvalRunnerTest(unittest.TestCase):
         results = run_evals()
 
         self.assertIn("adjust_existing_weekly_plan", results)
+        self.assertIn("current_week_mileage_breakdown", results)
         self.assertIn("hypothetical_plan_no_save", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)

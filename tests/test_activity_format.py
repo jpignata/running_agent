@@ -182,6 +182,33 @@ class ActivityFormatTest(unittest.TestCase):
         )
         self.assertIn("- Easy 5: 5.00 mi on Thursday, Jun 4", context)
 
+    @patch("running_agent.activity_format.coach_today", return_value=date(2026, 6, 12))
+    def test_recent_runs_context_includes_current_week_breakdown(
+        self,
+        _coach_today,
+    ) -> None:
+        context = recent_runs_context(
+            [
+                _run("Friday", 7.05, "2026-06-12T07:00:00"),
+                _run("Wednesday", 7.37, "2026-06-10T07:00:00"),
+                _run("Tuesday", 5.07, "2026-06-09T07:00:00"),
+                _run("Prior Sunday", 10.0, "2026-06-07T07:00:00"),
+            ]
+        )
+
+        self.assertIn(
+            "Current week mileage from synced Strava runs "
+            "(Monday, Jun 8 through Sunday, Jun 14; today is Friday, Jun 12):",
+            context,
+        )
+        self.assertIn("- Monday: no synced run recorded", context)
+        self.assertIn("- Tuesday: 5.07 mi", context)
+        self.assertIn("- Wednesday: 7.37 mi", context)
+        self.assertIn("- Thursday: no synced run recorded", context)
+        self.assertIn("- Friday: 7.05 mi", context)
+        self.assertIn("- Saturday: future day, not included in current total", context)
+        self.assertIn("Current week total through today: 19.49 mi.", context)
+
 
 def _lap(
     lap_index: int,
@@ -216,6 +243,16 @@ def _lap_meters(
         "average_heartrate": 155,
         "max_heartrate": 165,
         "total_elevation_gain": 0,
+    }
+
+
+def _run(name: str, distance_miles: float, start_date_local: str) -> dict:
+    return {
+        "type": "Run",
+        "name": name,
+        "distance": distance_miles * METERS_PER_MILE,
+        "moving_time": int(distance_miles * 8 * 60),
+        "start_date_local": start_date_local,
     }
 
 

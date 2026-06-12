@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from .coach_time import coach_today
@@ -88,6 +88,10 @@ def recent_runs_context(activities: list[dict[str, Any]], limit: int = 12) -> st
     todays_runs = [activity for activity in runs if _activity_date(activity) == today]
     latest = runs[0]
     lines = [_today_status_line(today, todays_runs, latest)]
+    lines.append("")
+    lines.extend(_current_week_lines(runs, today))
+    lines.append("")
+    lines.append("Most recent synced runs:")
     lines.extend(f"- {activity_headline(activity)}" for activity in runs[:limit])
     return "\n".join(lines)
 
@@ -117,6 +121,39 @@ def _activity_date(activity: dict[str, Any]) -> date | None:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).date()
     except ValueError:
         return None
+
+
+def _current_week_lines(runs: list[dict[str, Any]], today: date) -> list[str]:
+    week_start = today - timedelta(days=today.weekday())
+    week_end = week_start + timedelta(days=6)
+    miles_by_day: dict[date, float] = defaultdict(float)
+    for run in runs:
+        run_date = _activity_date(run)
+        if run_date is None or not week_start <= run_date <= week_end:
+            continue
+        miles_by_day[run_date] += miles(run)
+
+    lines = [
+        (
+            "Current week mileage from synced Strava runs "
+            f"({_friendly_day(week_start)} through {_friendly_day(week_end)}; "
+            f"today is {_friendly_day(today)}):"
+        )
+    ]
+    cursor = week_start
+    total_through_today = 0.0
+    while cursor <= week_end:
+        day_miles = miles_by_day.get(cursor, 0.0)
+        if cursor <= today:
+            total_through_today += day_miles
+            value = f"{day_miles:.2f} mi" if day_miles else "no synced run recorded"
+        else:
+            value = "future day, not included in current total"
+        lines.append(f"- {cursor.strftime('%A')}: {value}")
+        cursor += timedelta(days=1)
+    lines.append(f"Current week total through today: {total_through_today:.2f} mi.")
+    lines.append("Do not count future planned mileage as completed mileage.")
+    return lines
 
 
 def _friendly_day(value: date) -> str:

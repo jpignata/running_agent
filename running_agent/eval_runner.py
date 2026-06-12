@@ -325,6 +325,13 @@ def score_reply_rules(expected: dict[str, Any], reply: str) -> list[EvalCheck]:
                 f"reply includes {term!r}",
             )
         )
+    for pattern in expected.get("reply_must_match", []):
+        checks.append(
+            EvalCheck(
+                re.search(str(pattern), reply, flags=re.MULTILINE | re.IGNORECASE) is not None,
+                f"reply matches /{pattern}/",
+            )
+        )
     for term in expected.get("reply_must_not_include", []):
         checks.append(
             EvalCheck(

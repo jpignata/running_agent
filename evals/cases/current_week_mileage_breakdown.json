@@ -1,0 +1,27 @@
+{
+  "description": "Checks that current-week mileage questions use the deterministic Strava week-by-day block, not prior conversation totals or planned future mileage.",
+  "current_date": "2026-06-12",
+  "user_message": "I ran 0 miles on Monday. How many miles did I run this week? Break that down for me by day.",
+  "initial_context": {
+    "weekly_plan": "Monday: rest\nTuesday: 5 easy\nWednesday: quality\nThursday: rest or cross-training\nFriday: 4 easy\nSaturday: 10 long\nSunday: rest",
+    "training_summary": "Reviewed 3 runs over the last 7 days. Weekly mileage: 2026-W24: 19.5 mi.",
+    "recent_runs": "Current Strava status for Friday, Jun 12: 1 synced run(s) recorded today.\n\nCurrent week mileage from synced Strava runs (Monday, Jun 8 through Sunday, Jun 14; today is Friday, Jun 12):\n- Monday: no synced run recorded\n- Tuesday: 5.07 mi\n- Wednesday: 7.37 mi\n- Thursday: no synced run recorded\n- Friday: 7.05 mi\n- Saturday: future day, not included in current total\n- Sunday: future day, not included in current total\nCurrent week total through today: 19.49 mi.\nDo not count future planned mileage as completed mileage.\n\nMost recent synced runs:\n- Friday easy: 7.05 mi on Friday, Jun 12, 8:25/mi\n- Wednesday track: 7.37 mi on Wednesday, Jun 10, 7:58/mi\n- Tuesday easy: 5.07 mi on Tuesday, Jun 9, 8:37/mi",
+    "training_goal": "Build consistently for a fall marathon while staying healthy."
+  },
+  "expected": {
+    "reply_must_include": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "reply_must_match": [
+      "Monday[^\\n]*(0|no synced|no run)",
+      "Tuesday[^\\n]*5\\.07",
+      "Wednesday[^\\n]*7\\.37",
+      "Friday[^\\n]*7\\.05",
+      "(19\\.49|19\\.5)"
+    ],
+    "reply_must_not_include": ["37.6", "24.56", "47.6", "34.6"],
+    "reply_must_not_match": [
+      "Monday[^\\n]*5\\.07",
+      "Saturday[^\\n]*(10|planned).*total"
+    ],
+    "reply_max_chars": 1400
+  }
+}
