@@ -7,7 +7,7 @@ adjust advice, and suggest what to do next. An athlete interacts with the system
 Telegram through a conversational interface. The system also sends scheduled messages such
 as after a workout to summarize the results.
 
-![Telegram running coach conversation](assets/telegram-coach-screenshot.png)
+<img src="assets/telegram-coach-screenshot.png" alt="Telegram running coach conversation" width="360">
 
 Built with Codex.
 
