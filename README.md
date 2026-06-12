@@ -209,6 +209,10 @@ OPENAI_API_KEY=sk-your-openai-api-key
 OPENAI_MODEL=gpt-5.4-mini
 ```
 
+## Usage
+
+### Run The Telegram Bot
+
 Run the coach:
 
 ```bash
@@ -237,7 +241,7 @@ To print interaction traces for Telegram messages and scheduled ticks:
 python -m running_agent telegram --trace-log
 ```
 
-### Using The Coach
+### Chat With The Coach
 
 Most interactions should be natural-language coaching requests. The visible slash commands
 are mostly for inspection and diagnostics:
@@ -270,6 +274,41 @@ HRV, Body Battery, stress, resting HR, or whether recovery should change today's
 the model may call its local Garmin-readiness or Garmin-trend tools. The older `/garmin`
 and `/garminweek` diagnostic commands still work, but they are no longer part of the primary
 help surface.
+
+### Add A Weekly Plan
+
+Send the plan in Telegram or the local REPL so the coach can compare completed Strava runs
+against what you intended to do:
+
+```text
+Here is my plan for this week: Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
+```
+
+The model may call its plan-saving tool and rewrite natural text into the saved weekly plan
+format. The older `/setplan <plan>` command still works, but it is no longer part of the
+primary help surface.
+
+### Add An Overall Goal
+
+Set the larger goal in Telegram or the local REPL so the coach can interpret workouts in
+context:
+
+```text
+My main goal is Chicago Marathon on Oct 11, target 3:20, stay healthy.
+```
+
+The model may call its goal-update tool and rewrite the saved goal. The older `/setgoal`
+command still works, but it is no longer part of the primary help surface.
+
+## Development
+
+### Tests
+
+Run unit tests:
+
+```bash
+python -m unittest discover -s tests
+```
 
 ### Local Diagnostics
 
@@ -335,6 +374,8 @@ runs judge-model criteria checks, and cases can use either or both. Tool interac
 rules live under `expected.tool_calls.called` and `expected.tool_calls.not_called`.
 Saved-plan content checks live under `expected.plan`.
 
+## Operations
+
 ### Scheduler Details
 
 Change the Telegram polling interval with:
@@ -387,37 +428,4 @@ jq -r '
   | [.lap_index, .distance, .moving_time, .elapsed_time]
   | @tsv
 ' .data/strava/details/ACTIVITY_ID.json
-```
-
-### Step 4: Add A Weekly Plan
-
-Send the plan in Telegram or the local REPL so the coach can compare completed Strava runs
-against what you intended to do:
-
-```text
-Here is my plan for this week: Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
-```
-
-The model may call its plan-saving tool and rewrite natural text into the saved weekly plan
-format. The older `/setplan <plan>` command still works, but it is no longer part of the
-primary help surface.
-
-### Step 5: Add An Overall Goal
-
-Set the larger goal in Telegram or the local REPL so the coach can interpret workouts in
-context:
-
-```text
-My main goal is Chicago Marathon on Oct 11, target 3:20, stay healthy.
-```
-
-The model may call its goal-update tool and rewrite the saved goal. The older `/setgoal`
-command still works, but it is no longer part of the primary help surface.
-
-## Tests
-
-Run unit tests:
-
-```bash
-python -m unittest discover -s tests
 ```
