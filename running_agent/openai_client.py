@@ -217,7 +217,14 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
         return None
     plan = _clean_saved_weekly_plan(plan)
     save_weekly_plan(plan)
-    return _tool_output(call["call_id"], {"saved": True})
+    return _tool_output(
+        call["call_id"],
+        {
+            "saved": True,
+            "saved_plan": plan,
+            "receipt": "Saved weekly plan:\n" + plan,
+        },
+    )
 
 
 def _execute_update_weekly_plan_days_tool(call: dict[str, Any]) -> dict[str, str] | None:
@@ -232,7 +239,18 @@ def _execute_update_weekly_plan_days_tool(call: dict[str, Any]) -> dict[str, str
         for day, workout in updates.items()
     }
     result = update_weekly_plan_days(updates)
-    return _tool_output(call["call_id"], {"saved": True, "plan": result.get("text", "")})
+    saved_plan = result.get("text", "")
+    changed_days = _saved_plan_lines_for_days(saved_plan, updates.keys())
+    receipt = "Saved plan changes: " + "; ".join(changed_days)
+    return _tool_output(
+        call["call_id"],
+        {
+            "saved": True,
+            "changed_days": changed_days,
+            "saved_plan": saved_plan,
+            "receipt": receipt,
+        },
+    )
 
 
 def _execute_save_race_result_tool(call: dict[str, Any]) -> dict[str, str] | None:
@@ -408,6 +426,19 @@ def _weekly_plan_day_updates(value: Any) -> dict[str, str]:
         if isinstance(day, str) and isinstance(workout, str):
             updates[day] = workout
     return updates
+
+
+def _saved_plan_lines_for_days(plan_text: str, days: Any) -> list[str]:
+    wanted = {str(day).strip().lower() for day in days}
+    lines: list[str] = []
+    for raw_line in plan_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = re.match(r"^([A-Za-z]+)\b", line)
+        if match and match.group(1).lower() in wanted:
+            lines.append(line)
+    return lines
 
 
 def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:

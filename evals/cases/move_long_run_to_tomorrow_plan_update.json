@@ -20,7 +20,7 @@
       },
       "must_preserve_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
     },
-    "reply_must_include": ["tomorrow"],
+    "reply_must_include": ["Saturday", "rest", "Sunday", "10"],
     "reply_must_not_include": ["I can’t update", "cannot update"]
   }
 }

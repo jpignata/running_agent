@@ -69,6 +69,7 @@ class OpenAIClientTest(unittest.TestCase):
         )
         self.assertIn("day-by-day lists with workout details", payload["instructions"])
         self.assertIn("update_weekly_plan_days with the changed weekdays", payload["instructions"])
+        self.assertIn("quote the returned changed_days or receipt", payload["instructions"])
         self.assertIn("official race result", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertNotIn("temperature", payload)
@@ -201,7 +202,12 @@ class OpenAIClientTest(unittest.TestCase):
                 {
                     "type": "function_call_output",
                     "call_id": "call_plan",
-                    "output": '{"saved": true}',
+                    "output": (
+                        '{"saved": true, '
+                        '"saved_plan": "Wednesday 5 x 5 minutes threshold", '
+                        '"receipt": "Saved weekly plan:\\n'
+                        'Wednesday 5 x 5 minutes threshold"}'
+                    ),
                 }
             ],
         )
@@ -346,7 +352,12 @@ class OpenAIClientTest(unittest.TestCase):
                 {
                     "type": "function_call_output",
                     "call_id": "call_plan",
-                    "output": '{"saved": true, "plan": "Saturday rest\\nSunday 10 miles"}',
+                    "output": (
+                        '{"saved": true, '
+                        '"changed_days": ["Saturday rest", "Sunday 10 miles"], '
+                        '"saved_plan": "Saturday rest\\nSunday 10 miles", '
+                        '"receipt": "Saved plan changes: Saturday rest; Sunday 10 miles"}'
+                    ),
                 }
             ],
         )
@@ -704,7 +715,13 @@ class OpenAIClientTest(unittest.TestCase):
                 {
                     "type": "function_call_output",
                     "call_id": "call_plan",
-                    "output": '{"saved": true}',
+                    "output": (
+                        '{"saved": true, '
+                        '"saved_plan": "Monday 5 easy\\n'
+                        'Wednesday 2mi WU, 6x400m, CD\\nSaturday 10 easy", '
+                        '"receipt": "Saved weekly plan:\\nMonday 5 easy\\n'
+                        'Wednesday 2mi WU, 6x400m, CD\\nSaturday 10 easy"}'
+                    ),
                 }
             ],
         )
