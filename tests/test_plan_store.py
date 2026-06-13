@@ -10,6 +10,7 @@ from running_agent.plan_store import (
     parse_weekly_plan,
     planned_workout_for_date,
     upcoming_plan_context_after_date,
+    update_weekly_plan_days,
     weekly_plan_context_for_date,
 )
 
@@ -68,6 +69,29 @@ class PlanStoreTest(unittest.TestCase):
         self.assertNotIn("Wednesday 6x800m", context)
         self.assertIn("Saturday: easy 4", context)
         self.assertIn("Sunday: 5K race", context)
+
+    def test_update_weekly_plan_days_preserves_existing_days_and_adds_missing_day(self) -> None:
+        path = _plan_file(
+            "Monday rest\n"
+            "Tuesday 5 miles\n"
+            "Wednesday workout\n"
+            "Thursday rest\n"
+            "Friday 4 miles\n"
+            "Saturday 10 miles"
+        )
+
+        result = update_weekly_plan_days({"Saturday": "rest", "Sunday": "10 miles"}, path)
+
+        self.assertEqual(
+            result["text"],
+            "Monday rest\n"
+            "Tuesday 5 miles\n"
+            "Wednesday workout\n"
+            "Thursday rest\n"
+            "Friday 4 miles\n"
+            "Saturday rest\n"
+            "Sunday 10 miles",
+        )
 
 
 def _plan_file(text: str) -> Path:

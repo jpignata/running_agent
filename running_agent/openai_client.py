@@ -18,7 +18,7 @@ from .coach_prompt import (
 )
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
-from .plan_store import save_weekly_plan
+from .plan_store import save_weekly_plan, update_weekly_plan_days
 from .race_results import save_race_result
 from .strava_tools import get_local_run_details, query_local_runs
 
@@ -160,6 +160,8 @@ def _handle_tool_calls(
             output = _execute_remember_note_tool(call)
         elif call.get("name") == "update_training_goal":
             output = _execute_update_goal_tool(call)
+        elif call.get("name") == "update_weekly_plan_days":
+            output = _execute_update_weekly_plan_days_tool(call)
         elif call.get("name") == "save_weekly_plan":
             output = _execute_save_weekly_plan_tool(call)
         elif call.get("name") == "save_race_result":
@@ -216,6 +218,21 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
     plan = _clean_saved_weekly_plan(plan)
     save_weekly_plan(plan)
     return _tool_output(call["call_id"], {"saved": True})
+
+
+def _execute_update_weekly_plan_days_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    updates = _weekly_plan_day_updates(arguments.get("updates"))
+    if not updates:
+        return None
+    updates = {
+        day: _clean_saved_weekly_plan_line(f"{day}: {workout}").split(None, 1)[1]
+        for day, workout in updates.items()
+    }
+    result = update_weekly_plan_days(updates)
+    return _tool_output(call["call_id"], {"saved": True, "plan": result.get("text", "")})
 
 
 def _execute_save_race_result_tool(call: dict[str, Any]) -> dict[str, str] | None:
@@ -375,6 +392,22 @@ def _bool_argument(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"1", "true", "yes"}
     return bool(value)
+
+
+def _weekly_plan_day_updates(value: Any) -> dict[str, str]:
+    if isinstance(value, dict):
+        return {str(day): str(workout) for day, workout in value.items()}
+    if not isinstance(value, list):
+        return {}
+    updates: dict[str, str] = {}
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        day = item.get("day")
+        workout = item.get("workout")
+        if isinstance(day, str) and isinstance(workout, str):
+            updates[day] = workout
+    return updates
 
 
 def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:

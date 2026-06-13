@@ -71,12 +71,15 @@ SAVE_WEEKLY_PLAN_TOOL = {
         "shares a day-by-day or week-long schedule that appears to be their actual plan, even if "
         "they do not use words like save, set, or update. Treat natural messages like 'next week "
         "is Mon easy, Tue workout...', 'this week: Monday 5, Wednesday 6x400...', 'here is my "
-        "plan for next week', 'save this as my plan', or 'that is the plan' as save intent. Do "
+        "plan for next week', 'save this as my plan', 'move today's run to tomorrow', "
+        "'make today rest and tomorrow 10', or 'that is the plan' as save intent. Do "
         "not use this when the athlete asks for a suggested, possible, hypothetical, or example "
         "plan, such as 'what might next week look like?', 'what could next week look like if...', "
         "'what should I do next week?', or 'suggest a plan'. Convert saved "
-        "plans into clear plain text with one line for each planned day. Preserve runner "
-        "shorthand such as '2mi WU, 6x400m, CD'."
+        "plans into clear plain text with one line for each planned day. When applying a partial "
+        "edit to the current plan, rewrite and save the full revised week, preserving unchanged "
+        "days and adding missing affected days when necessary. Preserve runner shorthand such as "
+        "'2mi WU, 6x400m, CD'."
     ),
     "parameters": {
         "type": "object",
@@ -89,6 +92,45 @@ SAVE_WEEKLY_PLAN_TOOL = {
             }
         },
         "required": ["plan"],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
+UPDATE_WEEKLY_PLAN_DAYS_TOOL = {
+    "type": "function",
+    "name": "update_weekly_plan_days",
+    "description": (
+        "Apply one or more day-level edits to the current saved weekly plan while preserving "
+        "unchanged days. Use this for partial plan edits such as moving today's run to tomorrow, "
+        "making today rest, changing Saturday to 10 miles, swapping two days, or replacing one "
+        "day's workout. Resolve relative dates like today and tomorrow from the current local "
+        "date before calling. Pass one entry for each changed weekday, for example day "
+        "Saturday workout rest, and day Sunday workout 10 miles."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "updates": {
+                "type": "array",
+                "description": "Changed weekday workouts.",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "Weekday name, such as Saturday or Sunday.",
+                        },
+                        "workout": {
+                            "type": "string",
+                            "description": "Revised workout for that day, such as rest or 10 miles.",
+                        },
+                    },
+                    "required": ["day", "workout"],
+                    "additionalProperties": False,
+                },
+            }
+        },
+        "required": ["updates"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -249,6 +291,7 @@ GET_GARMIN_TREND_TOOL = {
 COACHING_TOOLS = [
     REMEMBER_NOTE_TOOL,
     UPDATE_GOAL_TOOL,
+    UPDATE_WEEKLY_PLAN_DAYS_TOOL,
     SAVE_WEEKLY_PLAN_TOOL,
     SAVE_RACE_RESULT_TOOL,
     QUERY_LOCAL_RUNS_TOOL,
@@ -363,8 +406,15 @@ COACHING_INSTRUCTIONS = (
     "details as likely plan updates unless the athlete frames them as hypothetical, a question, "
     "or a request for your suggestion. Questions like 'what might next week look like', 'what "
     "could next week look like if...', or 'what should I do next week' are requests for advice, "
-    "not plan-save requests. Rewrite natural plan text into a complete plain-text weekly plan "
-    "with one line per planned day, preserving runner shorthand. If the athlete asks for a "
+    "not plan-save requests. When the athlete asks to move, swap, replace, make today rest, make "
+    "tomorrow a specific run, or otherwise edit only part of the current plan, call "
+    "update_weekly_plan_days with the changed weekdays. Resolve relative dates like today and "
+    "tomorrow from the current local date. For example, on Saturday, 'move today's run to "
+    "tomorrow and make today rest' means update Saturday to rest and Sunday to the moved run. "
+    "Do not say the plan was changed unless update_weekly_plan_days or save_weekly_plan was "
+    "actually called. Rewrite "
+    "natural plan text into a complete plain-text weekly plan with one line per planned day, "
+    "preserving runner shorthand. If the athlete asks for a "
     "suggested, possible, hypothetical, or example plan, answer with the suggestion but do not "
     "call save_weekly_plan unless they later explicitly approve it as the actual plan. After "
     "saving the plan, briefly acknowledge it in the normal coaching reply. "

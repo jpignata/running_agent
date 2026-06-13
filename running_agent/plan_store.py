@@ -30,6 +30,7 @@ WEEKDAYS = {
     "sun": "Sunday",
     "sunday": "Sunday",
 }
+WEEKDAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
 
 def save_weekly_plan(plan_text: str, path: Path = PLAN_PATH) -> dict[str, Any]:
@@ -43,6 +44,26 @@ def save_weekly_plan(plan_text: str, path: Path = PLAN_PATH) -> dict[str, Any]:
     }
     write_json_file(path, plan)
     return plan
+
+
+def update_weekly_plan_days(
+    updates: dict[str, str],
+    path: Path = PLAN_PATH,
+) -> dict[str, Any]:
+    normalized = _normalize_plan_updates(updates)
+    if not normalized:
+        raise RuntimeError("At least one weekly plan day update is required.")
+
+    existing = load_weekly_plan(path)
+    current_text = (existing or {}).get("text", "").strip() if existing else ""
+    parsed = parse_weekly_plan(current_text)
+    parsed.update(normalized)
+    plan_lines = [
+        f"{weekday} {parsed[weekday]}"
+        for weekday in WEEKDAY_NAMES
+        if weekday in parsed and parsed[weekday].strip()
+    ]
+    return save_weekly_plan("\n".join(plan_lines), path=path)
 
 
 def load_weekly_plan(path: Path = PLAN_PATH) -> dict[str, Any] | None:
@@ -139,3 +160,13 @@ def parse_weekly_plan(plan_text: str) -> dict[str, str]:
         if weekday and workout:
             parsed[weekday] = workout
     return parsed
+
+
+def _normalize_plan_updates(updates: dict[str, str]) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+    for raw_day, raw_workout in updates.items():
+        weekday = WEEKDAYS.get(str(raw_day).strip().lower())
+        workout = str(raw_workout).strip(" \t,:-")
+        if weekday and workout:
+            normalized[weekday] = workout
+    return normalized

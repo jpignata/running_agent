@@ -1,0 +1,26 @@
+{
+  "description": "Checks that moving today's long run to tomorrow saves a full revised weekly plan instead of merely saying it changed.",
+  "current_date": "2026-06-13",
+  "user_message": "Move today's run to tomorrow in the plan and make today rest.",
+  "initial_context": {
+    "weekly_plan": "Monday rest\nTuesday 5 miles\nWednesday 5 x (5 minutes @ threshold with 2 min rest/recovery)\nThursday rest or cross training\nFriday 4 miles\nSaturday 10 miles",
+    "training_summary": "Reviewed 3 runs over the last 7 days. The athlete ran Tuesday, Wednesday quality, and Friday easy. Saturday morning readiness is low after poor sleep.",
+    "recent_runs": "Current Strava status for Saturday, Jun 13: no synced run recorded today.\n\nCurrent week mileage from synced Strava runs (Monday, Jun 8 through Sunday, Jun 14; today is Saturday, Jun 13):\n- Monday: no synced run recorded\n- Tuesday: 5.07 mi\n- Wednesday: 7.37 mi\n- Thursday: no synced run recorded\n- Friday: 7.05 mi\n- Saturday: no synced run recorded\n- Sunday: future day, not included in current total\nCurrent week total through today: 19.49 mi.\nDo not count future planned mileage as completed mileage.",
+    "training_goal": "Build toward NYC Marathon under 3:10 while staying healthy."
+  },
+  "expected": {
+    "tool_calls": {
+      "called": ["update_weekly_plan_days"]
+    },
+    "plan": {
+      "required_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "must_include": {
+        "Saturday": ["rest"],
+        "Sunday": ["10"]
+      },
+      "must_preserve_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+    },
+    "reply_must_include": ["tomorrow"],
+    "reply_must_not_include": ["I can’t update", "cannot update"]
+  }
+}

@@ -64,6 +64,7 @@ def run_case(
     saved_race_results: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
     original_save_weekly_plan = openai_client.save_weekly_plan
+    original_update_weekly_plan_days = openai_client.update_weekly_plan_days
     original_save_training_goal = openai_client.save_training_goal
     original_save_race_result = openai_client.save_race_result
     original_query_local_runs = openai_client.query_local_runs
@@ -76,6 +77,26 @@ def run_case(
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
         tool_calls.append({"name": "save_weekly_plan", "arguments": {"plan": plan_text}})
+        return {"text": plan_text}
+
+    def capture_update_weekly_plan_days(updates: dict[str, str]):
+        current = parse_weekly_plan(context.get("weekly_plan", ""))
+        current.update(updates)
+        plan_text = "\n".join(
+            f"{day} {current[day]}"
+            for day in (
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+            )
+            if day in current
+        )
+        saved_plans.append(plan_text)
+        tool_calls.append({"name": "update_weekly_plan_days", "arguments": {"updates": updates}})
         return {"text": plan_text}
 
     def capture_save_training_goal(goal_text: str):
@@ -98,6 +119,7 @@ def run_case(
         return _tool_result(case, "get_local_run_details")
 
     openai_client.save_weekly_plan = capture_save_weekly_plan
+    openai_client.update_weekly_plan_days = capture_update_weekly_plan_days
     openai_client.save_training_goal = capture_save_training_goal
     openai_client.save_race_result = capture_save_race_result
     openai_client.query_local_runs = capture_query_local_runs
@@ -128,6 +150,7 @@ def run_case(
         reply = _run_case_model_call(case, context, reply_func)
     finally:
         openai_client.save_weekly_plan = original_save_weekly_plan
+        openai_client.update_weekly_plan_days = original_update_weekly_plan_days
         openai_client.save_training_goal = original_save_training_goal
         openai_client.save_race_result = original_save_race_result
         openai_client.query_local_runs = original_query_local_runs
@@ -271,7 +294,9 @@ def score_expected(
 ) -> list[EvalCheck]:
     expected = case.get("expected") or {}
     checks = score_tool_calls(expected, tool_calls)
-    if _expects_tool_called(expected, "save_weekly_plan"):
+    if _expects_tool_called(expected, "save_weekly_plan") or _expects_tool_called(
+        expected, "update_weekly_plan_days"
+    ):
         checks.extend(score_plan_adjustment(case, saved_plans))
     if _expects_tool_called(expected, "update_training_goal"):
         checks.extend(score_goal_update(expected, saved_goals))
@@ -441,6 +466,17 @@ def score_tool_calls(
         if matching_calls:
             checks.extend(score_tool_arguments(name, matching_calls[0], spec))
 
+    for raw_group in tool_expectations.get("called_any", []):
+        group = _tool_call_specs(raw_group)
+        names = [spec["name"] for spec in group]
+        matching_calls = [call for call in tool_calls if call.get("name") in names]
+        checks.append(
+            EvalCheck(
+                bool(matching_calls),
+                f"expected one of {names} to be called; got {actual_names}",
+            )
+        )
+
     for spec in _tool_call_specs(tool_expectations.get("not_called")):
         name = spec["name"]
         matching_calls = [call for call in tool_calls if call.get("name") == name]
@@ -482,7 +518,12 @@ def score_tool_arguments(
 
 def _expects_tool_called(expected: dict[str, Any], name: str) -> bool:
     tool_expectations = expected.get("tool_calls") or {}
-    return any(spec["name"] == name for spec in _tool_call_specs(tool_expectations.get("called")))
+    return any(
+        spec["name"] == name for spec in _tool_call_specs(tool_expectations.get("called"))
+    ) or any(
+        any(spec["name"] == name for spec in _tool_call_specs(group))
+        for group in tool_expectations.get("called_any", [])
+    )
 
 
 def _tool_call_specs(value: Any) -> list[dict[str, Any]]:

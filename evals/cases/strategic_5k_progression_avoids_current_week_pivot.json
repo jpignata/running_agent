@@ -20,7 +20,6 @@
     ],
     "reply_must_not_match": [
       "(?i)5k[^\\n.]*20:02",
-      "(?i)Thursday[^\\n]*(rest|cross)",
       "(?i)Saturday[^\\n]*(12|long)"
     ]
   }

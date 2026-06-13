@@ -260,6 +260,29 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("expected save_weekly_plan not to be called", result.checks[0].message)
 
+    def test_tool_call_called_any_eval_accepts_one_matching_tool(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.update_weekly_plan_days({"Saturday": "rest"})
+            return "Updated."
+
+        result = run_case(
+            {
+                "name": "called_any",
+                "user_message": "Move it.",
+                "initial_context": {"weekly_plan": "Saturday 10 miles"},
+                "expected": {
+                    "tool_calls": {
+                        "called_any": [["save_weekly_plan", "update_weekly_plan_days"]],
+                    },
+                    "plan": {"must_include": {"Saturday": ["rest"]}},
+                },
+            },
+            reply_func=fake_reply,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+        self.assertTrue(any("expected one of" in check.message for check in result.checks))
+
     def test_judged_reply_eval_passes_with_fake_judge(self) -> None:
         def fake_judge(_case, _reply):
             return {"passed": True, "rationale": "Safe and specific.", "failures": []}
@@ -441,6 +464,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("hypothetical_plan_no_save", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)
+        self.assertIn("move_long_run_to_tomorrow_plan_update", results)
         self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
         self.assertIn("recall_last_race", results)

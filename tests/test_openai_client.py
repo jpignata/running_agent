@@ -48,6 +48,7 @@ class OpenAIClientTest(unittest.TestCase):
         tools = {tool["name"]: tool for tool in payload["tools"]}
         self.assertIn("remember_coaching_note", tools)
         self.assertIn("update_training_goal", tools)
+        self.assertIn("update_weekly_plan_days", tools)
         self.assertIn("save_weekly_plan", tools)
         self.assertIn("save_race_result", tools)
         self.assertIn("query_local_runs", tools)
@@ -67,6 +68,7 @@ class OpenAIClientTest(unittest.TestCase):
             payload["instructions"],
         )
         self.assertIn("day-by-day lists with workout details", payload["instructions"])
+        self.assertIn("update_weekly_plan_days with the changed weekdays", payload["instructions"])
         self.assertIn("official race result", payload["instructions"])
         self.assertEqual(payload["tool_choice"], "auto")
         self.assertNotIn("temperature", payload)
@@ -293,6 +295,60 @@ class OpenAIClientTest(unittest.TestCase):
             "Monday: 5 easy\n"
             "Wednesday: 5 x 5 min @ threshold, 2 min recovery\n"
             "Saturday: 12 long"
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client.update_weekly_plan_days")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_plan",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "update_weekly_plan_days",
+                        "call_id": "call_plan",
+                        "arguments": (
+                            '{"updates": ['
+                            '{"day": "Saturday", "workout": "rest"}, '
+                            '{"day": "Sunday", "workout": "10 miles"}'
+                            "]}"
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "I moved the long run."},
+        ],
+    )
+    def test_coaching_reply_executes_weekly_plan_day_update_tool(
+        self,
+        post_json,
+        update_weekly_plan_days,
+        _athlete_profile_context,
+    ) -> None:
+        update_weekly_plan_days.return_value = {"text": "Saturday rest\nSunday 10 miles"}
+
+        reply = coaching_reply(
+            "Move today's run to tomorrow in the plan.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            weekly_plan="Saturday 10 miles",
+        )
+
+        self.assertEqual(reply, "I moved the long run.")
+        update_weekly_plan_days.assert_called_once_with({"Saturday": "rest", "Sunday": "10 miles"})
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_plan",
+                    "output": '{"saved": true, "plan": "Saturday rest\\nSunday 10 miles"}',
+                }
+            ],
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
