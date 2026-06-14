@@ -241,6 +241,37 @@ To print interaction traces for Telegram messages and scheduled ticks:
 python -m running_agent telegram --trace-log
 ```
 
+### Run The Telegram Bot On Boot
+
+Install the Telegram coach as a user-level systemd service:
+
+```bash
+python -m running_agent install-telegram-service
+```
+
+This writes `~/.config/systemd/user/running-agent-telegram.service`, enables it for the
+user systemd session, and starts it immediately. The service runs the current virtualenv's
+Python from this project directory, so install it from the checked-out repo with the virtualenv
+activated.
+
+For cloud or spot instances where the process should start after a reboot before you log in,
+enable linger once:
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+Useful service commands:
+
+```bash
+systemctl --user status running-agent-telegram.service
+systemctl --user restart running-agent-telegram.service
+journalctl --user -u running-agent-telegram.service -f
+```
+
+The service logs to stdout/stderr, which systemd captures in journald. App log lines do not
+prepend their own timestamps because `journalctl` already supplies service timestamps.
+
 ### Chat With The Coach
 
 Most interactions should be natural-language coaching requests. The visible slash commands

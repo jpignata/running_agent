@@ -132,6 +132,29 @@ class CliTest(unittest.TestCase):
             ["--case", "adjust_existing_weekly_plan", "--debug"]
         )
 
+    @patch("builtins.print")
+    @patch("running_agent.cli.boot_linger_hint", return_value="linger hint")
+    @patch("running_agent.cli.install_telegram_user_service", return_value="/tmp/service")
+    @patch("sys.argv", ["running-agent", "install-telegram-service", "--no-start"])
+    def test_install_telegram_service_command_installs_user_service(
+        self,
+        install_telegram_user_service,
+        _boot_linger_hint,
+        print_,
+    ) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        install_telegram_user_service.assert_called_once_with(enable=True, start=False)
+        self.assertEqual(
+            [call.args for call in print_.call_args_list],
+            [
+                ("Installed Telegram service: /tmp/service",),
+                ("Enabled user service: running-agent-telegram.service",),
+                ("linger hint",),
+            ],
+        )
+
     @patch.dict(os.environ, {}, clear=True)
     @patch("running_agent.cli.save_agent_state")
     @patch("running_agent.cli.load_agent_state", return_value={})

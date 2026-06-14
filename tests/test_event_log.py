@@ -14,19 +14,22 @@ from running_agent.event_log import (
 
 
 class EventLogTest(unittest.TestCase):
-    def test_log_event_prints_timestamped_line(self) -> None:
+    def test_log_event_prints_compact_line(self) -> None:
         with patch("builtins.print") as print_mock:
             log_event("rx", {"chat_id": 123, "text": "hello\nthere"})
 
         printed_line = print_mock.call_args.args[0]
-        self.assertIn(' rx chat_id=123 text="hello\\nthere"', printed_line)
+        self.assertEqual(printed_line, 'rx chat_id=123 text="hello\\nthere"')
         self.assertEqual(print_mock.call_args.kwargs, {"flush": True})
 
     def test_log_event_quotes_and_escapes_text_field(self) -> None:
         with patch("builtins.print") as print_mock:
             log_event("tx", {"chat_id": 123, "text": 'he said "go"'})
 
-        self.assertIn(' tx chat_id=123 text="he said \\"go\\""', print_mock.call_args.args[0])
+        self.assertEqual(
+            'tx chat_id=123 text="he said \\"go\\""',
+            print_mock.call_args.args[0],
+        )
 
     def test_debug_event_does_not_print_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=True), patch("builtins.print") as print_mock:
@@ -38,7 +41,7 @@ class EventLogTest(unittest.TestCase):
         with patch.dict(os.environ, {DEBUG_STDOUT_ENV: "1"}), patch("builtins.print") as print_mock:
             log_event("debug", {"message": "work_start"})
 
-        self.assertIn(" debug message=work_start", print_mock.call_args.args[0])
+        self.assertEqual("debug message=work_start", print_mock.call_args.args[0])
 
     def test_quiet_event_log_suppresses_stdout(self) -> None:
         with patch.dict(os.environ, {QUIET_STDOUT_ENV: "1"}), patch("builtins.print") as print_mock:
@@ -61,8 +64,8 @@ class EventLogTest(unittest.TestCase):
             trace.close(reply_count=1)
 
         lines = [call.args[0] for call in print_mock.call_args_list]
-        self.assertTrue(any(" trace_start " in line for line in lines))
-        self.assertTrue(any(" trace_end " in line for line in lines))
+        self.assertTrue(any(line.startswith("trace_start ") for line in lines))
+        self.assertTrue(any(line.startswith("trace_end ") for line in lines))
         self.assertTrue(any("source=repl" in line for line in lines))
         self.assertTrue(any("interaction=message" in line for line in lines))
         self.assertTrue(any("reply_count=1" in line for line in lines))
@@ -81,7 +84,7 @@ class EventLogTest(unittest.TestCase):
             trace.close()
 
         debug_line = next(
-            call.args[0] for call in print_mock.call_args_list if " debug " in call.args[0]
+            call.args[0] for call in print_mock.call_args_list if call.args[0].startswith("debug ")
         )
         self.assertIn(f"trace_id={trace.trace_id}", debug_line)
 

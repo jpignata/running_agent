@@ -26,8 +26,10 @@ class CoachAgentTest(unittest.TestCase):
                 agent.handle_message("hello", source="test")
 
         lines = [call.args[0] for call in print_.call_args_list]
-        self.assertTrue(any(" trace_start " in line for line in lines))
-        self.assertTrue(any(" trace_end " in line and "status=error" in line for line in lines))
+        self.assertTrue(any(line.startswith("trace_start ") for line in lines))
+        self.assertTrue(
+            any(line.startswith("trace_end ") and "status=error" in line for line in lines)
+        )
 
     @patch.object(CoachAgent, "training_summary", return_value="Recent summary")
     def test_command_aliases_route_to_same_handler(self, _training_summary) -> None:

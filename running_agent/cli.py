@@ -16,6 +16,7 @@ from .scheduled_preview import format_scheduled_preview, preview_scheduled_messa
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
 from .strava_sync import sync_strava_runs
+from .systemd_service import boot_linger_hint, install_telegram_user_service
 from .telegram_transport import TelegramTransport
 
 
@@ -93,6 +94,21 @@ def _main() -> int:
         "--debug",
         action="store_true",
         help="Include saved plans, tool calls, and model replies in eval output.",
+    )
+
+    install_service = subparsers.add_parser(
+        "install-telegram-service",
+        help="Install and start the Telegram coach as a user systemd service.",
+    )
+    install_service.add_argument(
+        "--no-enable",
+        action="store_true",
+        help="Write the service file without enabling it at boot.",
+    )
+    install_service.add_argument(
+        "--no-start",
+        action="store_true",
+        help="Write and enable the service without starting it now.",
     )
 
     exchange = subparsers.add_parser("exchange-code", help="Exchange an OAuth code for tokens.")
@@ -229,6 +245,19 @@ def _main() -> int:
         if args.debug:
             argv.append("--debug")
         return eval_runner_main(argv)
+
+    if args.command == "install-telegram-service":
+        service_path = install_telegram_user_service(
+            enable=not args.no_enable,
+            start=not args.no_start,
+        )
+        print(f"Installed Telegram service: {service_path}")
+        if not args.no_enable:
+            print("Enabled user service: running-agent-telegram.service")
+        if not args.no_start:
+            print("Started user service: running-agent-telegram.service")
+        print(boot_linger_hint())
+        return 0
 
     if args.command == "telegram":
         if args.debug_log:

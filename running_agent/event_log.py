@@ -24,9 +24,7 @@ def log_event(event_type: str, fields: dict[str, Any]) -> None:
     trace_id = _ACTIVE_TRACE_ID.get()
     if trace_id and "trace_id" not in fields:
         fields = {"trace_id": trace_id, **fields}
-    timestamp = datetime.now(timezone.utc).isoformat()
     entry = {
-        "timestamp": timestamp,
         "type": event_type,
         **fields,
     }
@@ -90,9 +88,9 @@ def start_trace(source: str, interaction: str, **fields: Any) -> InteractionTrac
 
 
 def _event_line(entry: dict[str, Any]) -> str:
-    parts = [str(entry.get("timestamp")), str(entry.get("type"))]
+    parts = [str(entry.get("type"))]
     for key, value in entry.items():
-        if key in {"timestamp", "type"}:
+        if key == "type":
             continue
         parts.append(f"{key}={_line_value(value, quoted=key == 'text')}")
     return " ".join(parts)
