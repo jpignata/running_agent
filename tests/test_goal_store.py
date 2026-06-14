@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
+from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.goal_store import load_training_goal, save_training_goal, training_goal_context
 
 
@@ -19,12 +22,16 @@ class GoalStoreTest(unittest.TestCase):
         self.assertEqual(loaded["text"], "NYC Marathon, sub-3:10")
         self.assertIn("updated_at", loaded)
 
-    def test_training_goal_context_humanizes_timestamp(self) -> None:
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 5, 29, 11, 30, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_training_goal_context_humanizes_timestamp(self, _coach_now) -> None:
         path = _goal_file("NYC Marathon, sub-3:10")
 
         context = training_goal_context(path)
 
-        self.assertIn("Overall training goal, last updated Friday, May 29", context)
+        self.assertIn("Overall training goal, last updated 20 minutes ago", context)
         self.assertIn("NYC Marathon, sub-3:10", context)
         self.assertNotIn("2026-05-29T15:10:00", context)
 

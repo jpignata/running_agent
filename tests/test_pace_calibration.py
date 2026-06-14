@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
+from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.pace_calibration import (
     load_pace_calibration,
     pace_calibration_context,
@@ -23,12 +26,16 @@ class PaceCalibrationTest(unittest.TestCase):
         self.assertEqual(loaded["text"], "VDOT 50, threshold 6:55/mi")
         self.assertIn("updated_at", loaded)
 
-    def test_pace_calibration_context_humanizes_timestamp(self) -> None:
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 5, 29, 11, 30, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_pace_calibration_context_humanizes_timestamp(self, _coach_now) -> None:
         path = _pace_file("VDOT 50, easy 8:05-8:45/mi")
 
         context = pace_calibration_context(path)
 
-        self.assertIn("Current VDOT and pace calibration, last updated Friday, May 29", context)
+        self.assertIn("Current VDOT and pace calibration, last updated 20 minutes ago", context)
         self.assertIn("VDOT 50, easy 8:05-8:45/mi", context)
 
     def test_empty_pace_calibration_raises(self) -> None:

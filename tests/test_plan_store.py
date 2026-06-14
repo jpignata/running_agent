@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from unittest.mock import patch
 
+from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.plan_store import (
     parse_weekly_plan,
     planned_workout_for_date,
@@ -95,29 +97,72 @@ class PlanStoreTest(unittest.TestCase):
             "Sunday 10 miles",
         )
 
-    def test_weekly_plan_context_includes_saved_week_start(self) -> None:
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
+    def test_weekly_plan_context_describes_next_week_naturally(self, _coach_today) -> None:
         path = _plan_file("Monday 5 easy", week_start="2026-06-15")
 
         context = weekly_plan_context(path)
 
-        self.assertIn("Weekly plan for week starting 2026-06-15", context)
+        self.assertIn("Weekly plan for next week", context)
+        self.assertNotIn("week starting 2026-06-15", context)
 
-    def test_weekly_plan_context_for_week_requires_matching_week_start(self) -> None:
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 17))
+    def test_weekly_plan_context_describes_this_week_naturally(self, _coach_today) -> None:
+        path = _plan_file("Monday 5 easy", week_start="2026-06-15")
+
+        context = weekly_plan_context(path)
+
+        self.assertIn("Weekly plan for this week", context)
+
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 30))
+    def test_weekly_plan_context_uses_short_date_for_other_weeks(self, _coach_today) -> None:
+        path = _plan_file("Monday 5 easy", week_start="2026-06-15")
+
+        context = weekly_plan_context(path)
+
+        self.assertIn("Weekly plan for week of 6/15", context)
+
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 6, 14, 16, 30, tzinfo=COACH_TIME_ZONE),
+    )
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
+    def test_weekly_plan_context_uses_relative_coach_time_timestamp(
+        self, _coach_today, _coach_now
+    ) -> None:
+        path = _plan_file(
+            "Monday easy 6",
+            week_start="2026-06-15",
+            updated_at="2026-06-14T20:10:00+00:00",
+        )
+
+        context = weekly_plan_context(path)
+
+        self.assertIn("Weekly plan for next week", context)
+        self.assertIn("last updated 20 minutes ago", context)
+        self.assertNotIn("8:10 PM", context)
+
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
+    def test_weekly_plan_context_for_week_requires_matching_week_start(self, _coach_today) -> None:
         path = _plan_file("Monday 5 easy", week_start="2026-06-15")
 
         matching = weekly_plan_context_for_week(date(2026, 6, 15), path)
         missing = weekly_plan_context_for_week(date(2026, 6, 22), path)
 
-        self.assertIn("Saved weekly plan for target week starting 2026-06-15", matching)
+        self.assertIn("Saved weekly plan for next week", matching)
         self.assertIn("Monday 5 easy", matching)
         self.assertIn("No saved weekly plan explicitly applies", missing)
 
 
-def _plan_file(text: str, week_start: str | None = None) -> Path:
+def _plan_file(
+    text: str,
+    week_start: str | None = None,
+    updated_at: str = "2026-05-29T15:10:00+00:00",
+) -> Path:
     handle = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     path = Path(handle.name)
     with handle:
-        data = {"updated_at": "2026-05-29T15:10:00+00:00", "text": text}
+        data = {"updated_at": updated_at, "text": text}
         if week_start:
             data["week_start"] = week_start
         json.dump(data, handle)

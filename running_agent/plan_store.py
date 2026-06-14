@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from .coach_time import coach_today
 from .storage import read_json_file, write_json_file
 from .storage_paths import WEEKLY_PLAN_PATH
 from .time_format import human_datetime
@@ -91,7 +92,7 @@ def weekly_plan_context(path: Path = PLAN_PATH) -> str:
         return "No weekly plan has been provided."
     week_start = plan.get("week_start")
     if week_start:
-        return f"Weekly plan for week starting {week_start}, last updated {updated_at}:\n{text}"
+        return f"Weekly plan for {_week_label(week_start)}, last updated {updated_at}:\n{text}"
     return f"Weekly plan, last updated {updated_at}:\n{text}"
 
 
@@ -110,7 +111,7 @@ def weekly_plan_context_for_week(target_week_start: date, path: Path = PLAN_PATH
         )
     updated_at = human_datetime(plan.get("updated_at"))
     return (
-        f"Saved weekly plan for target week starting {target_week_start.isoformat()}, "
+        f"Saved weekly plan for {_week_label(target_week_start)}, "
         f"last updated {updated_at}:\n{text}"
     )
 
@@ -219,3 +220,13 @@ def _normalize_week_start(value: str | date | None) -> str | None:
     except ValueError:
         return None
     return parsed.isoformat()
+
+
+def _week_label(week_start: str | date) -> str:
+    parsed = date.fromisoformat(week_start) if isinstance(week_start, str) else week_start
+    current_week_start = coach_today() - timedelta(days=coach_today().weekday())
+    if parsed == current_week_start:
+        return "this week"
+    if parsed == current_week_start + timedelta(days=7):
+        return "next week"
+    return f"week of {parsed.month}/{parsed.day}"

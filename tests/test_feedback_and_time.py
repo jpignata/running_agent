@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime
+from unittest.mock import patch
 
+from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.feedback import summarize_training
 from running_agent.time_format import human_datetime
 
@@ -9,10 +12,35 @@ METERS_PER_MILE = 1609.344
 
 
 class FeedbackAndTimeTest(unittest.TestCase):
-    def test_human_datetime_formats_iso_timestamp(self) -> None:
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 5, 29, 11, 30, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_human_datetime_formats_recent_timestamp_as_minutes_ago(self, _coach_now) -> None:
+        self.assertEqual(human_datetime("2026-05-29T15:10:00+00:00"), "20 minutes ago")
+
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 5, 29, 15, 10, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_human_datetime_formats_same_day_timestamp_as_hours_ago(self, _coach_now) -> None:
+        self.assertEqual(human_datetime("2026-05-29T15:10:00+00:00"), "4 hours ago")
+
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 6, 1, 10, 0, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_human_datetime_formats_nearby_timestamp_as_days_ago(self, _coach_now) -> None:
+        self.assertEqual(human_datetime("2026-05-29T15:10:00+00:00"), "2 days ago")
+
+    @patch(
+        "running_agent.time_format.coach_now",
+        return_value=datetime(2026, 7, 1, 10, 0, tzinfo=COACH_TIME_ZONE),
+    )
+    def test_human_datetime_uses_absolute_fallback_for_old_timestamp(self, _coach_now) -> None:
         formatted = human_datetime("2026-05-29T15:10:00+00:00")
 
-        self.assertIn("Friday, May 29", formatted)
+        self.assertEqual(formatted, "on Friday, May 29 at 11:10 AM")
 
     def test_human_datetime_returns_invalid_input_unchanged(self) -> None:
         self.assertEqual(human_datetime("not-a-date"), "not-a-date")
