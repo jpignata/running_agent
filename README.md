@@ -269,6 +269,16 @@ systemctl --user restart running-agent-telegram.service
 journalctl --user -u running-agent-telegram.service -f
 ```
 
+Optional shell aliases:
+
+```bash
+alias telegram-start='systemctl --user start running-agent-telegram.service'
+alias telegram-stop='systemctl --user stop running-agent-telegram.service'
+alias telegram-restart='systemctl --user restart running-agent-telegram.service'
+alias telegram-status='systemctl --user status running-agent-telegram.service'
+alias telegram-logs='journalctl --user -u running-agent-telegram.service -f'
+```
+
 The service logs to stdout/stderr, which systemd captures in journald. App log lines do not
 prepend their own timestamps because `journalctl` already supplies service timestamps.
 
