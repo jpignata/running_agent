@@ -9,7 +9,7 @@ from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
-from .plan_store import planned_workout_for_date, weekly_plan_context
+from .plan_store import planned_workout_for_date, weekly_plan_context, weekly_plan_context_for_week
 from .strava_client import StravaClient
 from .workout_classifier import classify_workout
 
@@ -89,8 +89,8 @@ def weekly_coaching_message(
     garmin_context = safe_garmin_weekly_context(days=7)
     prompt = (
         f"Write one integrated Sunday evening coaching message for Telegram. Review the week "
-        f"from {week_start.isoformat()} through {week_end.isoformat()}, then suggest next "
-        f"week's plan for {target_week_start.isoformat()} through {target_week_end.isoformat()}. "
+        f"from {week_start.isoformat()} through {week_end.isoformat()}, then handle next "
+        f"week for {target_week_start.isoformat()} through {target_week_end.isoformat()}. "
         "This should feel like one natural note from a real coach, not two pasted reports. "
         "Start with a natural read on the week, such as 'You had a great week,' 'This was a "
         "solid week,' or 'This was a challenging week,' based on the data. Do not use a title, "
@@ -101,7 +101,10 @@ def weekly_coaching_message(
         "lap context when provided for structured workouts, tempos, races, or long runs. "
         "Make a clear coaching judgment about whether the recent evidence supports the stated "
         "goal, makes it uncertain, or exposes a specific limiter that next week should address. "
-        "Then transition naturally into a specific Monday-through-Sunday plan. The plan must "
+        "If the weekly plan context says there is a saved weekly plan for the target week, recap "
+        "that saved plan instead of suggesting a different one. In that case, explain briefly why "
+        "it fits or what to watch, but do not replace it. If there is no saved target-week plan, transition "
+        "naturally into a specific Monday-through-Sunday plan. Any new suggested plan must "
         "respect progression: estimate the just-finished week's completed mileage, cap next "
         "week at about 8% above that unless the athlete explicitly asked for more, and make "
         "the daily mileage add up to that cap. If last week was 38 miles, keep next week at "
@@ -116,7 +119,7 @@ def weekly_coaching_message(
         prompt,
         training_summary=summarize_training(activities, days=lookback_days),
         recent_runs=recent_runs,
-        weekly_plan=weekly_plan_context(),
+        weekly_plan=weekly_plan_context_for_week(target_week_start),
         training_goal=training_goal_context(),
         coach_log=coach_log_context(),
         garmin_context=garmin_context,

@@ -11,7 +11,9 @@ from running_agent.plan_store import (
     planned_workout_for_date,
     upcoming_plan_context_after_date,
     update_weekly_plan_days,
+    weekly_plan_context,
     weekly_plan_context_for_date,
+    weekly_plan_context_for_week,
 )
 
 
@@ -93,12 +95,32 @@ class PlanStoreTest(unittest.TestCase):
             "Sunday 10 miles",
         )
 
+    def test_weekly_plan_context_includes_saved_week_start(self) -> None:
+        path = _plan_file("Monday 5 easy", week_start="2026-06-15")
 
-def _plan_file(text: str) -> Path:
+        context = weekly_plan_context(path)
+
+        self.assertIn("Weekly plan for week starting 2026-06-15", context)
+
+    def test_weekly_plan_context_for_week_requires_matching_week_start(self) -> None:
+        path = _plan_file("Monday 5 easy", week_start="2026-06-15")
+
+        matching = weekly_plan_context_for_week(date(2026, 6, 15), path)
+        missing = weekly_plan_context_for_week(date(2026, 6, 22), path)
+
+        self.assertIn("Saved weekly plan for target week starting 2026-06-15", matching)
+        self.assertIn("Monday 5 easy", matching)
+        self.assertIn("No saved weekly plan explicitly applies", missing)
+
+
+def _plan_file(text: str, week_start: str | None = None) -> Path:
     handle = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     path = Path(handle.name)
     with handle:
-        json.dump({"updated_at": "2026-05-29T15:10:00+00:00", "text": text}, handle)
+        data = {"updated_at": "2026-05-29T15:10:00+00:00", "text": text}
+        if week_start:
+            data["week_start"] = week_start
+        json.dump(data, handle)
     return path
 
 

@@ -79,7 +79,8 @@ SAVE_WEEKLY_PLAN_TOOL = {
         "plans into clear plain text with one line for each planned day. When applying a partial "
         "edit to the current plan, rewrite and save the full revised week, preserving unchanged "
         "days and adding missing affected days when necessary. Preserve runner shorthand such as "
-        "'2mi WU, 6x400m, CD'."
+        "'2mi WU, 6x400m, CD'. When the athlete says this week or next week, resolve the "
+        "Monday week_start date from the current local date and include it."
     ),
     "parameters": {
         "type": "object",
@@ -89,9 +90,15 @@ SAVE_WEEKLY_PLAN_TOOL = {
                 "description": (
                     "The complete weekly plan text to save, ideally with one line per planned day."
                 ),
-            }
+            },
+            "week_start": {
+                "type": "string",
+                "description": (
+                    "Monday date for the plan week in YYYY-MM-DD format, or empty if unknown."
+                ),
+            },
         },
-        "required": ["plan"],
+        "required": ["plan", "week_start"],
         "additionalProperties": False,
     },
     "strict": True,
@@ -418,7 +425,9 @@ COACHING_INSTRUCTIONS = (
     "10 miles.' For a full weekly plan save, mention that the saved_plan was saved and include "
     "the concrete days if the athlete needs confirmation. Rewrite "
     "natural plan text into a complete plain-text weekly plan with one line per planned day, "
-    "preserving runner shorthand. If the athlete asks for a "
+    "preserving runner shorthand. When saving a complete plan, include week_start as the Monday "
+    "date for the plan week if the athlete says this week, next week, or gives enough dates to "
+    "resolve it; otherwise pass an empty string. If the athlete asks for a "
     "suggested, possible, hypothetical, or example plan, answer with the suggestion but do not "
     "call save_weekly_plan unless they later explicitly approve it as the actual plan. After "
     "saving the plan, briefly acknowledge it in the normal coaching reply. "

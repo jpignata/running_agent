@@ -23,12 +23,14 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch(
         "running_agent.weekly_review.coaching_reply", return_value="Good week. Keep it controlled."
     )
     def test_review_week_passes_context_and_logs_summary(
         self,
         coaching_reply,
+        _weekly_quality_detail_context,
         _weekly_plan_context,
         _training_goal_context,
         _coach_log_context,
@@ -55,8 +57,11 @@ class WeeklyReviewTest(unittest.TestCase):
 
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
+    @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch("running_agent.weekly_review.coaching_reply", side_effect=RuntimeError("offline"))
-    def test_review_week_has_fallback(self, _coaching_reply, _garmin, append_week_review) -> None:
+    def test_review_week_has_fallback(
+        self, _coaching_reply, _weekly_quality_detail_context, _garmin, append_week_review
+    ) -> None:
         review = review_week(
             _FakeStravaClient([_run("Easy Run")]),
             week_start=datetime(2026, 5, 25).date(),
@@ -69,7 +74,11 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
-    @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch(
+        "running_agent.weekly_review.weekly_plan_context_for_week",
+        return_value="Saved weekly plan for target week starting 2026-06-01:\nMonday 5 easy",
+    )
+    @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch(
         "running_agent.weekly_review.coaching_reply",
         return_value="You had a great week. Next week, keep it controlled.",
@@ -77,7 +86,8 @@ class WeeklyReviewTest(unittest.TestCase):
     def test_weekly_coaching_message_combines_review_and_plan(
         self,
         coaching_reply,
-        _weekly_plan_context,
+        _weekly_quality_detail_context,
+        _weekly_plan_context_for_week,
         _training_goal_context,
         _coach_log_context,
         _safe_garmin_weekly_context,
@@ -91,8 +101,13 @@ class WeeklyReviewTest(unittest.TestCase):
 
         self.assertEqual(message, "You had a great week. Next week, keep it controlled.")
         kwargs = coaching_reply.call_args.kwargs
-        self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        self.assertEqual(
+            kwargs["weekly_plan"],
+            "Saved weekly plan for target week starting 2026-06-01:\nMonday 5 easy",
+        )
         self.assertFalse(kwargs["tools_enabled"])
+        prompt = coaching_reply.call_args.args[0]
+        self.assertIn("recap that saved plan instead of suggesting a different one", prompt)
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",
@@ -103,12 +118,16 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
-    @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch(
+        "running_agent.weekly_review.weekly_plan_context_for_week", return_value="No target plan"
+    )
+    @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch("running_agent.weekly_review.coaching_reply", side_effect=RuntimeError("offline"))
     def test_weekly_coaching_message_raises_when_model_is_unavailable(
         self,
         _coaching_reply,
-        _weekly_plan_context,
+        _weekly_quality_detail_context,
+        _weekly_plan_context_for_week,
         _training_goal_context,
         _coach_log_context,
         _safe_garmin_weekly_context,

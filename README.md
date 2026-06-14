@@ -25,8 +25,8 @@ When `python -m running_agent telegram` is running, the bot:
   a workout and Strava does not already show a completed run for the day.
 - Sends one brief end-of-day report after 8:30pm Eastern Monday through Saturday when
   Strava shows a completed run for the day.
-- Sends one integrated Sunday evening review plus next-week plan idea after 6:00pm
-  Eastern.
+- Sends one integrated Sunday evening review after 6:00pm Eastern, recapping a saved
+  target-week plan when one exists or suggesting next week when it does not.
 - Refreshes the coach's private training state once per day after 7:00pm Eastern.
 
 ### Local Data And Privacy

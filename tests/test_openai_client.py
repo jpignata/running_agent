@@ -192,7 +192,9 @@ class OpenAIClientTest(unittest.TestCase):
         )
 
         self.assertEqual(reply, "I saved that plan update.")
-        save_weekly_plan.assert_called_once_with("Wednesday 5 x 5 minutes threshold")
+        save_weekly_plan.assert_called_once_with(
+            "Wednesday 5 x 5 minutes threshold", week_start=None
+        )
         self.assertEqual(post_json.call_count, 2)
         followup_payload = post_json.call_args_list[1].args[1]
         self.assertEqual(followup_payload["previous_response_id"], "resp_image")
@@ -203,7 +205,7 @@ class OpenAIClientTest(unittest.TestCase):
                     "type": "function_call_output",
                     "call_id": "call_plan",
                     "output": (
-                        '{"saved": true, '
+                        '{"saved": true, "week_start": "", '
                         '"saved_plan": "Wednesday 5 x 5 minutes threshold", '
                         '"receipt": "Saved weekly plan:\\n'
                         'Wednesday 5 x 5 minutes threshold"}'
@@ -255,7 +257,8 @@ class OpenAIClientTest(unittest.TestCase):
         save_weekly_plan.assert_called_once_with(
             "Monday: 5 easy\n"
             "Wednesday: structured warmup; 5 x 5 min @ threshold; 2 min recovery\n"
-            "Saturday: 12 long"
+            "Saturday: 12 long",
+            week_start=None,
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
@@ -300,7 +303,8 @@ class OpenAIClientTest(unittest.TestCase):
         save_weekly_plan.assert_called_once_with(
             "Monday: 5 easy\n"
             "Wednesday: 5 x 5 min @ threshold, 2 min recovery\n"
-            "Saturday: 12 long"
+            "Saturday: 12 long",
+            week_start=None,
         )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
@@ -704,7 +708,8 @@ class OpenAIClientTest(unittest.TestCase):
 
         self.assertEqual(reply, "Got it. I saved that plan.")
         save_weekly_plan.assert_called_once_with(
-            "Monday 5 easy\nWednesday 2mi WU, 6x400m, CD\nSaturday 10 easy"
+            "Monday 5 easy\nWednesday 2mi WU, 6x400m, CD\nSaturday 10 easy",
+            week_start=None,
         )
         self.assertEqual(post_json.call_count, 2)
         followup_payload = post_json.call_args_list[1].args[1]
@@ -716,7 +721,7 @@ class OpenAIClientTest(unittest.TestCase):
                     "type": "function_call_output",
                     "call_id": "call_plan",
                     "output": (
-                        '{"saved": true, '
+                        '{"saved": true, "week_start": "", '
                         '"saved_plan": "Monday 5 easy\\n'
                         'Wednesday 2mi WU, 6x400m, CD\\nSaturday 10 easy", '
                         '"receipt": "Saved weekly plan:\\nMonday 5 easy\\n'

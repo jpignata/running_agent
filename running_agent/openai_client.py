@@ -215,12 +215,15 @@ def _execute_save_weekly_plan_tool(call: dict[str, Any]) -> dict[str, str] | Non
     plan = _tool_argument(call, "plan")
     if not plan:
         return None
+    week_start = _tool_argument(call, "week_start") or None
     plan = _clean_saved_weekly_plan(plan)
-    save_weekly_plan(plan)
+    result = save_weekly_plan(plan, week_start=week_start)
+    saved_week_start = result.get("week_start", "") if isinstance(result, dict) else ""
     return _tool_output(
         call["call_id"],
         {
             "saved": True,
+            "week_start": saved_week_start,
             "saved_plan": plan,
             "receipt": "Saved weekly plan:\n" + plan,
         },
