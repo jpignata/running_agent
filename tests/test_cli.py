@@ -179,7 +179,7 @@ class CliTest(unittest.TestCase):
 
     @patch.dict(os.environ, {}, clear=True)
     @patch("running_agent.cli.TelegramTransport")
-    @patch("sys.argv", ["running-agent", "telegram", "--no-restart", "--trace-log"])
+    @patch("sys.argv", ["running-agent", "telegram", "--trace-log"])
     def test_telegram_trace_log_sets_trace_env(self, telegram_transport) -> None:
         telegram_transport.return_value.run_forever.return_value = None
 
@@ -187,6 +187,7 @@ class CliTest(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(os.environ["RUNNING_AGENT_TRACE_LOG"], "1")
+        telegram_transport.assert_called_once_with(poll_seconds=300, lookback_days=28)
         telegram_transport.return_value.run_forever.assert_called_once_with()
 
 

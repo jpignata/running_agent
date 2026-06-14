@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import time
-import traceback
 from datetime import date
 
 from .agent_state import load_agent_state, save_agent_state
@@ -131,17 +129,6 @@ def _main() -> int:
         help="How often to check Strava for newly synced runs.",
     )
     telegram.add_argument(
-        "--restart-delay",
-        type=int,
-        default=10,
-        help="Seconds to wait before restarting the Telegram coach after a crash.",
-    )
-    telegram.add_argument(
-        "--no-restart",
-        action="store_true",
-        help="Disable the restart-on-crash supervisor.",
-    )
-    telegram.add_argument(
         "--debug-log",
         action="store_true",
         help="Print internal debug log events to stdout.",
@@ -264,15 +251,8 @@ def _main() -> int:
             os.environ["RUNNING_AGENT_DEBUG_LOG"] = "1"
         if args.trace_log:
             os.environ["RUNNING_AGENT_TRACE_LOG"] = "1"
-        if args.no_restart:
-            transport = TelegramTransport(poll_seconds=args.poll_seconds, lookback_days=args.days)
-            transport.run_forever()
-        else:
-            _run_telegram_with_restarts(
-                poll_seconds=args.poll_seconds,
-                lookback_days=args.days,
-                restart_delay=args.restart_delay,
-            )
+        transport = TelegramTransport(poll_seconds=args.poll_seconds, lookback_days=args.days)
+        transport.run_forever()
         return 0
 
     if args.command == "repl":
@@ -291,26 +271,6 @@ def _main() -> int:
 
     parser.error(f"Unknown command: {args.command}")
     return 2
-
-
-def _run_telegram_with_restarts(
-    poll_seconds: int,
-    lookback_days: int,
-    restart_delay: int,
-) -> None:
-    print("Running Telegram coach with restart-on-crash enabled. Press Ctrl+C to stop.")
-    while True:
-        try:
-            transport = TelegramTransport(poll_seconds=poll_seconds, lookback_days=lookback_days)
-            transport.run_forever()
-        except KeyboardInterrupt:
-            print("Stopping Telegram coach.")
-            return
-        except Exception as error:
-            print(f"Telegram coach crashed: {error!r}")
-            traceback.print_exc()
-            print(f"Restarting in {restart_delay} seconds...")
-            time.sleep(restart_delay)
 
 
 def _parse_date(value: str) -> date:

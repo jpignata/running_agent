@@ -219,15 +219,8 @@ Run the coach:
 python -m running_agent telegram
 ```
 
-The Telegram process restarts itself after crashes by default. This is intentionally simple:
-if Telegram, Strava, or OpenAI times out, the command logs the traceback, waits 10 seconds,
-and starts a fresh agent.
-
-For debugging, run without the supervisor:
-
-```bash
-python -m running_agent telegram --no-restart
-```
+When running under the user systemd service, systemd owns crash restarts. The local
+`telegram` command runs the bot directly and lets unexpected process failures exit.
 
 To print internal debug events in addition to received/sent message lines:
 
