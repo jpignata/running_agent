@@ -28,6 +28,7 @@ class RunSummaryTest(unittest.TestCase):
 
         self.assertEqual(summary, "Nice controlled run.")
         self.assertNotIn("Run summary for", summary)
+        self.assertFalse(coaching_reply.call_args.kwargs["tools_enabled"])
 
     def test_fallback_summary_includes_error_and_activity_context(self) -> None:
         summary = _fallback_summary(

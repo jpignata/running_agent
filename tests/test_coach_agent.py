@@ -89,6 +89,7 @@ class CoachAgentTest(unittest.TestCase):
 
         self.assertEqual(note, "Nice work on that 5-mile run.")
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
+        self.assertFalse(coaching_reply.call_args.kwargs["tools_enabled"])
 
     @patch("running_agent.coach_agent.append_run_result")
     @patch("running_agent.coach_agent.save_synced_run_detail")
@@ -115,6 +116,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(messages, ["Nice work on that workout."])
         save_synced_run_detail.assert_called_once_with(run, run)
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
+        self.assertFalse(coaching_reply.call_args.kwargs["tools_enabled"])
 
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now")

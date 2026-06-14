@@ -49,6 +49,7 @@ def run_summary_for_date(
             recent_runs=detailed_activity_context(detailed, target_date=target_date),
             weekly_plan=weekly_plan_context_for_date(target_date),
             training_goal=training_goal_context(),
+            tools_enabled=False,
         )
     except RuntimeError as error:
         note = _fallback_summary(detailed, error)

@@ -377,6 +377,7 @@ class CoachAgent:
                 training_goal=training_goal_context(),
                 garmin_context=current_garmin_context(),
                 conversation=self.conversation,
+                tools_enabled=False,
             )
             log_event("debug", {"message": "last_run_openai_done", "chars": len(note)})
         except RuntimeError as error:
@@ -663,6 +664,7 @@ class CoachAgent:
                 training_goal=training_goal_context(),
                 garmin_context=current_garmin_context(),
                 conversation=self.conversation,
+                tools_enabled=False,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
             messages.append(note)
