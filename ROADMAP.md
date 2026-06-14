@@ -24,6 +24,17 @@ would reduce confusing answers.
 Done when: The agent can explain what data is live, cached, local-only, or stale
 for a given interaction.
 
+### Historical Weekly Plan Context
+
+Why: Weekly reviews can get confused if next week's plan is saved before the
+current week is reviewed. The coach should not compare a completed week against
+a future plan, and it should preserve enough plan context to judge missed or
+changed workouts accurately.
+
+Done when: Weekly reviews use a plan snapshot keyed to the reviewed week when
+one exists, use the target-week plan only for forward guidance, and clearly say
+when no saved plan exists for the completed week.
+
 ## Icebox
 
 ### Memory Mutation Guardrails
