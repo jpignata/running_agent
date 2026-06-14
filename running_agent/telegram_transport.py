@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import os
 import socket
+import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 from urllib.error import URLError
 
 from .agent_state import load_agent_state, save_agent_state
@@ -20,6 +23,7 @@ TRANSIENT_ERRORS = (
     ConnectionError,
     URLError,
 )
+TYPING_REFRESH_SECONDS = 4.0
 
 
 class TelegramTransport:
@@ -101,16 +105,14 @@ class TelegramTransport:
                 continue
             if photo:
                 log_event("rx", {"chat_id": chat_id, "text": caption, "photo": True})
-                self._deliver_messages(
-                    [self._image_reply_from_message(photo, caption)],
-                    chat_id=chat_id,
-                )
+                with self._typing(chat_id):
+                    replies = [self._image_reply_from_message(photo, caption)]
+                self._deliver_messages(replies, chat_id=chat_id)
             else:
                 log_event("rx", {"chat_id": chat_id, "text": text})
-                self._deliver_messages(
-                    self.coach.handle_message(text, source="telegram"),
-                    chat_id=chat_id,
-                )
+                with self._typing(chat_id):
+                    replies = self.coach.handle_message(text, source="telegram")
+                self._deliver_messages(replies, chat_id=chat_id)
         self._save_state()
 
     def _chat_allowed(self, chat_id: int) -> bool:
@@ -153,6 +155,15 @@ class TelegramTransport:
 
     def _save_state(self) -> None:
         save_agent_state(self.state, self.state_path)
+
+    @contextmanager
+    def _typing(self, chat_id: int | str) -> Iterator[None]:
+        indicator = _TypingIndicator(self.telegram, chat_id)
+        indicator.start()
+        try:
+            yield
+        finally:
+            indicator.stop()
 
     def _seed_seen_activities(self) -> None:
         self.coach.seed_seen_activities()
@@ -200,3 +211,37 @@ def _mime_type_for_file_path(file_path: str) -> str:
     if lower.endswith(".webp"):
         return "image/webp"
     return "image/jpeg"
+
+
+class _TypingIndicator:
+    def __init__(
+        self,
+        telegram: TelegramClient,
+        chat_id: int | str,
+        refresh_seconds: float = TYPING_REFRESH_SECONDS,
+    ):
+        self.telegram = telegram
+        self.chat_id = chat_id
+        self.refresh_seconds = refresh_seconds
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        self._send_once()
+        self._thread = threading.Thread(target=self._run, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=1.0)
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.refresh_seconds):
+            self._send_once()
+
+    def _send_once(self) -> None:
+        try:
+            self.telegram.send_chat_action(self.chat_id, action="typing")
+        except RuntimeError as error:
+            log_event("debug", {"message": "telegram_typing_failed", "error": str(error)})

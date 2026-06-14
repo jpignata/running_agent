@@ -46,6 +46,16 @@ class TelegramClient:
                 timeout_seconds=SEND_MESSAGE_TIMEOUT_SECONDS,
             )
 
+    def send_chat_action(self, chat_id: int | str, action: str = "typing") -> None:
+        self._post(
+            "sendChatAction",
+            {
+                "chat_id": chat_id,
+                "action": action,
+            },
+            timeout_seconds=SEND_MESSAGE_TIMEOUT_SECONDS,
+        )
+
     def get_file(self, file_id: str) -> dict[str, Any]:
         return self._post(
             "getFile",

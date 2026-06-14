@@ -18,6 +18,7 @@ Built with Codex.
 When `python -m running_agent telegram` is running, the bot:
 
 - Polls Telegram for chat messages and slash commands.
+- Shows Telegram's typing indicator while generating direct chat replies.
 - Checks Strava on the configured interval for newly synced runs.
 - Sends a natural post-run coaching note when a new run appears.
 - Refreshes the Garmin snapshot cache once per day after 5:00am Eastern.

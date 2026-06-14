@@ -47,6 +47,20 @@ class TelegramClientTest(unittest.TestCase):
         self.assertEqual(urlopen.call_args.kwargs["timeout"], SEND_MESSAGE_TIMEOUT_SECONDS)
 
     @patch("running_agent.telegram_client.urlopen")
+    def test_send_chat_action_posts_typing_action(self, urlopen) -> None:
+        urlopen.return_value.__enter__.return_value.read.return_value = json.dumps(
+            {"ok": True, "result": True}
+        ).encode("utf-8")
+
+        TelegramClient("token").send_chat_action(123)
+
+        request = urlopen.call_args.args[0]
+        payload = json.loads(request.data.decode("utf-8"))
+        self.assertEqual(request.full_url, "https://api.telegram.org/bottoken/sendChatAction")
+        self.assertEqual(payload, {"chat_id": 123, "action": "typing"})
+        self.assertEqual(urlopen.call_args.kwargs["timeout"], SEND_MESSAGE_TIMEOUT_SECONDS)
+
+    @patch("running_agent.telegram_client.urlopen")
     def test_get_file_returns_telegram_file_result(self, urlopen) -> None:
         urlopen.return_value.__enter__.return_value.read.return_value = json.dumps(
             {"ok": True, "result": {"file_path": "photos/file.jpg"}}

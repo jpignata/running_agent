@@ -37,6 +37,7 @@ class TelegramTransportTest(unittest.TestCase):
 
         transport._handle_telegram_updates()
 
+        self.assertEqual(telegram.actions, [(123, "typing")])
         self.assertEqual(telegram.messages, [(123, "Pong!")])
         self.assertEqual(transport.state["telegram_update_offset"], 11)
 
@@ -78,6 +79,7 @@ class TelegramTransportTest(unittest.TestCase):
 
         transport._handle_telegram_updates()
 
+        self.assertEqual(telegram.actions, [(123, "typing")])
         self.assertEqual(telegram.file_requests, ["large"])
         self.assertEqual(telegram.download_requests, ["photos/course.png"])
         transport.coach.coach_image_reply.assert_called_once_with(
@@ -137,12 +139,16 @@ class _FakeTelegram:
         self.downloads = downloads or {}
         self.file_requests: list[str] = []
         self.download_requests: list[str] = []
+        self.actions: list[tuple[int | str, str]] = []
 
     def get_updates(self, offset=None, timeout=25) -> list[dict]:
         return self.updates
 
     def send_message(self, chat_id: int | str, text: str) -> None:
         self.messages.append((chat_id, text))
+
+    def send_chat_action(self, chat_id: int | str, action: str = "typing") -> None:
+        self.actions.append((chat_id, action))
 
     def get_file(self, file_id: str) -> dict:
         self.file_requests.append(file_id)
