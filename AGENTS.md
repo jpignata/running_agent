@@ -49,6 +49,27 @@ source .venv/bin/activate
   fix the shell/virtualenv setup rather than changing project docs or examples to
   use `.venv/bin/python` or `python3`.
 
+## Local Service Workflow
+
+- This dev box runs the Telegram bot as a user systemd service:
+  `running-agent-telegram.service`.
+- After changing bot runtime behavior, restart the service so Telegram picks up the
+  working tree changes:
+
+```bash
+systemctl --user restart running-agent-telegram.service
+```
+
+- Check service health and logs with:
+
+```bash
+systemctl --user status running-agent-telegram.service
+journalctl --user -u running-agent-telegram.service -f
+```
+
+- The service is expected to log to stdout/stderr through journald. Do not add app-level
+  timestamp prefixes or disk log files.
+
 ## Useful Commands
 
 ```bash
@@ -58,6 +79,7 @@ python -m running_agent auth-url
 python -m running_agent me
 python -m running_agent repl
 python -m running_agent telegram
+python -m running_agent install-telegram-service
 ```
 
 ## Data Model Notes
