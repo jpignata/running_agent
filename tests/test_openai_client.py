@@ -77,7 +77,7 @@ class OpenAIClientTest(unittest.TestCase):
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
-    def test_coaching_reply_can_disable_tools_and_set_output_budget(
+    def test_coaching_reply_can_disable_tools_without_output_budget(
         self,
         post_json,
         _athlete_profile_context,
@@ -88,13 +88,31 @@ class OpenAIClientTest(unittest.TestCase):
             recent_runs="Recent runs",
             weekly_plan="Weekly plan",
             tools_enabled=False,
-            max_output_tokens=220,
         )
 
         self.assertEqual(reply, "Reply")
         payload = post_json.call_args.args[1]
         self.assertNotIn("tools", payload)
         self.assertNotIn("tool_choice", payload)
+        self.assertNotIn("max_output_tokens", payload)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch("running_agent.openai_client._post_json", return_value={"output_text": "Reply"})
+    def test_coaching_reply_can_set_output_budget_when_requested(
+        self,
+        post_json,
+        _athlete_profile_context,
+    ) -> None:
+        reply = coaching_reply(
+            "Write a scheduled report.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+            max_output_tokens=220,
+        )
+
+        self.assertEqual(reply, "Reply")
+        payload = post_json.call_args.args[1]
         self.assertEqual(payload["max_output_tokens"], 220)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
@@ -114,6 +132,28 @@ class OpenAIClientTest(unittest.TestCase):
 
         payload = post_json.call_args.args[1]
         self.assertEqual(payload["temperature"], 0.1)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "status": "incomplete",
+            "incomplete_details": {"reason": "max_output_tokens"},
+            "output_text": "Today was planned as rest/cross-training,",
+        },
+    )
+    def test_coaching_reply_rejects_incomplete_response(
+        self,
+        _post_json,
+        _athlete_profile_context,
+    ) -> None:
+        with self.assertRaisesRegex(RuntimeError, "max_output_tokens"):
+            coaching_reply(
+                "Write a scheduled report.",
+                training_summary="Training summary",
+                recent_runs="Recent runs",
+            )
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(

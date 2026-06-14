@@ -15,7 +15,7 @@ from .coach_time import COACH_TIME_ZONE
 from .plan_store import parse_weekly_plan
 
 CASE_DIR = Path(__file__).resolve().parent.parent / "evals" / "cases"
-DEFAULT_JUDGE_MODEL = "gpt-5.4-mini"
+DEFAULT_JUDGE_MODEL = "gpt-5.5"
 DEFAULT_EVAL_TEMPERATURE = 0.1
 
 
@@ -438,7 +438,6 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
                 ],
             }
         ],
-        "max_output_tokens": 250,
         "temperature": eval_temperature(),
     }
     response = openai_client._post_json(openai_client.OPENAI_RESPONSES_URL, payload, api_key)

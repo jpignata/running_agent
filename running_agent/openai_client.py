@@ -23,7 +23,7 @@ from .race_results import save_race_result
 from .strava_tools import get_local_run_details, query_local_runs
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-DEFAULT_MODEL = "gpt-5.4-mini"
+DEFAULT_MODEL = "gpt-5.5"
 
 
 def coaching_reply(
@@ -36,7 +36,7 @@ def coaching_reply(
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     tools_enabled: bool = True,
-    max_output_tokens: int = 650,
+    max_output_tokens: int | None = None,
     include_coach_reflection: bool = True,
     pace_calibration_text: str | None = None,
     temperature: float | None = None,
@@ -82,7 +82,7 @@ def image_coaching_reply(
     coach_log: str | None = None,
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
-    max_output_tokens: int = 650,
+    max_output_tokens: int | None = None,
     temperature: float | None = None,
 ) -> str:
     load_env_file()
@@ -135,10 +135,11 @@ def image_coaching_reply(
                 ],
             }
         ],
-        "max_output_tokens": max_output_tokens,
         "tools": COACHING_TOOLS,
         "tool_choice": "auto",
     }
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
     if temperature is not None:
         payload["temperature"] = temperature
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
@@ -186,8 +187,9 @@ def _handle_tool_calls(
         "model": original_payload["model"],
         "instructions": original_payload["instructions"],
         "input": tool_outputs,
-        "max_output_tokens": original_payload.get("max_output_tokens", 650),
     }
+    if "max_output_tokens" in original_payload:
+        followup_payload["max_output_tokens"] = original_payload["max_output_tokens"]
     if "temperature" in original_payload:
         followup_payload["temperature"] = original_payload["temperature"]
     if response.get("id"):
@@ -463,6 +465,10 @@ def _post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any
 
 
 def _extract_output_text(response: dict[str, Any]) -> str:
+    if response.get("status") == "incomplete" or response.get("incomplete_details"):
+        reason = _incomplete_reason(response)
+        raise RuntimeError(f"OpenAI response was incomplete: {reason}")
+
     if isinstance(response.get("output_text"), str):
         return response["output_text"]
 
@@ -472,6 +478,15 @@ def _extract_output_text(response: dict[str, Any]) -> str:
             if content.get("type") == "output_text" and isinstance(content.get("text"), str):
                 chunks.append(content["text"])
     return "\n".join(chunks)
+
+
+def _incomplete_reason(response: dict[str, Any]) -> str:
+    details = response.get("incomplete_details")
+    if isinstance(details, dict):
+        reason = details.get("reason")
+        if reason:
+            return str(reason)
+    return "unknown reason"
 
 
 def _fallback_reply(message: str, training_summary: str) -> str:

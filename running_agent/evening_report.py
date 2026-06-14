@@ -44,7 +44,8 @@ def end_of_day_report(
         "overall goal. If the remaining plan includes a race, prioritize freshness for that race "
         "and do not invent another key day. Keep it conversational, under 90 words, and do not "
         "use a title, section headers, markdown, or label-style phrases. Write at most two short "
-        "paragraphs."
+        "paragraphs. End with a complete sentence; if space is tight, cut detail rather than "
+        "ending mid-thought."
     )
     return coaching_reply(
         prompt,
@@ -55,7 +56,6 @@ def end_of_day_report(
         coach_log=coach_log_context(),
         garmin_context=garmin_context,
         tools_enabled=False,
-        max_output_tokens=220,
     )
 
 

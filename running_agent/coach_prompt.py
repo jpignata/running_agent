@@ -460,7 +460,7 @@ def build_coaching_payload(
     garmin_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     tools_enabled: bool = True,
-    max_output_tokens: int = 650,
+    max_output_tokens: int | None = None,
     include_coach_reflection: bool = True,
     pace_calibration_text: str | None = None,
     temperature: float | None = None,
@@ -480,8 +480,9 @@ def build_coaching_payload(
             include_coach_reflection=include_coach_reflection,
             pace_calibration_text=pace_calibration_text,
         ),
-        "max_output_tokens": max_output_tokens,
     }
+    if max_output_tokens is not None:
+        payload["max_output_tokens"] = max_output_tokens
     if temperature is not None:
         payload["temperature"] = temperature
     if tools_enabled:

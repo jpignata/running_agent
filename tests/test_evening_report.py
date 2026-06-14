@@ -88,7 +88,7 @@ class EveningReportTest(unittest.TestCase):
         self.assertEqual(kwargs["coach_log"], "Coach log context")
         self.assertEqual(kwargs["garmin_context"], "Garmin readiness context")
         self.assertFalse(kwargs["tools_enabled"])
-        self.assertEqual(kwargs["max_output_tokens"], 220)
+        self.assertNotIn("max_output_tokens", kwargs)
 
     @patch("running_agent.evening_report.coach_log_context", return_value="Coach log context")
     @patch("running_agent.evening_report.training_goal_context", return_value="Goal context")

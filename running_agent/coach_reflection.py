@@ -98,7 +98,6 @@ def generate_coach_reflection(
         tools_enabled=False,
         include_coach_reflection=False,
         pace_calibration_text=race_vdot_context(activities),
-        max_output_tokens=450,
     )
     save_coach_reflection(reflection)
     pace_calibration = _pace_calibration_from_reflection(reflection)
