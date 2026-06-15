@@ -197,6 +197,16 @@ Done when: Ambiguous plan-like messages can produce a clear proposed saved plan
 with a lightweight approve/cancel interaction, while unambiguous plan updates
 remain fast.
 
+### Telegram Reaction Responses
+
+Why: Emoji reactions could make the bot feel more responsive, but automatic
+follow-ups may also feel noisy or needy. Keep this as an experiment until there
+is a clearer coaching use case.
+
+Done when: The bot can optionally listen for Telegram `message_reaction` updates,
+respond conservatively to a small allowlist of reactions, and avoid repeated
+follow-ups with a per-chat cooldown.
+
 ### Memory Mutation Guardrails
 
 Why: Goal, plan, and race-result writes now have focused eval coverage. Memory
