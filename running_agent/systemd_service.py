@@ -18,7 +18,7 @@ def install_telegram_user_service(
     start: bool = True,
 ) -> Path:
     project_dir = (project_dir or Path.cwd()).resolve()
-    python_executable = (python_executable or Path(sys.executable)).resolve()
+    python_executable = _absolute_path(python_executable or _default_python_executable(project_dir))
     service_dir = service_dir or Path.home() / ".config" / "systemd" / "user"
     service_path = service_dir / SERVICE_NAME
 
@@ -40,6 +40,19 @@ def install_telegram_user_service(
         _run_systemctl("restart", SERVICE_NAME)
 
     return service_path
+
+
+def _default_python_executable(project_dir: Path) -> Path:
+    venv_python = project_dir / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        return venv_python
+    return Path(sys.executable)
+
+
+def _absolute_path(path: Path) -> Path:
+    if path.is_absolute():
+        return path
+    return Path(os.path.abspath(path))
 
 
 def render_telegram_user_service(*, project_dir: Path, python_executable: Path) -> str:

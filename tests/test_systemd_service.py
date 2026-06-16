@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -59,6 +60,30 @@ class SystemdServiceTest(unittest.TestCase):
                     ("restart", SERVICE_NAME),
                 ],
             )
+
+    @patch("running_agent.systemd_service._run_systemctl")
+    def test_install_telegram_user_service_prefers_project_venv_python(self, run_systemctl) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir) / "repo"
+            service_dir = Path(temp_dir) / "systemd"
+            venv_python = project_dir / ".venv" / "bin" / "python"
+            python_target = Path(temp_dir) / "python-target"
+            venv_python.parent.mkdir(parents=True)
+            python_target.touch()
+            os.symlink(python_target, venv_python)
+
+            service_path = install_telegram_user_service(
+                project_dir=project_dir,
+                service_dir=service_dir,
+                enable=False,
+                start=False,
+            )
+
+            self.assertIn(
+                f"ExecStart={venv_python} -m running_agent telegram",
+                service_path.read_text(encoding="utf-8"),
+            )
+            run_systemctl.assert_not_called()
 
     @patch.dict("os.environ", {"USER": "runner user"})
     def test_boot_linger_hint_quotes_user(self) -> None:
