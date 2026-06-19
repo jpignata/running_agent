@@ -90,8 +90,16 @@ python -m running_agent install-telegram-service
   - `.data/training_goal.json`
   - `.data/athlete_profile.txt`
   - `.data/coach_log.jsonl`
+  - `.data/run_feedback.jsonl`
+  - `.data/run_memory.json`
   - `.data/coach_reflection.json`
   - `.data/garmin_snapshots.json`
+- Source-of-truth ownership:
+  - Strava cache files are the source for completed run facts.
+  - `.data/weekly_plan.json` and `.data/coach_log.jsonl` are the source for intended workout and completed-run coaching context.
+  - `.data/run_feedback.jsonl` is the source for athlete subjective feedback.
+  - `.data/state.json` is ephemeral operational bot state only.
+  - `.data/run_memory.json` is a disposable derived index; rebuild or validate it with `python -m running_agent run-memory --validate` instead of treating it as authoritative.
 - Keep `.env` and `.strava_tokens.json` separate from `.data/`.
 - Weekly plans are plain text, but parsed by weekday.
 - Races should be explicitly marked in the weekly plan, for example `Saturday 5K race`.

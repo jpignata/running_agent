@@ -12,6 +12,7 @@ from .coaching_guidance import (
 )
 from .pace_calibration import pace_calibration_context
 from .race_results import race_results_context
+from .run_memory import run_memory_context
 
 REMEMBER_NOTE_TOOL = {
     "type": "function",
@@ -507,6 +508,7 @@ def build_coaching_input(
     coach_reflection_text: str | None = None,
     coaching_philosophy_text: str | None = None,
     pace_calibration_text: str | None = None,
+    run_memory_text: str | None = None,
 ) -> str:
     profile = (
         athlete_profile_text if athlete_profile_text is not None else athlete_profile_context()
@@ -520,6 +522,7 @@ def build_coaching_input(
         pace_calibration_text if pace_calibration_text is not None else pace_calibration_context()
     )
     race_results = race_results_context()
+    run_memory = run_memory_text if run_memory_text is not None else run_memory_context()
     prompt_parts = [
         "Current local date:",
         coach_now().strftime("%A, %B %-d, %Y"),
@@ -532,6 +535,9 @@ def build_coaching_input(
         "",
         "Recent runs:",
         recent_runs,
+        "",
+        "Recent run memory:",
+        run_memory,
         "",
         "Athlete-specific profile:",
         profile,

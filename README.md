@@ -347,6 +347,33 @@ When a new run syncs, the bot appends a compact local coach-log entry to `.data/
 with the matched planned workout and completed run headline. This file is ignored by git and
 used as context for future plan suggestions.
 
+After a new-run coaching note, the bot asks for a short post-run feel check. Reply with
+something like:
+
+```text
+RPE 6, legs heavy, no pain, faded late
+```
+
+Feedback is stored in `.data/run_feedback.jsonl` and included in future coach-log context so
+the coach can compare pace and workout execution against perceived effort over time.
+The reply is normalized through OpenAI into structured fields before storage; set
+`OPENAI_FEEDBACK_MODEL` to use a cheaper model for this small extraction task.
+
+To rebuild the derived run-memory store from local Strava data, coach log entries, plans,
+and post-run feedback:
+
+```bash
+python -m running_agent run-memory --days 28
+python -m running_agent run-memory --days 28 --sync
+python -m running_agent run-memory --days 28 --validate
+```
+
+This writes `.data/run_memory.json` and prints a compact context view of the recent run
+timeline, workout classification, subjective feedback, and tags such as high RPE or soreness.
+Run memory is a disposable derived index, not a source of truth; if it looks stale or
+wrong, rebuild it from Strava cache, coach log, plans, and `.data/run_feedback.jsonl`.
+Use `--validate` to check that source feedback entries are reflected in the rebuilt index.
+
 The same new-run check also stores the Strava summary and detailed activity JSON under
 `.data/strava/`, so future chat questions can look up that run's laps and splits locally.
 

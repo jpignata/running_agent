@@ -10,6 +10,7 @@ from .coach_agent import DEFAULT_LOOKBACK_DAYS, CoachAgent
 from .coach_reflection import generate_coach_reflection
 from .eval_runner import main as eval_runner_main
 from .repl_transport import ReplTransport
+from .run_memory import refresh_run_memory, run_memory_context, validate_run_memory
 from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
@@ -43,6 +44,27 @@ def _main() -> int:
         type=int,
         default=365,
         help="How many days of Strava activities to sync.",
+    )
+
+    run_memory = subparsers.add_parser(
+        "run-memory",
+        help="Refresh and print the local derived run-memory store.",
+    )
+    run_memory.add_argument(
+        "--days",
+        type=int,
+        default=28,
+        help="How many days of local runs to include.",
+    )
+    run_memory.add_argument(
+        "--sync",
+        action="store_true",
+        help="Sync Strava runs before rebuilding run memory.",
+    )
+    run_memory.add_argument(
+        "--validate",
+        action="store_true",
+        help="Check that rebuilt run memory reflects source feedback entries.",
     )
 
     reflect = subparsers.add_parser(
@@ -205,6 +227,26 @@ def _main() -> int:
         )
         return 0
 
+    if args.command == "run-memory":
+        if args.sync:
+            result = sync_strava_runs(StravaClient(), days=args.days)
+            print(
+                "Synced "
+                f"{result['runs_seen']} Strava runs; "
+                f"saved {result['summaries_saved']} summaries; "
+                f"fetched {result['details_fetched']} detailed activities."
+            )
+        data = refresh_run_memory(days=args.days)
+        runs = data.get("runs") if isinstance(data.get("runs"), list) else []
+        print(f"Refreshed run memory with {len(runs)} runs over {args.days} days.")
+        print(run_memory_context(runs))
+        if args.validate:
+            validation = validate_run_memory(records=runs)
+            print(_format_run_memory_validation(validation))
+            if not validation["ok"]:
+                return 1
+        return 0
+
     if args.command == "reflect":
         reflection = generate_coach_reflection(StravaClient(), lookback_days=args.days)
         print(reflection)
@@ -278,3 +320,33 @@ def _parse_date(value: str) -> date:
         return date.fromisoformat(value)
     except ValueError as error:
         raise argparse.ArgumentTypeError("date must be in YYYY-MM-DD format") from error
+
+
+def _format_run_memory_validation(validation: dict[str, object]) -> str:
+    status = "OK" if validation.get("ok") else "FAILED"
+    lines = [
+        f"Run memory validation: {status}",
+        f"Feedback entries: {validation.get('feedback_entries', 0)}",
+        f"Run records: {validation.get('run_records', 0)}",
+    ]
+    missing = validation.get("missing_feedback")
+    if isinstance(missing, list) and missing:
+        lines.append(f"Missing feedback mappings: {len(missing)}")
+        for entry in missing[:5]:
+            lines.append(f"- {_format_feedback_identity(entry)}")
+    stale = validation.get("stale_feedback")
+    if isinstance(stale, list) and stale:
+        lines.append(f"Stale feedback mappings: {len(stale)}")
+        for entry in stale[:5]:
+            lines.append(f"- {_format_feedback_identity(entry)}")
+    return "\n".join(lines)
+
+
+def _format_feedback_identity(entry: object) -> str:
+    if not isinstance(entry, dict):
+        return str(entry)
+    parts = []
+    for key in ("run_date", "activity_id", "raw"):
+        if entry.get(key) is not None:
+            parts.append(f"{key}={entry[key]}")
+    return ", ".join(parts) if parts else str(entry)

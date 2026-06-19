@@ -33,6 +33,86 @@ class CliTest(unittest.TestCase):
         )
 
     @patch("builtins.print")
+    @patch("running_agent.cli.run_memory_context", return_value="Run memory context")
+    @patch(
+        "running_agent.cli.validate_run_memory",
+        return_value={
+            "ok": True,
+            "feedback_entries": 1,
+            "run_records": 2,
+            "missing_feedback": [],
+            "stale_feedback": [],
+        },
+    )
+    @patch(
+        "running_agent.cli.refresh_run_memory",
+        return_value={"runs": [{"activity_id": 1}, {"activity_id": 2}]},
+    )
+    @patch("running_agent.cli.StravaClient")
+    @patch(
+        "running_agent.cli.sync_strava_runs",
+        return_value={"runs_seen": 2, "summaries_saved": 2, "details_fetched": 1},
+    )
+    @patch("sys.argv", ["running-agent", "run-memory", "--days", "21", "--sync", "--validate"])
+    def test_run_memory_command_syncs_refreshes_and_prints_context(
+        self,
+        sync_strava_runs,
+        strava_client,
+        refresh_run_memory,
+        validate_run_memory,
+        run_memory_context,
+        print_,
+    ) -> None:
+        client = Mock()
+        strava_client.return_value = client
+
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        sync_strava_runs.assert_called_once_with(client, days=21)
+        refresh_run_memory.assert_called_once_with(days=21)
+        run_memory_context.assert_called_once_with([{"activity_id": 1}, {"activity_id": 2}])
+        validate_run_memory.assert_called_once_with(
+            records=[{"activity_id": 1}, {"activity_id": 2}]
+        )
+        self.assertEqual(
+            [call.args[0] for call in print_.call_args_list],
+            [
+                "Synced 2 Strava runs; saved 2 summaries; fetched 1 detailed activities.",
+                "Refreshed run memory with 2 runs over 21 days.",
+                "Run memory context",
+                "Run memory validation: OK\nFeedback entries: 1\nRun records: 2",
+            ],
+        )
+
+    @patch("builtins.print")
+    @patch("running_agent.cli.run_memory_context", return_value="Run memory context")
+    @patch(
+        "running_agent.cli.validate_run_memory",
+        return_value={
+            "ok": False,
+            "feedback_entries": 1,
+            "run_records": 0,
+            "missing_feedback": [{"run_date": "2026-06-19", "activity_id": 123, "raw": "RPE 3"}],
+            "stale_feedback": [],
+        },
+    )
+    @patch("running_agent.cli.refresh_run_memory", return_value={"runs": []})
+    @patch("sys.argv", ["running-agent", "run-memory", "--validate"])
+    def test_run_memory_command_returns_failure_when_validation_fails(
+        self,
+        _refresh_run_memory,
+        _validate_run_memory,
+        _run_memory_context,
+        print_,
+    ) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("Run memory validation: FAILED", print_.call_args_list[-1].args[0])
+        self.assertIn("Missing feedback mappings: 1", print_.call_args_list[-1].args[0])
+
+    @patch("builtins.print")
     @patch("running_agent.cli.StravaClient")
     @patch("running_agent.cli.generate_coach_reflection", return_value="Updated thesis")
     @patch("sys.argv", ["running-agent", "reflect", "--days", "30"])
