@@ -6,6 +6,7 @@ from .coach_time import coach_now
 from .coaching_guidance import (
     COACHING_STANCE_RUBRIC,
     GARMIN_COACHING_RUBRIC,
+    RPE_COACHING_RUBRIC,
     TRAINING_PROGRESSION_RUBRIC,
     coaching_philosophy_context,
 )
@@ -544,6 +545,8 @@ def build_coaching_input(
         COACHING_STANCE_RUBRIC,
         "",
         GARMIN_COACHING_RUBRIC,
+        "",
+        RPE_COACHING_RUBRIC,
         "",
         TRAINING_PROGRESSION_RUBRIC,
     ]

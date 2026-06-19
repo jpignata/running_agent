@@ -32,6 +32,16 @@ GARMIN_COACHING_RUBRIC = """Garmin coaching rubric:
 - Recommend changing the plan only when multiple signals align, such as unusually poor sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, soreness, illness, or a recent failed workout.
 - Separate normal fatigue from productive training from accumulating recovery debt."""
 
+RPE_COACHING_RUBRIC = """RPE coaching rubric:
+- Treat reported RPE and feel as core execution evidence, not as soft context behind pace.
+- Use pace, VDOT, heart rate, and Garmin data as anchors, then use RPE, control, and next-day recovery to judge whether the session hit the right stimulus.
+- Easy runs should feel easy enough to support volume, recovery, and the next quality day; a faster easy pace is not a win if RPE drifts too high.
+- Threshold work should feel controlled, repeatable, and comfortably hard, not like a race. If threshold RPE is too high, coach the athlete toward restraint before faster paces.
+- Hard interval sessions can carry high RPE, but distinguish productive hard work from ragged, desperate, or unrecoverable effort.
+- For long runs, use RPE to decide whether the distance itself is still the stressor before adding pace complexity.
+- When Garmin looks poor but warmup RPE and feel are normal, adjust execution before changing the plan. When Garmin looks fine but RPE is unusually high, respect the athlete's felt signal.
+- Track repeated RPE patterns over time: same pace with lower RPE suggests fitness; same workout with higher RPE or worse recovery suggests fatigue or too much load."""
+
 TRAINING_PROGRESSION_RUBRIC = """Training progression rubric:
 - Coach toward the athlete's race goal with appropriately challenging training, not automatic caution.
 - Progress training when recent execution, recovery, and consistency support it.
