@@ -75,6 +75,27 @@ class ActivityFormatTest(unittest.TestCase):
             context,
         )
 
+    def test_detailed_activity_context_includes_percent_max_hr_when_reference_is_known(
+        self,
+    ) -> None:
+        context = detailed_activity_context(
+            {
+                "name": "Easy",
+                "distance": 5 * METERS_PER_MILE,
+                "moving_time": 40 * 60,
+                "start_date_local": "2026-05-27T05:45:00Z",
+                "average_heartrate": 141,
+                "max_heartrate": 160,
+                "laps": [_lap(1, 5, 40 * 60, 40 * 60, 141, 160)],
+            },
+            max_heart_rate=180,
+        )
+
+        self.assertIn("avg HR 141 bpm (78% max HR)", context)
+        self.assertIn("- Average HR: 141 bpm (78% max HR)", context)
+        self.assertIn("- Max HR: 160 bpm (89% max HR)", context)
+        self.assertIn("141 bpm (78% max HR) | 160 bpm (89% max HR)", context)
+
     def test_detailed_activity_context_buckets_noisy_800m_reps_together(self) -> None:
         context = detailed_activity_context(
             {
@@ -149,6 +170,8 @@ class ActivityFormatTest(unittest.TestCase):
                     "distance": 7 * METERS_PER_MILE,
                     "moving_time": 56 * 60,
                     "start_date_local": "2026-06-03T05:45:00Z",
+                    "average_heartrate": 144,
+                    "max_heartrate": 180,
                 }
             ]
         )
@@ -157,7 +180,12 @@ class ActivityFormatTest(unittest.TestCase):
             "Current Strava status for Thursday, Jun 4: no synced run recorded today.",
             context,
         )
-        self.assertIn("Latest synced run is Track: 7.00 mi on Wednesday, Jun 3", context)
+        self.assertIn(
+            "Latest synced run is Track: 7.00 mi on Wednesday, Jun 3, 8:00/mi, "
+            "avg HR 144 bpm (80% max HR)",
+            context,
+        )
+        self.assertIn("Heart-rate percentages use observed max HR 180 bpm.", context)
 
     @patch("running_agent.activity_format.coach_today", return_value=date(2026, 6, 4))
     def test_recent_runs_context_states_when_run_is_recorded_today(

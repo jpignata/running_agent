@@ -27,8 +27,22 @@ class RunMemoryTest(unittest.TestCase):
             coach_log_path = root / "coach_log.jsonl"
             save_run_summaries(
                 {
-                    "1": _run(1, "Easy Run", "2026-06-18T06:00:00Z", 5),
-                    "2": _run(2, "Workout", "2026-06-19T06:00:00Z", 6),
+                    "1": _run(
+                        1,
+                        "Easy Run",
+                        "2026-06-18T06:00:00Z",
+                        5,
+                        average_heartrate=135,
+                        max_heartrate=155,
+                    ),
+                    "2": _run(
+                        2,
+                        "Workout",
+                        "2026-06-19T06:00:00Z",
+                        6,
+                        average_heartrate=144,
+                        max_heartrate=180,
+                    ),
                     "3": _run(3, "Old Run", "2026-05-01T06:00:00Z", 4),
                 },
                 summaries_path,
@@ -88,6 +102,8 @@ class RunMemoryTest(unittest.TestCase):
         self.assertEqual(workout["planned_workout"], "6 x 400m")
         self.assertEqual(workout["classification"], "structured workout")
         self.assertEqual(workout["lap_count"], 4)
+        self.assertEqual(workout["average_heartrate_percent_max"], 80)
+        self.assertEqual(workout["observed_max_heartrate"], 180)
         self.assertEqual(workout["feedback"][0]["rpe"], 8)
         self.assertIn("high_rpe", workout["tags"])
         self.assertIn("leg_fatigue", workout["tags"])
@@ -127,6 +143,8 @@ class RunMemoryTest(unittest.TestCase):
                     "name": "Workout",
                     "distance_miles": 6,
                     "classification": "structured workout",
+                    "average_heartrate": 144,
+                    "average_heartrate_percent_max": 80,
                     "feedback": [{"rpe": 8, "legs": "heavy", "pain": "no"}],
                     "tags": ["high_rpe", "leg_fatigue"],
                 }
@@ -135,6 +153,7 @@ class RunMemoryTest(unittest.TestCase):
 
         self.assertIn("Run memory", context)
         self.assertIn("RPE 8", context)
+        self.assertIn("avg HR 144 bpm / 80% max HR", context)
         self.assertIn("high_rpe", context)
 
     def test_validate_run_memory_accepts_feedback_reflected_in_records(self) -> None:
@@ -219,8 +238,16 @@ class RunMemoryTest(unittest.TestCase):
         self.assertEqual(len(result["missing_feedback"]), 1)
 
 
-def _run(activity_id: int, name: str, start: str, distance_miles: float):
-    return {
+def _run(
+    activity_id: int,
+    name: str,
+    start: str,
+    distance_miles: float,
+    *,
+    average_heartrate: int | None = None,
+    max_heartrate: int | None = None,
+):
+    run = {
         "id": activity_id,
         "name": name,
         "type": "Run",
@@ -228,6 +255,11 @@ def _run(activity_id: int, name: str, start: str, distance_miles: float):
         "moving_time": int(distance_miles * 8 * 60),
         "start_date_local": start,
     }
+    if average_heartrate is not None:
+        run["average_heartrate"] = average_heartrate
+    if max_heartrate is not None:
+        run["max_heartrate"] = max_heartrate
+    return run
 
 
 if __name__ == "__main__":

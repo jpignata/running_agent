@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from .coach_time import coach_today
+from .heart_rate import format_heart_rate, observed_max_heart_rate
 from .workout_classifier import workout_classification_context
 
 METERS_PER_MILE = 1609.344
@@ -26,14 +27,23 @@ def miles(activity: dict[str, Any]) -> float:
     return float(activity.get("distance") or 0) / METERS_PER_MILE
 
 
-def activity_headline(activity: dict[str, Any]) -> str:
+def activity_headline(
+    activity: dict[str, Any],
+    *,
+    max_heart_rate: int | float | None = None,
+) -> str:
     name = activity.get("name") or "Run"
     distance = miles(activity)
     moving_time = int(activity.get("moving_time") or activity.get("elapsed_time") or 0)
     pace = _pace_per_mile(distance, moving_time)
     date = _friendly_date(activity.get("start_date_local") or activity.get("start_date"))
     hr = activity.get("average_heartrate")
-    hr_note = f", avg HR {hr:.0f}" if isinstance(hr, NUMERIC_TYPES) else ""
+    if isinstance(hr, NUMERIC_TYPES) and max_heart_rate is not None:
+        hr_note = f", avg HR {format_heart_rate(hr, max_heart_rate)}"
+    elif isinstance(hr, NUMERIC_TYPES):
+        hr_note = f", avg HR {hr:.0f}"
+    else:
+        hr_note = ""
     return f"{name}: {distance:.2f} mi on {date}, {pace}{hr_note}"
 
 
@@ -41,9 +51,14 @@ def detailed_activity_context(
     activity: dict[str, Any],
     max_laps: int = 40,
     target_date: date | None = None,
+    max_heart_rate: int | float | None = None,
 ) -> str:
-    lines = [activity_headline(activity), "", "Run details:"]
-    lines.extend(_run_detail_lines(activity))
+    lines = [
+        activity_headline(activity, max_heart_rate=max_heart_rate),
+        "",
+        "Run details:",
+    ]
+    lines.extend(_run_detail_lines(activity, max_heart_rate=max_heart_rate))
     if target_date:
         lines.append("")
         lines.append(workout_classification_context(activity, target_date))
@@ -69,8 +84,8 @@ def detailed_activity_context(
                     _duration(int(lap.get("moving_time") or 0)),
                     _duration(int(lap.get("elapsed_time") or 0)),
                     _pace_per_mile(miles(lap), int(lap.get("moving_time") or 0)),
-                    _heart_rate(lap.get("average_heartrate")),
-                    _heart_rate(lap.get("max_heartrate")),
+                    _heart_rate(lap.get("average_heartrate"), max_heart_rate),
+                    _heart_rate(lap.get("max_heartrate"), max_heart_rate),
                     _feet(lap.get("total_elevation_gain")),
                 ]
             )
@@ -84,15 +99,21 @@ def recent_runs_context(activities: list[dict[str, Any]], limit: int = 12) -> st
     runs = [activity for activity in activities if activity.get("type") == "Run"]
     if not runs:
         return "No recent runs found."
+    max_heart_rate = observed_max_heart_rate(runs)
     today = coach_today()
     todays_runs = [activity for activity in runs if _activity_date(activity) == today]
     latest = runs[0]
-    lines = [_today_status_line(today, todays_runs, latest)]
+    lines = [_today_status_line(today, todays_runs, latest, max_heart_rate)]
     lines.append("")
     lines.extend(_current_week_lines(runs, today))
     lines.append("")
     lines.append("Most recent synced runs:")
-    lines.extend(f"- {activity_headline(activity)}" for activity in runs[:limit])
+    if max_heart_rate is not None:
+        lines.append(f"Heart-rate percentages use observed max HR {max_heart_rate} bpm.")
+    lines.extend(
+        f"- {activity_headline(activity, max_heart_rate=max_heart_rate)}"
+        for activity in runs[:limit]
+    )
     return "\n".join(lines)
 
 
@@ -100,6 +121,7 @@ def _today_status_line(
     today: date,
     todays_runs: list[dict[str, Any]],
     latest: dict[str, Any],
+    max_heart_rate: int | None = None,
 ) -> str:
     today_label = _friendly_day(today)
     if todays_runs:
@@ -109,7 +131,7 @@ def _today_status_line(
         )
     return (
         f"Current Strava status for {today_label}: no synced run recorded today. "
-        f"Latest synced run is {activity_headline(latest)}."
+        f"Latest synced run is {activity_headline(latest, max_heart_rate=max_heart_rate)}."
     )
 
 
@@ -184,7 +206,11 @@ def _short_duration(seconds: int) -> str:
     return _duration(seconds)
 
 
-def _run_detail_lines(activity: dict[str, Any]) -> list[str]:
+def _run_detail_lines(
+    activity: dict[str, Any],
+    *,
+    max_heart_rate: int | float | None = None,
+) -> list[str]:
     details = [
         f"- Distance: {miles(activity):.2f} mi",
         f"- Moving time: {_duration(int(activity.get('moving_time') or 0))}",
@@ -198,8 +224,8 @@ def _run_detail_lines(activity: dict[str, Any]) -> list[str]:
         details.append(f"- Elevation range: {_feet(low)} to {_feet(high)}")
     details.extend(
         [
-            f"- Average HR: {_heart_rate(activity.get('average_heartrate'))}",
-            f"- Max HR: {_heart_rate(activity.get('max_heartrate'))}",
+            f"- Average HR: {_heart_rate(activity.get('average_heartrate'), max_heart_rate)}",
+            f"- Max HR: {_heart_rate(activity.get('max_heartrate'), max_heart_rate)}",
             f"- Average cadence: {_cadence(activity.get('average_cadence'))}",
         ]
     )
@@ -355,9 +381,9 @@ def _feet(value: Any) -> str:
     return "-"
 
 
-def _heart_rate(value: Any) -> str:
+def _heart_rate(value: Any, max_heart_rate: int | float | None = None) -> str:
     if isinstance(value, NUMERIC_TYPES):
-        return f"{value:.0f} bpm"
+        return format_heart_rate(value, max_heart_rate)
     return "-"
 
 

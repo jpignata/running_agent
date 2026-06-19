@@ -5,6 +5,7 @@ from typing import Any
 
 from .activity_format import activity_headline, detailed_activity_context
 from .coach_time import coach_today
+from .heart_rate import observed_max_heart_rate
 from .strava_store import activity_local_date, list_run_summaries, load_run_detail
 
 RACE_WORKOUT_TYPE = 1
@@ -41,13 +42,18 @@ def query_local_runs(
         "Matching synced Strava "
         f"{'race-like ' if races_only else ''}runs, newest first, last {days} days:"
     ]
+    max_heart_rate = observed_max_heart_rate(runs)
+    if max_heart_rate is not None:
+        lines.append(f"Heart-rate percentages use observed max HR {max_heart_rate} bpm.")
     for activity in runs:
         race_note = " race-like" if _looks_like_race(activity) else ""
         detail_note = (
             " details synced" if load_run_detail(activity["id"]) else " details not synced"
         )
         lines.append(
-            f"- id {activity['id']}: {activity_headline(activity)}{race_note}; {detail_note}"
+            f"- id {activity['id']}: "
+            f"{activity_headline(activity, max_heart_rate=max_heart_rate)}"
+            f"{race_note}; {detail_note}"
         )
     return "\n".join(lines)
 
@@ -78,7 +84,12 @@ def get_local_run_details(
         )
     activity_date = activity_local_date(detail) or activity_local_date(summary)
     target_date = activity_date if _is_current_training_week(activity_date) else None
-    context = detailed_activity_context(detail, target_date=target_date)
+    max_heart_rate = observed_max_heart_rate(_matching_runs(query="", days=days, races_only=False))
+    context = detailed_activity_context(
+        detail,
+        target_date=target_date,
+        max_heart_rate=max_heart_rate,
+    )
     if activity_date and target_date is None:
         context += (
             "\n\nHistorical plan note: no weekly plan snapshot is stored for this activity date. "

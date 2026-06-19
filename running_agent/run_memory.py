@@ -7,6 +7,7 @@ from typing import Any
 from .activity_format import miles
 from .coach_log import read_coach_log
 from .coach_time import coach_today
+from .heart_rate import heart_rate_percent, observed_max_heart_rate
 from .plan_store import planned_workout_for_date
 from .post_run_feedback import read_post_run_feedback
 from .storage import read_json_file, write_json_file
@@ -103,8 +104,11 @@ def build_run_memory(
     feedback_by_id, feedback_by_date = _feedback_indexes(read_post_run_feedback(feedback_path))
     log_by_id, log_by_date = _coach_log_indexes(read_coach_log(coach_log_path))
 
+    summaries = list_run_summaries(summaries_path)
+    max_heart_rate = observed_max_heart_rate(summaries)
+
     records: list[dict[str, Any]] = []
-    for summary in reversed(list_run_summaries(summaries_path)):
+    for summary in reversed(summaries):
         run_date = activity_local_date(summary)
         if run_date is None or not start_date <= run_date <= today:
             continue
@@ -114,26 +118,29 @@ def build_run_memory(
         planned = _planned_workout(activity_id, run_date, log_by_id, log_by_date)
         classification, reason, emphasis = classify_workout(activity, planned)
         feedback = _matching_feedback(activity_id, run_date, feedback_by_id, feedback_by_date)
-        records.append(
-            {
-                "activity_id": activity_id,
-                "date": run_date.isoformat(),
-                "name": activity.get("name") or "Run",
-                "distance_miles": round(miles(activity), 2),
-                "moving_time_seconds": int(
-                    activity.get("moving_time") or activity.get("elapsed_time") or 0
-                ),
-                "pace_per_mile": _pace_per_mile(miles(activity), activity),
-                "average_heartrate": activity.get("average_heartrate"),
-                "planned_workout": planned,
-                "classification": classification,
-                "classification_reason": reason,
-                "coaching_emphasis": emphasis,
-                "lap_count": len(activity.get("laps") or []),
-                "feedback": feedback,
-                "tags": _tags(classification, planned, feedback),
-            }
-        )
+        record = {
+            "activity_id": activity_id,
+            "date": run_date.isoformat(),
+            "name": activity.get("name") or "Run",
+            "distance_miles": round(miles(activity), 2),
+            "moving_time_seconds": int(
+                activity.get("moving_time") or activity.get("elapsed_time") or 0
+            ),
+            "pace_per_mile": _pace_per_mile(miles(activity), activity),
+            "average_heartrate": activity.get("average_heartrate"),
+            "planned_workout": planned,
+            "classification": classification,
+            "classification_reason": reason,
+            "coaching_emphasis": emphasis,
+            "lap_count": len(activity.get("laps") or []),
+            "feedback": feedback,
+            "tags": _tags(classification, planned, feedback),
+        }
+        avg_hr_percent = heart_rate_percent(activity.get("average_heartrate"), max_heart_rate)
+        if avg_hr_percent is not None:
+            record["average_heartrate_percent_max"] = avg_hr_percent
+            record["observed_max_heartrate"] = max_heart_rate
+        records.append(record)
     return records
 
 
@@ -165,6 +172,10 @@ def run_memory_context(records: list[dict[str, Any]] | None = None, *, limit: in
                 subjective.append(f"pain {latest['pain']}")
             if subjective:
                 parts.append(", ".join(subjective))
+        hr = record.get("average_heartrate")
+        hr_percent = record.get("average_heartrate_percent_max")
+        if hr is not None and hr_percent is not None:
+            parts.append(f"avg HR {float(hr):.0f} bpm / {hr_percent}% max HR")
         tags = record.get("tags") or []
         if tags:
             parts.append("tags " + ", ".join(tags))

@@ -29,6 +29,7 @@ from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
+from .heart_rate import observed_max_heart_rate
 from .openai_client import coaching_reply, image_coaching_reply, normalize_post_run_feedback
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
 from .plan_suggestion import (
@@ -387,6 +388,7 @@ class CoachAgent:
                 recent_runs=detailed_activity_context(
                     detailed_run,
                     target_date=_activity_date(detailed_run),
+                    max_heart_rate=observed_max_heart_rate([*activities, detailed_run]),
                 ),
                 weekly_plan=weekly_plan_context_for_date(_activity_date(detailed_run)),
                 training_goal=training_goal_context(),
@@ -674,6 +676,7 @@ class CoachAgent:
                 recent_runs=detailed_activity_context(
                     detailed_run,
                     target_date=_activity_date(detailed_run),
+                    max_heart_rate=observed_max_heart_rate([*activities, detailed_run]),
                 ),
                 weekly_plan=weekly_plan_context_for_date(_activity_date(detailed_run)),
                 training_goal=training_goal_context(),
