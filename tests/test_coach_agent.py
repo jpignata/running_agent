@@ -50,6 +50,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertNotIn("/setplan <plan> -", text)
         self.assertNotIn("/setgoal <goal> -", text)
         self.assertNotIn("/preference <note> -", text)
+        self.assertNotIn("/feedback RPE", text)
         self.assertNotIn("/garmin -", text)
         self.assertNotIn("/garminweek -", text)
         self.assertNotIn("/tick -", text)
@@ -93,6 +94,94 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
         self.assertFalse(coaching_reply.call_args.kwargs["tools_enabled"])
 
+    @patch(
+        "running_agent.coach_agent.normalize_post_run_feedback",
+        return_value={"is_feedback": True, "rpe": 7, "legs": "heavy", "pain": "none"},
+    )
+    @patch("running_agent.coach_agent.append_post_run_feedback")
+    def test_feedback_command_saves_pending_run_feedback(
+        self, append_post_run_feedback, _normalize_post_run_feedback
+    ) -> None:
+        append_post_run_feedback.return_value = {
+            "run_date": "2026-05-30",
+            "rpe": 7,
+            "legs": "heavy",
+            "pain": "none",
+        }
+        state = {"pending_post_run_feedback": {"activity_id": 2, "run_date": "2026-05-30"}}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        replies = agent.handle_message("/feedback RPE 7, legs heavy, pain none")
+
+        self.assertIn("Got it. I logged RPE 7, legs heavy, pain none", replies[0])
+        self.assertIn("fatigue context", replies[0])
+        append_post_run_feedback.assert_called_once_with(
+            "RPE 7, legs heavy, pain none",
+            normalized={"is_feedback": True, "rpe": 7, "legs": "heavy", "pain": "none"},
+            activity_id=2,
+            run_date="2026-05-30",
+        )
+        self.assertNotIn("pending_post_run_feedback", state)
+        self.assertTrue(saves)
+
+    def test_feedback_command_requires_feedback_text(self) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        replies = agent.handle_message("/feedback")
+
+        self.assertIn("RPE 6, legs heavy, no pain", replies[0])
+
+    @patch(
+        "running_agent.coach_agent.normalize_post_run_feedback",
+        return_value={"is_feedback": True, "rpe": 8, "legs": "heavy", "pain": "no"},
+    )
+    @patch("running_agent.coach_agent.append_post_run_feedback")
+    def test_pending_feedback_captures_natural_next_reply(
+        self, append_post_run_feedback, _normalize_post_run_feedback
+    ) -> None:
+        append_post_run_feedback.return_value = {
+            "run_date": "2026-05-30",
+            "rpe": 8,
+            "legs": "heavy",
+            "pain": "no",
+        }
+        state = {"pending_post_run_feedback": {"activity_id": 2, "run_date": "2026-05-30"}}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        replies = agent.handle_message("Felt like 8, legs heavy, no pain")
+
+        self.assertIn("Got it. I logged RPE 8, legs heavy, pain no", replies[0])
+        self.assertIn("bigger stressor", replies[0])
+        append_post_run_feedback.assert_called_once_with(
+            "Felt like 8, legs heavy, no pain",
+            normalized={"is_feedback": True, "rpe": 8, "legs": "heavy", "pain": "no"},
+            activity_id=2,
+            run_date="2026-05-30",
+        )
+        self.assertNotIn("pending_post_run_feedback", state)
+
+    @patch(
+        "running_agent.coach_agent.normalize_post_run_feedback",
+        return_value={"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None},
+    )
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Normal coaching reply.")
+    def test_pending_feedback_ignores_unrelated_chat(
+        self, coaching_reply, _normalize_post_run_feedback
+    ) -> None:
+        state = {"pending_post_run_feedback": {"activity_id": 2, "run_date": "2026-05-30"}}
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        replies = agent.handle_message("what should I do tomorrow?")
+
+        self.assertEqual(replies, ["Normal coaching reply."])
+        coaching_reply.assert_called_once()
+        self.assertIn("pending_post_run_feedback", state)
+
     @patch("running_agent.coach_agent.append_run_result")
     @patch("running_agent.coach_agent.save_synced_run_detail")
     @patch("running_agent.coach_agent.current_garmin_context", return_value="Garmin context")
@@ -115,10 +204,18 @@ class CoachAgentTest(unittest.TestCase):
 
         messages = agent.check_new_runs(force=True)
 
-        self.assertEqual(messages, ["Nice work on that workout."])
+        self.assertEqual(len(messages), 1)
+        self.assertTrue(messages[0].startswith("Nice work on that workout."))
+        self.assertIn("How did that run feel?", messages[0])
+        self.assertIn("Any pain or soreness?", messages[0])
+        self.assertNotIn("/feedback", messages[0])
         save_synced_run_detail.assert_called_once_with(run, run)
         self.assertEqual(coaching_reply.call_args.kwargs["garmin_context"], "Garmin context")
         self.assertFalse(coaching_reply.call_args.kwargs["tools_enabled"])
+        self.assertEqual(
+            agent.state["pending_post_run_feedback"],
+            {"activity_id": 2, "run_date": "2026-05-30"},
+        )
 
     @patch("running_agent.coach_agent.refresh_garmin_snapshots")
     @patch("running_agent.coach_agent.coach_now")

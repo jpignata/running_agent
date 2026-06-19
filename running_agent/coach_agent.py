@@ -29,7 +29,7 @@ from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
-from .openai_client import coaching_reply, image_coaching_reply
+from .openai_client import coaching_reply, image_coaching_reply, normalize_post_run_feedback
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
 from .plan_suggestion import (
     mark_sunday_plan_sent,
@@ -37,6 +37,7 @@ from .plan_suggestion import (
     should_send_sunday_plan,
     suggest_next_week_plan,
 )
+from .post_run_feedback import append_post_run_feedback
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .strava_sync import save_synced_run_detail, sync_strava_runs
@@ -104,6 +105,13 @@ COMMANDS = (
         "_note_command",
         show_in_help=False,
         usage="/preference <note>",
+    ),
+    Command(
+        ("/feedback",),
+        "save post-run RPE and feel",
+        "_feedback_command",
+        show_in_help=False,
+        usage="/feedback RPE 6, legs heavy, pain none, notes faded late",
     ),
     Command(
         ("/garmin",),
@@ -207,6 +215,10 @@ class CoachAgent:
         if command_spec:
             handler = getattr(self, command_spec.handler_name)
             return handler(text, command)
+        if self.state.get("pending_post_run_feedback"):
+            feedback_reply = self._post_run_feedback_reply_or_none(text)
+            if feedback_reply:
+                return [feedback_reply]
         return [self.coach_reply(text)]
 
     def _help_command(self, _text: str, _command: str) -> list[str]:
@@ -244,6 +256,9 @@ class CoachAgent:
 
     def _note_command(self, text: str, command: str) -> list[str]:
         return [self._save_coaching_preference_from_message(text, command)]
+
+    def _feedback_command(self, text: str, _command: str) -> list[str]:
+        return [self._save_post_run_feedback_from_message(text)]
 
     def _garmin_command(self, _text: str, _command: str) -> list[str]:
         return [current_garmin_context()]
@@ -667,7 +682,12 @@ class CoachAgent:
                 tools_enabled=False,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
-            messages.append(note)
+            self.state["pending_post_run_feedback"] = {
+                "activity_id": detailed_run.get("id") or run.get("id"),
+                "run_date": _activity_date(detailed_run).isoformat(),
+            }
+            self._save_state()
+            messages.append(note + "\n\n" + _post_run_feedback_prompt())
         return messages
 
     def _run_summary_from_message(self, text: str) -> str:
@@ -703,6 +723,53 @@ class CoachAgent:
         append_coaching_preference(preference_text)
         return "Saved that coaching preference. I will use it in future coaching."
 
+    def _save_post_run_feedback_from_message(self, text: str) -> str:
+        feedback_text = text[len("/feedback") :].strip()
+        if not feedback_text:
+            return "Send post-run feedback like:\n" "RPE 6, legs heavy, no pain, faded late"
+        return self._save_post_run_feedback_from_text(feedback_text)
+
+    def _save_post_run_feedback_from_text(self, feedback_text: str) -> str:
+        try:
+            normalized = normalize_post_run_feedback(feedback_text)
+        except RuntimeError:
+            normalized = {"is_feedback": True, "notes": feedback_text}
+        if not normalized.get("is_feedback"):
+            normalized = {"is_feedback": True, "notes": feedback_text}
+        return self._save_normalized_post_run_feedback(feedback_text, normalized)
+
+    def _post_run_feedback_reply_or_none(self, feedback_text: str) -> str | None:
+        try:
+            normalized = normalize_post_run_feedback(feedback_text)
+        except RuntimeError:
+            return None
+        if not normalized.get("is_feedback"):
+            return None
+        return self._save_normalized_post_run_feedback(feedback_text, normalized)
+
+    def _save_normalized_post_run_feedback(
+        self, feedback_text: str, normalized: dict[str, Any]
+    ) -> str:
+        pending = self.state.get("pending_post_run_feedback") or {}
+        entry = append_post_run_feedback(
+            feedback_text,
+            normalized=normalized,
+            activity_id=pending.get("activity_id"),
+            run_date=pending.get("run_date"),
+        )
+        self.state.pop("pending_post_run_feedback", None)
+        self._save_state()
+        details = []
+        if entry.get("rpe") is not None:
+            details.append(f"RPE {entry['rpe']}")
+        if entry.get("legs"):
+            details.append(f"legs {entry['legs']}")
+        if entry.get("pain"):
+            details.append(f"pain {entry['pain']}")
+        saved = ", ".join(details) if details else "your note"
+        follow_up = _post_run_feedback_follow_up(entry)
+        return f"Got it. I logged {saved} for {entry['run_date']}. {follow_up}"
+
 
 def help_text() -> str:
     command_lines = [
@@ -734,6 +801,28 @@ def _last_run_fallback_note(run: dict[str, Any], error: RuntimeError) -> str:
         "Next step: recover well today, then use the next easy run to confirm the legs are ready "
         "before adding intensity."
     )
+
+
+def _post_run_feedback_prompt() -> str:
+    return (
+        "How did that run feel? Any pain or soreness? A quick reply like "
+        "'RPE 6, legs normal, no pain' is enough."
+    )
+
+
+def _post_run_feedback_follow_up(entry: dict[str, Any]) -> str:
+    rpe = entry.get("rpe")
+    pain = str(entry.get("pain") or "").lower()
+    legs = str(entry.get("legs") or "").lower()
+    if pain and pain not in {"none", "no"}:
+        return "That matters more than the splits; keep the next run easy and stop if it changes your stride."
+    if isinstance(rpe, int) and rpe >= 8:
+        return "That is a high effort signal, so I will treat the session as a bigger stressor than pace alone suggests."
+    if legs in {"heavy", "dead", "sore", "tired"}:
+        return "I will read that as fatigue context when judging the next couple of days."
+    if isinstance(rpe, int) and rpe <= 4 and (not pain or pain in {"none", "no"}):
+        return "That is a good sign that the work stayed controlled."
+    return "I will use that with the pace and Garmin context next time."
 
 
 def _activity_date(activity: dict[str, Any]):

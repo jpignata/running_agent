@@ -3,10 +3,85 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-from running_agent.openai_client import coaching_reply, image_coaching_reply
+from running_agent.openai_client import (
+    coaching_reply,
+    image_coaching_reply,
+    normalize_post_run_feedback,
+)
 
 
 class OpenAIClientTest(unittest.TestCase):
+    @patch.dict(
+        "os.environ",
+        {"OPENAI_API_KEY": "key", "OPENAI_FEEDBACK_MODEL": "cheap-feedback-model"},
+        clear=True,
+    )
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                '{"is_feedback": true, "rpe": 8, "legs": "Heavy", ' '"pain": "No", "notes": null}'
+            )
+        },
+    )
+    def test_normalize_post_run_feedback_uses_feedback_model(self, post_json) -> None:
+        feedback = normalize_post_run_feedback("Felt like 8, heavy legs, no pain")
+
+        self.assertEqual(
+            feedback,
+            {"is_feedback": True, "rpe": 8, "legs": "heavy", "pain": "no", "notes": None},
+        )
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["model"], "cheap-feedback-model")
+        self.assertIn("Return only JSON", payload["instructions"])
+        self.assertEqual(payload["input"], "Felt like 8, heavy legs, no pain")
+        self.assertEqual(payload["temperature"], 0)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key", "OPENAI_MODEL": "main-model"}, clear=True)
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                '{"is_feedback": false, "rpe": 7, "legs": "heavy", '
+                '"pain": "no", "notes": "ignore"}'
+            )
+        },
+    )
+    def test_normalize_post_run_feedback_clears_fields_when_not_feedback(self, post_json) -> None:
+        feedback = normalize_post_run_feedback("what should I do tomorrow?")
+
+        self.assertEqual(
+            feedback,
+            {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None},
+        )
+        self.assertEqual(post_json.call_args.args[1]["model"], "main-model")
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                "```json\n"
+                '{"is_feedback": true, "rpe": 22, "legs": "", '
+                '"pain": null, "notes": "Breathing fine"}\n'
+                "```"
+            )
+        },
+    )
+    def test_normalize_post_run_feedback_validates_json_fields(self, _post_json) -> None:
+        feedback = normalize_post_run_feedback("breathing was fine")
+
+        self.assertEqual(
+            feedback,
+            {
+                "is_feedback": True,
+                "rpe": None,
+                "legs": None,
+                "pain": None,
+                "notes": "breathing fine",
+            },
+        )
+
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(
         "running_agent.coach_prompt.coach_reflection_context",

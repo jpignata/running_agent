@@ -7,6 +7,7 @@ from typing import Any
 from .activity_format import activity_headline
 from .coach_time import coach_today
 from .plan_store import planned_workout_for_date
+from .post_run_feedback import post_run_feedback_context
 from .storage import append_jsonl, read_jsonl
 from .storage_paths import COACH_LOG_PATH
 
@@ -57,7 +58,7 @@ def read_coach_log(path: Path = COACH_LOG_PATH) -> list[dict[str, Any]]:
 def coach_log_context(path: Path = COACH_LOG_PATH, limit: int = 8) -> str:
     entries = read_coach_log(path)
     if not entries:
-        return "No coach log entries have been recorded yet."
+        return "No coach log entries have been recorded yet.\n\n" + post_run_feedback_context()
 
     lines = ["Recent coach log:"]
     for entry in entries[-limit:]:
@@ -80,7 +81,7 @@ def coach_log_context(path: Path = COACH_LOG_PATH, limit: int = 8) -> str:
                 f"{entry.get('created_at', 'unknown time')}: "
                 f"{entry.get('type', 'note')}: {entry.get('text', '')}"
             )
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n\n" + post_run_feedback_context()
 
 
 def _activity_date(activity: dict[str, Any]):

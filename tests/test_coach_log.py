@@ -86,6 +86,19 @@ class CoachLogTest(unittest.TestCase):
         self.assertIn("week 2026-05-25 to 2026-05-31", context)
         self.assertIn("Good consistency", context)
 
+    @patch(
+        "running_agent.coach_log.post_run_feedback_context",
+        return_value="Recent post-run feedback:\n- 2026-06-19; RPE 7; legs heavy",
+    )
+    def test_coach_log_context_includes_post_run_feedback(self, _feedback_context) -> None:
+        path = _temp_path()
+
+        context = coach_log_context(path)
+
+        self.assertIn("No coach log entries have been recorded yet.", context)
+        self.assertIn("Recent post-run feedback:", context)
+        self.assertIn("RPE 7", context)
+
 
 def _temp_path() -> Path:
     handle = tempfile.NamedTemporaryFile(delete=True)

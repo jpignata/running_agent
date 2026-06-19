@@ -150,6 +150,36 @@ def image_coaching_reply(
     return text.strip()
 
 
+def normalize_post_run_feedback(message: str) -> dict[str, Any]:
+    load_env_file()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required to normalize post-run feedback.")
+
+    payload = {
+        "model": os.environ.get("OPENAI_FEEDBACK_MODEL")
+        or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "instructions": (
+            "Normalize a runner's reply to a post-run feel check. Return only JSON with "
+            "keys is_feedback, rpe, legs, pain, notes. is_feedback is true only when the "
+            "message is answering how the run felt, including RPE, effort, legs, pain, "
+            "soreness, fatigue, breathing, or execution. Use rpe as an integer 1-10 when "
+            "provided, otherwise null. Use short lowercase strings for legs and pain when "
+            "provided, otherwise null. Use notes for useful extra context, otherwise null. "
+            "Do not invent fields. If the message is a normal coaching question or command, "
+            "set is_feedback false and all other fields null."
+        ),
+        "input": message,
+        "temperature": 0,
+        "max_output_tokens": 200,
+    }
+    response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
+    text = _extract_output_text(response)
+    if not text:
+        raise RuntimeError("OpenAI response did not include feedback JSON.")
+    return _clean_normalized_feedback(_parse_json_object(text))
+
+
 def _handle_tool_calls(
     response: dict[str, Any],
     original_payload: dict[str, Any],
@@ -478,6 +508,33 @@ def _extract_output_text(response: dict[str, Any]) -> str:
             if content.get("type") == "output_text" and isinstance(content.get("text"), str):
                 chunks.append(content["text"])
     return "\n".join(chunks)
+
+
+def _parse_json_object(text: str) -> dict[str, Any]:
+    raw = text.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lower().startswith("json"):
+            raw = raw[4:].strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Response was not valid JSON: {text!r}") from exc
+    if not isinstance(parsed, dict):
+        raise RuntimeError(f"Response JSON must be an object: {text!r}")
+    return parsed
+
+
+def _clean_normalized_feedback(parsed: dict[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = {"is_feedback": bool(parsed.get("is_feedback"))}
+    rpe = parsed.get("rpe")
+    result["rpe"] = rpe if isinstance(rpe, int) and 1 <= rpe <= 10 else None
+    for key in ("legs", "pain", "notes"):
+        value = parsed.get(key)
+        result[key] = value.strip().lower() if isinstance(value, str) and value.strip() else None
+    if not result["is_feedback"]:
+        result.update({"rpe": None, "legs": None, "pain": None, "notes": None})
+    return result
 
 
 def _incomplete_reason(response: dict[str, Any]) -> str:
