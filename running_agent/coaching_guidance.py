@@ -42,6 +42,17 @@ RPE_COACHING_RUBRIC = """RPE coaching rubric:
 - When Garmin looks poor but warmup RPE and feel are normal, adjust execution before changing the plan. When Garmin looks fine but RPE is unusually high, respect the athlete's felt signal.
 - Track repeated RPE patterns over time: same pace with lower RPE suggests fitness; same workout with higher RPE or worse recovery suggests fatigue or too much load."""
 
+DANIELS_TRAINING_RUBRIC = """Daniels-style training rubric:
+- Use the working VDOT as a pace governor, not a motivational label. Race evidence calibrates it; workouts can support it only when controlled, repeatable, and recoverable.
+- Keep the purpose of each intensity distinct: Easy/Long for aerobic support and recovery capacity, Marathon for race-specific durability, Threshold for sustainable speed, Interval for VO2 max support, and Repetition for speed, mechanics, and economy.
+- Prescribe the least intense tool that accomplishes the training purpose. Do not use Interval work when Threshold work would create the intended adaptation with less recovery cost.
+- Keep easy running genuinely easy. Easy pace is allowed to vary by terrain, heat, fatigue, and HR/RPE; the goal is aerobic volume that protects the next workout.
+- Threshold should usually feel controlled and repeatable. Prefer cruise intervals or moderate continuous tempos before extending duration or nudging pace.
+- Repetition work should stay fast, relaxed, and mechanically clean with generous recovery. It is not a conditioning grind.
+- Interval work should be purposeful and limited. If reps become ragged, desperate, or require racing the recoveries, the stimulus has drifted.
+- Quality days should be capped by the athlete's current volume and durability. Most miles should still support aerobic development, not compete with the workout.
+- For marathon training, do not overfit short-race VDOT. Use VDOT for pace anchors, then demand proof through long-run tolerance, medium-long consistency, fueling, and recovery response."""
+
 TRAINING_PROGRESSION_RUBRIC = """Training progression rubric:
 - Coach toward the athlete's race goal with appropriately challenging training, not automatic caution.
 - Progress training when recent execution, recovery, and consistency support it.
