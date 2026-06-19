@@ -1,0 +1,74 @@
+{
+  "description": "Checks terse feedback with a leading RPE number and compact fields.",
+  "interaction": "coach_agent",
+  "initial_state": {
+    "seen_activity_ids": []
+  },
+  "model_reply": "That session was solid. Keep the recovery honest.",
+  "strava_activities": [
+    {
+      "id": 127,
+      "name": "Workout",
+      "type": "Run",
+      "distance": 9656.064,
+      "moving_time": 3000,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  ],
+  "strava_details": {
+    "127": {
+      "id": 127,
+      "name": "Workout",
+      "type": "Run",
+      "distance": 9656.064,
+      "moving_time": 3000,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  },
+  "turns": [
+    {
+      "action": "check_new_runs",
+      "force": true
+    },
+    {
+      "user_message": "6, no pain, legs ok",
+      "normalized_feedback": {
+        "is_feedback": true,
+        "rpe": 6,
+        "legs": "ok",
+        "pain": "no",
+        "notes": null
+      }
+    }
+  ],
+  "expected": {
+    "turns": [
+      {
+        "reply_must_include": [
+          "How did that run feel?"
+        ]
+      },
+      {
+        "reply_must_include": [
+          "Got it. I logged RPE 6",
+          "legs ok",
+          "pain no",
+          "pace and Garmin context"
+        ]
+      }
+    ],
+    "feedback": {
+      "count": 1,
+      "fields": {
+        "activity_id": 127,
+        "run_date": "2026-06-19",
+        "rpe": 6,
+        "legs": "ok",
+        "pain": "no"
+      }
+    },
+    "state": {
+      "pending_post_run_feedback": false
+    }
+  }
+}

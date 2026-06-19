@@ -420,13 +420,14 @@ To run local AI behavior evals:
 python -m running_agent evals
 python -m running_agent evals --case adjust_existing_weekly_plan
 python -m running_agent evals --case image_plan_update_from_screenshot
-python -m running_agent evals --case working_vdot_training_paces --debug
+python -m running_agent evals --case post_run_feedback_roundtrip --debug
+python -m running_agent evals --case uses_deterministic_vdot_table_paces --debug
 ```
 
 Without `--case`, the command runs all eval cases. Current evals cover weekly plan updates,
 screenshot plan updates, hypothetical plan suggestions that must not be saved, local race
-recall, working VDOT pace calibration, plain-text Telegram formatting, and judged coaching
-quality for subjective safety cases.
+recall, working VDOT pace calibration, post-run feedback roundtrips, plain-text Telegram
+formatting, and judged coaching quality for subjective safety cases.
 
 Some evals use a judge model to make a criteria-based pass/fail call; set
 `OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls use

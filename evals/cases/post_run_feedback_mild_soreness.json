@@ -1,0 +1,74 @@
+{
+  "description": "Checks that mild soreness in a natural feedback reply is captured as pain context and gets a cautious follow-up.",
+  "interaction": "coach_agent",
+  "initial_state": {
+    "seen_activity_ids": []
+  },
+  "model_reply": "That was a useful aerobic day. Keep the next one relaxed.",
+  "strava_activities": [
+    {
+      "id": 125,
+      "name": "Medium Long Run",
+      "type": "Run",
+      "distance": 14484.096,
+      "moving_time": 4500,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  ],
+  "strava_details": {
+    "125": {
+      "id": 125,
+      "name": "Medium Long Run",
+      "type": "Run",
+      "distance": 14484.096,
+      "moving_time": 4500,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  },
+  "turns": [
+    {
+      "action": "check_new_runs",
+      "force": true
+    },
+    {
+      "user_message": "RPE 5, legs normal, soreness mild",
+      "normalized_feedback": {
+        "is_feedback": true,
+        "rpe": 5,
+        "legs": "normal",
+        "pain": "mild",
+        "notes": null
+      }
+    }
+  ],
+  "expected": {
+    "turns": [
+      {
+        "reply_must_include": [
+          "How did that run feel?"
+        ]
+      },
+      {
+        "reply_must_include": [
+          "Got it. I logged RPE 5",
+          "legs normal",
+          "pain mild",
+          "stop if it changes your stride"
+        ]
+      }
+    ],
+    "feedback": {
+      "count": 1,
+      "fields": {
+        "activity_id": 125,
+        "run_date": "2026-06-19",
+        "rpe": 5,
+        "legs": "normal",
+        "pain": "mild"
+      }
+    },
+    "state": {
+      "pending_post_run_feedback": false
+    }
+  }
+}

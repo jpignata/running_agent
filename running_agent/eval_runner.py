@@ -4,11 +4,12 @@ import argparse
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
+from . import coach_agent as coach_agent_module
 from . import coach_prompt, openai_client
 from .auth import load_env_file
 from .coach_time import COACH_TIME_ZONE
@@ -33,6 +34,7 @@ class EvalResult:
     saved_plans: list[str]
     tool_calls: list[dict[str, Any]]
     checks: list[EvalCheck]
+    saved_feedback: list[dict[str, Any]] = field(default_factory=list)
 
 
 ReplyFunc = Callable[..., str]
@@ -59,6 +61,9 @@ def run_case(
     reply_func: ReplyFunc | None = None,
     judge_func: JudgeFunc | None = None,
 ) -> EvalResult:
+    if case.get("interaction") == "coach_agent":
+        return run_coach_agent_case(case, reply_func=reply_func)
+
     saved_plans: list[str] = []
     saved_goals: list[str] = []
     saved_race_results: list[dict[str, Any]] = []
@@ -169,6 +174,114 @@ def run_case(
         tool_calls=tool_calls,
         checks=checks,
     )
+
+
+def run_coach_agent_case(
+    case: dict[str, Any],
+    reply_func: ReplyFunc | None = None,
+) -> EvalResult:
+    saved_feedback: list[dict[str, Any]] = []
+    replies: list[str] = []
+    state = dict(case.get("initial_state") or {})
+    original_append_post_run_feedback = coach_agent_module.append_post_run_feedback
+    original_append_run_result = coach_agent_module.append_run_result
+    original_coaching_reply = coach_agent_module.coaching_reply
+    original_current_garmin_context = coach_agent_module.current_garmin_context
+    original_normalize_post_run_feedback = coach_agent_module.normalize_post_run_feedback
+    original_save_synced_run_detail = coach_agent_module.save_synced_run_detail
+    normalizations = {
+        str(turn.get("user_message")): dict(turn.get("normalized_feedback") or {})
+        for turn in case.get("turns") or []
+        if "user_message" in turn
+    }
+
+    def capture_post_run_feedback(
+        text: str,
+        *,
+        normalized: dict[str, Any] | None = None,
+        activity_id: Any = None,
+        run_date: str | None = None,
+    ) -> dict[str, Any]:
+        normalized = normalized or normalizations.get(text) or {}
+        entry = {
+            "type": "post_run_feedback",
+            "activity_id": activity_id,
+            "run_date": run_date,
+            "raw": text.strip(),
+            **{
+                key: value
+                for key, value in (normalizations.get(text) or {}).items()
+                if key != "is_feedback" and value is not None
+            },
+        }
+        saved_feedback.append(entry)
+        return entry
+
+    def fake_normalize_post_run_feedback(text: str) -> dict[str, Any]:
+        return normalizations.get(
+            text,
+            {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None},
+        )
+
+    def fake_coaching_reply(*args, **kwargs) -> str:
+        if reply_func:
+            return reply_func(*args, **kwargs)
+        return str(case.get("model_reply") or "Nice work on that run.")
+
+    coach_agent_module.append_post_run_feedback = capture_post_run_feedback
+    coach_agent_module.append_run_result = lambda activity: {"activity_id": activity.get("id")}
+    coach_agent_module.coaching_reply = fake_coaching_reply
+    coach_agent_module.current_garmin_context = lambda: str(
+        (case.get("initial_context") or {}).get("garmin_context") or "Garmin context unavailable."
+    )
+    coach_agent_module.normalize_post_run_feedback = fake_normalize_post_run_feedback
+    coach_agent_module.save_synced_run_detail = lambda summary, detail: None
+    try:
+        agent = coach_agent_module.CoachAgent(
+            strava_client=_EvalStrava(case),
+            state=state,
+            save_state=lambda: None,
+        )
+        for turn in case.get("turns") or []:
+            if turn.get("action") == "check_new_runs":
+                replies.extend(agent.check_new_runs(force=bool(turn.get("force", True))))
+            elif "user_message" in turn:
+                replies.extend(agent.handle_message(str(turn["user_message"]), source="eval"))
+            else:
+                raise RuntimeError(f"Unsupported coach_agent eval turn: {turn!r}")
+    finally:
+        coach_agent_module.append_post_run_feedback = original_append_post_run_feedback
+        coach_agent_module.append_run_result = original_append_run_result
+        coach_agent_module.coaching_reply = original_coaching_reply
+        coach_agent_module.current_garmin_context = original_current_garmin_context
+        coach_agent_module.normalize_post_run_feedback = original_normalize_post_run_feedback
+        coach_agent_module.save_synced_run_detail = original_save_synced_run_detail
+
+    reply = "\n\n".join(replies)
+    checks = score_coach_agent_case(case, replies, saved_feedback, state)
+    return EvalResult(
+        name=str(case.get("name") or "unnamed"),
+        passed=all(check.passed for check in checks),
+        reply=reply,
+        saved_plans=[],
+        tool_calls=[],
+        checks=checks,
+        saved_feedback=saved_feedback,
+    )
+
+
+class _EvalStrava:
+    def __init__(self, case: dict[str, Any]):
+        self.activities = list(case.get("strava_activities") or [])
+        self.details = {
+            str(key): value for key, value in (case.get("strava_details") or {}).items()
+        }
+
+    def recent_activities(self, days: int = 28) -> list[dict[str, Any]]:
+        return self.activities
+
+    def detailed_activity(self, activity_id: Any) -> dict[str, Any]:
+        return self.details.get(str(activity_id), {"id": activity_id, "type": "Run"})
 
 
 def _run_case_model_call(
@@ -283,6 +396,63 @@ def score_case(
         checks.extend(judge_reply(case, reply, judge_func=judge_func))
     checks.append(EvalCheck(bool(reply.strip()), "model returned a non-empty reply"))
     return checks
+
+
+def score_coach_agent_case(
+    case: dict[str, Any],
+    replies: list[str],
+    saved_feedback: list[dict[str, Any]],
+    state: dict[str, Any],
+) -> list[EvalCheck]:
+    expected = case.get("expected") or {}
+    checks: list[EvalCheck] = []
+
+    for index, turn_expected in enumerate(expected.get("turns") or []):
+        reply = replies[index] if index < len(replies) else ""
+        checks.append(EvalCheck(bool(reply), f"turn {index + 1} returned a reply"))
+        checks.extend(
+            _prefix_checks(
+                score_reply_rules(turn_expected, reply),
+                prefix=f"turn {index + 1}: ",
+            )
+        )
+
+    feedback_expected = expected.get("feedback") or {}
+    if feedback_expected:
+        expected_count = feedback_expected.get("count")
+        if expected_count is not None:
+            checks.append(
+                EvalCheck(
+                    len(saved_feedback) == int(expected_count),
+                    f"saved feedback count is {expected_count}; got {len(saved_feedback)}",
+                )
+            )
+        if saved_feedback:
+            entry = saved_feedback[-1]
+            for key, expected_value in (feedback_expected.get("fields") or {}).items():
+                checks.append(
+                    EvalCheck(
+                        entry.get(key) == expected_value,
+                        f"saved feedback {key} is {expected_value!r}; got {entry.get(key)!r}",
+                    )
+                )
+
+    state_expected = expected.get("state") or {}
+    if "pending_post_run_feedback" in state_expected:
+        should_have_pending = bool(state_expected["pending_post_run_feedback"])
+        checks.append(
+            EvalCheck(
+                ("pending_post_run_feedback" in state) == should_have_pending,
+                f"pending_post_run_feedback present is {should_have_pending}",
+            )
+        )
+
+    checks.append(EvalCheck(bool(replies), "agent produced at least one reply"))
+    return checks
+
+
+def _prefix_checks(checks: list[EvalCheck], *, prefix: str) -> list[EvalCheck]:
+    return [EvalCheck(check.passed, prefix + check.message) for check in checks]
 
 
 def score_expected(
@@ -554,6 +724,8 @@ def format_eval_results(results: list[EvalResult], debug: bool = False) -> str:
             lines.extend(["", "Saved plan:", result.saved_plans[-1]])
         if result.tool_calls:
             lines.extend(["", "Tool calls:", json.dumps(result.tool_calls, indent=2)])
+        if result.saved_feedback:
+            lines.extend(["", "Saved feedback:", json.dumps(result.saved_feedback, indent=2)])
         if result.reply:
             lines.extend(["", "Reply:", result.reply])
     passed = sum(1 for result in results if result.passed)

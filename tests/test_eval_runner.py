@@ -394,6 +394,15 @@ class EvalRunnerTest(unittest.TestCase):
         )
         self.assertTrue(any("reply does not match" in check.message for check in result.checks))
 
+    def test_coach_agent_roundtrip_eval_captures_post_run_feedback(self) -> None:
+        result = run_case(load_case_path("post_run_feedback_roundtrip.json"))
+
+        self.assertTrue(result.passed, format_eval_results([result], debug=True))
+        self.assertEqual(result.saved_feedback[0]["activity_id"], 123)
+        self.assertEqual(result.saved_feedback[0]["rpe"], 8)
+        self.assertIn("How did that run feel?", result.reply)
+        self.assertIn("Got it. I logged RPE 8", result.reply)
+
     @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "0.2"}, clear=True)
     def test_eval_temperature_uses_environment_override(self) -> None:
         self.assertEqual(eval_temperature(), 0.2)
@@ -444,6 +453,22 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("Model reply", text)
         self.assertIn("Summary: 1 passed, 0 failed", text)
 
+    def test_format_eval_results_includes_saved_feedback_when_debugging(self) -> None:
+        result = EvalResult(
+            name="feedback_case",
+            passed=True,
+            reply="Saved.",
+            saved_plans=[],
+            tool_calls=[],
+            checks=[EvalCheck(True, "check passed")],
+            saved_feedback=[{"rpe": 8, "legs": "heavy"}],
+        )
+
+        text = format_eval_results([result], debug=True)
+
+        self.assertIn("Saved feedback:", text)
+        self.assertIn('"rpe": 8', text)
+
     def test_format_eval_results_summarizes_failures(self) -> None:
         text = format_eval_results(
             [sample_result(), sample_result(name="failing_case", passed=False)]
@@ -467,6 +492,11 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertIn("move_long_run_to_tomorrow_plan_update", results)
         self.assertIn("pace_calibration_requires_race_lookup", results)
         self.assertIn("plain_text_reply_format", results)
+        self.assertIn("post_run_feedback_low_rpe_controlled", results)
+        self.assertIn("post_run_feedback_mild_soreness", results)
+        self.assertIn("post_run_feedback_roundtrip", results)
+        self.assertIn("post_run_feedback_terse_numeric", results)
+        self.assertIn("post_run_feedback_unrelated_reply", results)
         self.assertIn("recall_last_race", results)
         self.assertIn("remove_goal_omits_deleted_goal_text", results)
         self.assertIn("save_official_race_result_correction", results)

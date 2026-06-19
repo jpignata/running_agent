@@ -1,0 +1,67 @@
+{
+  "description": "Checks that pending post-run feedback does not swallow an unrelated coaching question.",
+  "interaction": "coach_agent",
+  "initial_state": {
+    "seen_activity_ids": []
+  },
+  "model_reply": "Normal coaching reply.",
+  "strava_activities": [
+    {
+      "id": 124,
+      "name": "Easy Run",
+      "type": "Run",
+      "distance": 8046.72,
+      "moving_time": 2400,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  ],
+  "strava_details": {
+    "124": {
+      "id": 124,
+      "name": "Easy Run",
+      "type": "Run",
+      "distance": 8046.72,
+      "moving_time": 2400,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  },
+  "turns": [
+    {
+      "action": "check_new_runs",
+      "force": true
+    },
+    {
+      "user_message": "what should I do tomorrow?",
+      "normalized_feedback": {
+        "is_feedback": false,
+        "rpe": null,
+        "legs": null,
+        "pain": null,
+        "notes": null
+      }
+    }
+  ],
+  "expected": {
+    "turns": [
+      {
+        "reply_must_include": [
+          "How did that run feel?"
+        ]
+      },
+      {
+        "reply_must_include": [
+          "Normal coaching reply."
+        ],
+        "reply_must_not_include": [
+          "Got it. I logged"
+        ]
+      }
+    ],
+    "feedback": {
+      "count": 0
+    },
+    "state": {
+      "pending_post_run_feedback": true
+    }
+  }
+}

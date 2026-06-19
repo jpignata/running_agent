@@ -1,0 +1,74 @@
+{
+  "description": "Checks that low RPE with fresh legs and no pain is interpreted as controlled rather than concerning.",
+  "interaction": "coach_agent",
+  "initial_state": {
+    "seen_activity_ids": []
+  },
+  "model_reply": "That easy run did its job. Keep stacking quiet aerobic work.",
+  "strava_activities": [
+    {
+      "id": 126,
+      "name": "Recovery Run",
+      "type": "Run",
+      "distance": 6437.376,
+      "moving_time": 2100,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  ],
+  "strava_details": {
+    "126": {
+      "id": 126,
+      "name": "Recovery Run",
+      "type": "Run",
+      "distance": 6437.376,
+      "moving_time": 2100,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  },
+  "turns": [
+    {
+      "action": "check_new_runs",
+      "force": true
+    },
+    {
+      "user_message": "RPE 3, fresh legs, no pain",
+      "normalized_feedback": {
+        "is_feedback": true,
+        "rpe": 3,
+        "legs": "fresh",
+        "pain": "no",
+        "notes": null
+      }
+    }
+  ],
+  "expected": {
+    "turns": [
+      {
+        "reply_must_include": [
+          "How did that run feel?"
+        ]
+      },
+      {
+        "reply_must_include": [
+          "Got it. I logged RPE 3",
+          "legs fresh",
+          "pain no",
+          "stayed controlled"
+        ]
+      }
+    ],
+    "feedback": {
+      "count": 1,
+      "fields": {
+        "activity_id": 126,
+        "run_date": "2026-06-19",
+        "rpe": 3,
+        "legs": "fresh",
+        "pain": "no"
+      }
+    },
+    "state": {
+      "pending_post_run_feedback": false
+    }
+  }
+}

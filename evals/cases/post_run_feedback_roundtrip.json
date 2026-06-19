@@ -1,0 +1,82 @@
+{
+  "description": "Checks the post-run feedback customer experience across two turns: the bot asks a natural follow-up after a new run, then captures the athlete's natural RPE/pain reply and responds with interpretation.",
+  "interaction": "coach_agent",
+  "initial_state": {
+    "seen_activity_ids": []
+  },
+  "initial_context": {
+    "garmin_context": "Garmin readiness context: normal baseline."
+  },
+  "model_reply": "That was a solid controlled workout. Keep tomorrow easy so the work can settle.",
+  "strava_activities": [
+    {
+      "id": 123,
+      "name": "Threshold Workout",
+      "type": "Run",
+      "distance": 9656.064,
+      "moving_time": 2880,
+      "start_date_local": "2026-06-19T06:00:00Z"
+    }
+  ],
+  "strava_details": {
+    "123": {
+      "id": 123,
+      "name": "Threshold Workout",
+      "type": "Run",
+      "distance": 9656.064,
+      "moving_time": 2880,
+      "start_date_local": "2026-06-19T06:00:00Z",
+      "laps": []
+    }
+  },
+  "turns": [
+    {
+      "action": "check_new_runs",
+      "force": true
+    },
+    {
+      "user_message": "Felt like 8, heavy legs, no pain",
+      "normalized_feedback": {
+        "is_feedback": true,
+        "rpe": 8,
+        "legs": "heavy",
+        "pain": "no",
+        "notes": null
+      }
+    }
+  ],
+  "expected": {
+    "turns": [
+      {
+        "reply_must_include": [
+          "How did that run feel?",
+          "Any pain or soreness?"
+        ],
+        "reply_must_not_include": [
+          "/feedback"
+        ]
+      },
+      {
+        "reply_must_include": [
+          "Got it. I logged RPE 8",
+          "legs heavy",
+          "pain no",
+          "bigger stressor"
+        ]
+      }
+    ],
+    "feedback": {
+      "count": 1,
+      "fields": {
+        "activity_id": 123,
+        "run_date": "2026-06-19",
+        "rpe": 8,
+        "legs": "heavy",
+        "pain": "no"
+      }
+    },
+    "state": {
+      "pending_post_run_feedback": false
+    }
+  }
+}
