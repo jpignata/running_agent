@@ -7,6 +7,7 @@ from pathlib import Path
 from running_agent.coach_prompt import build_coaching_input
 from running_agent.coaching_guidance import (
     DANIELS_TRAINING_RUBRIC,
+    GARMIN_COACHING_RUBRIC,
     RPE_COACHING_RUBRIC,
     coaching_philosophy_context,
 )
@@ -47,6 +48,24 @@ class CoachingGuidanceTest(unittest.TestCase):
         self.assertIn(RPE_COACHING_RUBRIC, context)
         self.assertIn("Treat reported RPE and feel as core execution evidence", context)
         self.assertIn("Recent run memory:\nRun memory context.", context)
+
+    def test_coaching_input_demotes_body_battery(self) -> None:
+        context = build_coaching_input(
+            message="How does Garmin look today?",
+            training_summary="Recent training.",
+            recent_runs="Recent runs.",
+            coaching_philosophy_text="Coaching philosophy.",
+            athlete_profile_text="Athlete profile.",
+            coach_reflection_text="Coach reflection.",
+            include_coach_reflection=False,
+            pace_calibration_text="Pace calibration.",
+            run_memory_text="Run memory context.",
+        )
+
+        self.assertIn(GARMIN_COACHING_RUBRIC, context)
+        self.assertIn("Treat Body Battery as a soft composite", context)
+        self.assertIn("Do not double-count it as independent evidence", context)
+        self.assertIn("Mention Body Battery only when the athlete asks", context)
 
     def test_coaching_input_includes_daniels_training_rubric(self) -> None:
         context = build_coaching_input(

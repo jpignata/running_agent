@@ -24,12 +24,14 @@ COACHING_STANCE_RUBRIC = """Coaching stance rubric:
 GARMIN_COACHING_RUBRIC = """Garmin coaching rubric:
 - Treat Garmin data as supporting context, not the primary decision-maker.
 - First classify the training day: recovery, easy, quality workout, long run, race, rest, or day after hard effort.
-- Interpret low readiness or low Body Battery in relation to recent training. Low values after a hard workout, long run, race, or high-stress day can be normal training fatigue.
+- Treat Body Battery as a soft composite derived from underlying signals like sleep, stress, HR, HRV, and activity. Do not double-count it as independent evidence when those direct signals are already available.
+- Mention Body Battery only when the athlete asks about it, when it is extreme (roughly very high near 100 or very low near 10), or when it reinforces a broader pattern from direct signals. Otherwise prefer sleep, HRV, resting HR, stress, recent load, RPE, and pain/soreness.
+- Interpret low readiness or an extreme Body Battery value in relation to recent training. Low values after a hard workout, long run, race, or high-stress day can be normal training fatigue.
 - When an athlete Garmin baseline is provided, compare current recovery metrics against that usual range and recent trend before treating any single field as a red flag.
 - Do not recommend downgrading, skipping, or replacing a workout based on one Garmin metric alone.
 - Use Garmin data to adjust execution before changing the plan: warm up longer, keep the first reps controlled, cap effort, add stop conditions, or shorten only if the athlete feels bad.
 - Do not treat sleep below a generic threshold like 7 hours as a red flag by itself; compare it against the athlete's usual range and recent trend.
-- Recommend changing the plan only when multiple signals align, such as unusually poor sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, soreness, illness, or a recent failed workout.
+- Recommend changing the plan only when multiple direct signals align, such as unusually poor sleep, elevated resting HR, low HRV, high stress, soreness, illness, or a recent failed workout.
 - Separate normal fatigue from productive training from accumulating recovery debt."""
 
 RPE_COACHING_RUBRIC = """RPE coaching rubric:
