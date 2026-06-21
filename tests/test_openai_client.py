@@ -14,7 +14,7 @@ from running_agent.openai_client import (
 class OpenAIClientTest(unittest.TestCase):
     @patch.dict(
         "os.environ",
-        {"OPENAI_API_KEY": "key", "OPENAI_FEEDBACK_MODEL": "cheap-feedback-model"},
+        {"OPENAI_API_KEY": "key", "OPENAI_SMALL_MODEL": "cheap-helper-model"},
         clear=True,
     )
     @patch(
@@ -25,7 +25,7 @@ class OpenAIClientTest(unittest.TestCase):
             )
         },
     )
-    def test_normalize_post_run_feedback_uses_feedback_model(self, post_json) -> None:
+    def test_normalize_post_run_feedback_uses_small_model(self, post_json) -> None:
         feedback = normalize_post_run_feedback("Felt like 8, heavy legs, no pain")
 
         self.assertEqual(
@@ -33,7 +33,7 @@ class OpenAIClientTest(unittest.TestCase):
             {"is_feedback": True, "rpe": 8, "legs": "heavy", "pain": "no", "notes": None},
         )
         payload = post_json.call_args.args[1]
-        self.assertEqual(payload["model"], "cheap-feedback-model")
+        self.assertEqual(payload["model"], "cheap-helper-model")
         self.assertIn("Return only JSON", payload["instructions"])
         self.assertEqual(payload["input"], "Felt like 8, heavy legs, no pain")
         self.assertEqual(payload["temperature"], 0)
@@ -85,7 +85,7 @@ class OpenAIClientTest(unittest.TestCase):
 
     @patch.dict(
         "os.environ",
-        {"OPENAI_API_KEY": "key", "OPENAI_INTERACTION_MODEL": "tiny-model"},
+        {"OPENAI_API_KEY": "key", "OPENAI_SMALL_MODEL": "tiny-model"},
         clear=True,
     )
     @patch(
@@ -98,7 +98,7 @@ class OpenAIClientTest(unittest.TestCase):
             )
         },
     )
-    def test_resolve_pending_question_uses_interaction_model(self, post_json) -> None:
+    def test_resolve_pending_question_uses_small_model(self, post_json) -> None:
         result = resolve_pending_question(
             question="How did that run feel? Any pain or soreness?",
             response="rpe 5, legs great, no pain",

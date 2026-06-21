@@ -157,7 +157,7 @@ def normalize_post_run_feedback(message: str) -> dict[str, Any]:
         raise RuntimeError("OPENAI_API_KEY is required to normalize post-run feedback.")
 
     payload = {
-        "model": os.environ.get("OPENAI_FEEDBACK_MODEL")
+        "model": os.environ.get("OPENAI_SMALL_MODEL")
         or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
         "instructions": (
             "Normalize a runner's reply to a post-run feel check. Return only JSON with "
@@ -192,8 +192,7 @@ def resolve_pending_question(
         raise RuntimeError("OPENAI_API_KEY is required to resolve pending questions.")
 
     payload = {
-        "model": os.environ.get("OPENAI_INTERACTION_MODEL")
-        or os.environ.get("OPENAI_FEEDBACK_MODEL")
+        "model": os.environ.get("OPENAI_SMALL_MODEL")
         or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
         "instructions": (
             "Decide whether the athlete's latest message answers the coach's pending "
