@@ -401,7 +401,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertEqual(result.saved_feedback[0]["activity_id"], 123)
         self.assertEqual(result.saved_feedback[0]["rpe"], 8)
         self.assertIn("How did that run feel?", result.reply)
-        self.assertIn("Got it. I logged RPE 8", result.reply)
+        self.assertIn("Got it. RPE 8", result.reply)
 
     @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "0.2"}, clear=True)
     def test_eval_temperature_uses_environment_override(self) -> None:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import time as datetime_time
@@ -30,7 +31,12 @@ from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal, training_goal_context
 from .heart_rate import observed_max_heart_rate
-from .openai_client import coaching_reply, image_coaching_reply, normalize_post_run_feedback
+from .openai_client import (
+    coaching_reply,
+    image_coaching_reply,
+    normalize_post_run_feedback,
+    resolve_pending_question,
+)
 from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
 from .plan_suggestion import (
     mark_sunday_plan_sent,
@@ -216,10 +222,9 @@ class CoachAgent:
         if command_spec:
             handler = getattr(self, command_spec.handler_name)
             return handler(text, command)
-        if self.state.get("pending_post_run_feedback"):
-            feedback_reply = self._post_run_feedback_reply_or_none(text)
-            if feedback_reply:
-                return [feedback_reply]
+        pending_reply = self._pending_question_reply_or_none(text)
+        if pending_reply:
+            return [pending_reply]
         return [self.coach_reply(text)]
 
     def _help_command(self, _text: str, _command: str) -> list[str]:
@@ -685,10 +690,10 @@ class CoachAgent:
                 tools_enabled=False,
             )
             log_event("debug", {"message": "new_run_openai_done", "activity_id": run.get("id")})
-            self.state["pending_post_run_feedback"] = {
-                "activity_id": detailed_run.get("id") or run.get("id"),
-                "run_date": _activity_date(detailed_run).isoformat(),
-            }
+            self._set_pending_post_run_feedback(
+                activity_id=detailed_run.get("id") or run.get("id"),
+                run_date=_activity_date(detailed_run).isoformat(),
+            )
             self._save_state()
             messages.append(note + "\n\n" + _post_run_feedback_prompt())
         return messages
@@ -741,25 +746,51 @@ class CoachAgent:
             normalized = {"is_feedback": True, "notes": feedback_text}
         return self._save_normalized_post_run_feedback(feedback_text, normalized)
 
-    def _post_run_feedback_reply_or_none(self, feedback_text: str) -> str | None:
-        try:
-            normalized = normalize_post_run_feedback(feedback_text)
-        except RuntimeError:
+    def _pending_question_reply_or_none(self, text: str) -> str | None:
+        pending = self._pending_question()
+        if not pending:
             return None
+        if pending.get("kind") != "post_run_feedback":
+            return None
+        return self._post_run_feedback_reply_or_none(text, pending=pending)
+
+    def _post_run_feedback_reply_or_none(
+        self,
+        feedback_text: str,
+        *,
+        pending: dict[str, Any] | None = None,
+    ) -> str | None:
+        pending = pending or self._pending_question()
+        try:
+            resolution = resolve_pending_question(
+                question=str((pending or {}).get("question") or _post_run_feedback_prompt()),
+                response=feedback_text,
+                kind="post_run_feedback",
+            )
+        except RuntimeError:
+            resolution = {"answers_question": False, "extracted": {}}
+        normalized = dict(resolution.get("extracted") or {})
+        if not resolution.get("answers_question") or not normalized.get("is_feedback"):
+            normalized = _explicit_rpe_feedback(feedback_text)
         if not normalized.get("is_feedback"):
             return None
-        return self._save_normalized_post_run_feedback(feedback_text, normalized)
+        return self._save_normalized_post_run_feedback(feedback_text, normalized, pending=pending)
 
     def _save_normalized_post_run_feedback(
-        self, feedback_text: str, normalized: dict[str, Any]
+        self,
+        feedback_text: str,
+        normalized: dict[str, Any],
+        *,
+        pending: dict[str, Any] | None = None,
     ) -> str:
-        pending = self.state.get("pending_post_run_feedback") or {}
+        pending = pending or self._pending_question() or {}
         entry = append_post_run_feedback(
             feedback_text,
             normalized=normalized,
             activity_id=pending.get("activity_id"),
             run_date=pending.get("run_date"),
         )
+        self.state.pop("pending_question", None)
         self.state.pop("pending_post_run_feedback", None)
         self._save_state()
         details = []
@@ -769,9 +800,33 @@ class CoachAgent:
             details.append(f"legs {entry['legs']}")
         if entry.get("pain"):
             details.append(f"pain {entry['pain']}")
-        saved = ", ".join(details) if details else "your note"
+        saved = ", ".join(details) if details else "I saved that note"
         follow_up = _post_run_feedback_follow_up(entry)
-        return f"Got it. I logged {saved} for {entry['run_date']}. {follow_up}"
+        return f"Got it. {saved}. {follow_up}"
+
+    def _pending_question(self) -> dict[str, Any] | None:
+        pending = self.state.get("pending_question")
+        if isinstance(pending, dict) and pending.get("kind"):
+            return pending
+        legacy = self.state.get("pending_post_run_feedback")
+        if isinstance(legacy, dict):
+            return {
+                "kind": "post_run_feedback",
+                "question": _post_run_feedback_prompt(),
+                "activity_id": legacy.get("activity_id"),
+                "run_date": legacy.get("run_date"),
+            }
+        return None
+
+    def _set_pending_post_run_feedback(self, *, activity_id: Any, run_date: str) -> None:
+        self.state["pending_question"] = {
+            "kind": "post_run_feedback",
+            "question": _post_run_feedback_prompt(),
+            "activity_id": activity_id,
+            "run_date": run_date,
+            "asked_at": coach_now().isoformat(),
+        }
+        self.state.pop("pending_post_run_feedback", None)
 
 
 def help_text() -> str:
@@ -811,6 +866,35 @@ def _post_run_feedback_prompt() -> str:
         "How did that run feel? Any pain or soreness? A quick reply like "
         "'RPE 6, legs normal, no pain' is enough."
     )
+
+
+def _explicit_rpe_feedback(text: str) -> dict[str, Any]:
+    match = re.search(r"\brpe\s*[:=]?\s*(10|[1-9])\b", text, flags=re.IGNORECASE)
+    if not match:
+        return {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None}
+
+    lowered = text.lower()
+    legs = None
+    legs_match = re.search(
+        r"\blegs?\s+(great|good|normal|fine|fresh|heavy|dead|sore|tired)\b",
+        lowered,
+    )
+    if legs_match:
+        legs = legs_match.group(1)
+
+    pain = None
+    if re.search(r"\b(no pain|pain none|no soreness|soreness none)\b", lowered):
+        pain = "no"
+    elif re.search(r"\bpain\s+(mild|moderate|bad|sharp|worse|high)\b", lowered):
+        pain = re.search(r"\bpain\s+(mild|moderate|bad|sharp|worse|high)\b", lowered).group(1)
+
+    return {
+        "is_feedback": True,
+        "rpe": int(match.group(1)),
+        "legs": legs,
+        "pain": pain,
+        "notes": None,
+    }
 
 
 def _post_run_feedback_follow_up(entry: dict[str, Any]) -> str:

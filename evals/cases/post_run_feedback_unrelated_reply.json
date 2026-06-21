@@ -53,7 +53,7 @@
           "Normal coaching reply."
         ],
         "reply_must_not_include": [
-          "Got it. I logged"
+          "Got it. RPE"
         ]
       }
     ],

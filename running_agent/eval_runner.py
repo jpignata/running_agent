@@ -188,6 +188,7 @@ def run_coach_agent_case(
     original_coaching_reply = coach_agent_module.coaching_reply
     original_current_garmin_context = coach_agent_module.current_garmin_context
     original_normalize_post_run_feedback = coach_agent_module.normalize_post_run_feedback
+    original_resolve_pending_question = coach_agent_module.resolve_pending_question
     original_save_synced_run_detail = coach_agent_module.save_synced_run_detail
     normalizations = {
         str(turn.get("user_message")): dict(turn.get("normalized_feedback") or {})
@@ -223,6 +224,21 @@ def run_coach_agent_case(
             {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None},
         )
 
+    def fake_resolve_pending_question(
+        *,
+        question: str,
+        response: str,
+        kind: str,
+    ) -> dict[str, Any]:
+        normalized = normalizations.get(response) or {}
+        is_answer = bool(normalized.get("is_feedback"))
+        return {
+            "answers_question": is_answer,
+            "kind": kind,
+            "confidence": 1.0 if is_answer else 0.0,
+            "extracted": normalized if is_answer else {},
+        }
+
     def fake_coaching_reply(*args, **kwargs) -> str:
         if reply_func:
             return reply_func(*args, **kwargs)
@@ -235,6 +251,7 @@ def run_coach_agent_case(
         (case.get("initial_context") or {}).get("garmin_context") or "Garmin context unavailable."
     )
     coach_agent_module.normalize_post_run_feedback = fake_normalize_post_run_feedback
+    coach_agent_module.resolve_pending_question = fake_resolve_pending_question
     coach_agent_module.save_synced_run_detail = lambda summary, detail: None
     try:
         agent = coach_agent_module.CoachAgent(
@@ -255,6 +272,7 @@ def run_coach_agent_case(
         coach_agent_module.coaching_reply = original_coaching_reply
         coach_agent_module.current_garmin_context = original_current_garmin_context
         coach_agent_module.normalize_post_run_feedback = original_normalize_post_run_feedback
+        coach_agent_module.resolve_pending_question = original_resolve_pending_question
         coach_agent_module.save_synced_run_detail = original_save_synced_run_detail
 
     reply = "\n\n".join(replies)
@@ -442,13 +460,20 @@ def score_coach_agent_case(
         should_have_pending = bool(state_expected["pending_post_run_feedback"])
         checks.append(
             EvalCheck(
-                ("pending_post_run_feedback" in state) == should_have_pending,
+                _has_pending_post_run_feedback(state) == should_have_pending,
                 f"pending_post_run_feedback present is {should_have_pending}",
             )
         )
 
     checks.append(EvalCheck(bool(replies), "agent produced at least one reply"))
     return checks
+
+
+def _has_pending_post_run_feedback(state: dict[str, Any]) -> bool:
+    pending = state.get("pending_question")
+    if isinstance(pending, dict) and pending.get("kind") == "post_run_feedback":
+        return True
+    return "pending_post_run_feedback" in state
 
 
 def _prefix_checks(checks: list[EvalCheck], *, prefix: str) -> list[EvalCheck]:
