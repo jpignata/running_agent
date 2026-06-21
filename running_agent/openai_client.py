@@ -180,6 +180,50 @@ def normalize_post_run_feedback(message: str) -> dict[str, Any]:
     return _clean_normalized_feedback(_parse_json_object(text))
 
 
+def resolve_pending_question(
+    *,
+    question: str,
+    response: str,
+    kind: str,
+) -> dict[str, Any]:
+    load_env_file()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is required to resolve pending questions.")
+
+    payload = {
+        "model": os.environ.get("OPENAI_INTERACTION_MODEL")
+        or os.environ.get("OPENAI_FEEDBACK_MODEL")
+        or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "instructions": (
+            "Decide whether the athlete's latest message answers the coach's pending "
+            "question. Return only JSON with keys answers_question, kind, confidence, "
+            "extracted. answers_question is true only when the response directly answers "
+            "the pending question, even tersely. confidence is a number from 0 to 1. kind "
+            "must echo the provided kind. For kind post_run_feedback, extracted must use "
+            "keys is_feedback, rpe, legs, pain, notes with the same meanings as a post-run "
+            "feel check: rpe is integer 1-10 when provided; legs, pain, and notes are short "
+            "lowercase strings or null. If the response asks a new coaching question, gives "
+            "an unrelated command, or does not answer the pending question, set "
+            "answers_question false and extracted to an empty object. Do not invent values."
+        ),
+        "input": json.dumps(
+            {
+                "kind": kind,
+                "coach_question": question,
+                "athlete_response": response,
+            }
+        ),
+        "temperature": 0,
+        "max_output_tokens": 250,
+    }
+    openai_response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
+    text = _extract_output_text(openai_response)
+    if not text:
+        raise RuntimeError("OpenAI response did not include pending-question JSON.")
+    return _clean_pending_question_resolution(_parse_json_object(text), fallback_kind=kind)
+
+
 def _handle_tool_calls(
     response: dict[str, Any],
     original_payload: dict[str, Any],
@@ -535,6 +579,34 @@ def _clean_normalized_feedback(parsed: dict[str, Any]) -> dict[str, Any]:
     if not result["is_feedback"]:
         result.update({"rpe": None, "legs": None, "pain": None, "notes": None})
     return result
+
+
+def _clean_pending_question_resolution(
+    parsed: dict[str, Any],
+    *,
+    fallback_kind: str,
+) -> dict[str, Any]:
+    answers_question = bool(parsed.get("answers_question"))
+    kind = parsed.get("kind")
+    if not isinstance(kind, str) or not kind.strip():
+        kind = fallback_kind
+    confidence = parsed.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        confidence = 1.0 if answers_question else 0.0
+    confidence = max(0.0, min(1.0, float(confidence)))
+    extracted = parsed.get("extracted")
+    if not isinstance(extracted, dict):
+        extracted = {}
+    if kind == "post_run_feedback" and answers_question:
+        extracted = _clean_normalized_feedback({**extracted, "is_feedback": True})
+    elif not answers_question:
+        extracted = {}
+    return {
+        "answers_question": answers_question,
+        "kind": kind,
+        "confidence": confidence,
+        "extracted": extracted,
+    }
 
 
 def _incomplete_reason(response: dict[str, Any]) -> str:

@@ -7,6 +7,7 @@ from running_agent.openai_client import (
     coaching_reply,
     image_coaching_reply,
     normalize_post_run_feedback,
+    resolve_pending_question,
 )
 
 
@@ -79,6 +80,76 @@ class OpenAIClientTest(unittest.TestCase):
                 "legs": None,
                 "pain": None,
                 "notes": "breathing fine",
+            },
+        )
+
+    @patch.dict(
+        "os.environ",
+        {"OPENAI_API_KEY": "key", "OPENAI_INTERACTION_MODEL": "tiny-model"},
+        clear=True,
+    )
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                '{"answers_question": true, "kind": "post_run_feedback", '
+                '"confidence": 0.92, "extracted": {"rpe": 5, "legs": "Great", '
+                '"pain": "No", "notes": null}}'
+            )
+        },
+    )
+    def test_resolve_pending_question_uses_interaction_model(self, post_json) -> None:
+        result = resolve_pending_question(
+            question="How did that run feel? Any pain or soreness?",
+            response="rpe 5, legs great, no pain",
+            kind="post_run_feedback",
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "answers_question": True,
+                "kind": "post_run_feedback",
+                "confidence": 0.92,
+                "extracted": {
+                    "is_feedback": True,
+                    "rpe": 5,
+                    "legs": "great",
+                    "pain": "no",
+                    "notes": None,
+                },
+            },
+        )
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["model"], "tiny-model")
+        self.assertIn("pending question", payload["instructions"])
+        self.assertIn("coach_question", payload["input"])
+        self.assertEqual(payload["temperature"], 0)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                '{"answers_question": false, "kind": "post_run_feedback", '
+                '"confidence": 0.1, "extracted": {"rpe": 9}}'
+            )
+        },
+    )
+    def test_resolve_pending_question_clears_extracted_when_unanswered(self, _post_json) -> None:
+        result = resolve_pending_question(
+            question="How did that run feel?",
+            response="what should I do tomorrow?",
+            kind="post_run_feedback",
+        )
+
+        self.assertEqual(
+            result,
+            {
+                "answers_question": False,
+                "kind": "post_run_feedback",
+                "confidence": 0.1,
+                "extracted": {},
             },
         )
 
