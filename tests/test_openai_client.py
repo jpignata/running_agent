@@ -48,14 +48,14 @@ class OpenAIClientTest(unittest.TestCase):
             )
         },
     )
-    def test_normalize_post_run_feedback_clears_fields_when_not_feedback(self, post_json) -> None:
+    def test_normalize_post_run_feedback_defaults_to_small_model(self, post_json) -> None:
         feedback = normalize_post_run_feedback("what should I do tomorrow?")
 
         self.assertEqual(
             feedback,
             {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None},
         )
-        self.assertEqual(post_json.call_args.args[1]["model"], "main-model")
+        self.assertEqual(post_json.call_args.args[1]["model"], "gpt-5.4-mini")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(
@@ -125,6 +125,25 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("pending question", payload["instructions"])
         self.assertIn("coach_question", payload["input"])
         self.assertEqual(payload["temperature"], 0)
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key", "OPENAI_MODEL": "main-model"}, clear=True)
+    @patch(
+        "running_agent.openai_client._post_json",
+        return_value={
+            "output_text": (
+                '{"answers_question": false, "kind": "post_run_feedback", '
+                '"confidence": 0.1, "extracted": {}}'
+            )
+        },
+    )
+    def test_resolve_pending_question_defaults_to_small_model(self, post_json) -> None:
+        resolve_pending_question(
+            question="How did that run feel?",
+            response="what should I do tomorrow?",
+            kind="post_run_feedback",
+        )
+
+        self.assertEqual(post_json.call_args.args[1]["model"], "gpt-5.4-mini")
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(

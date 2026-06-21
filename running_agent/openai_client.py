@@ -24,6 +24,7 @@ from .strava_tools import get_local_run_details, query_local_runs
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.5"
+DEFAULT_SMALL_MODEL = "gpt-5.4-mini"
 
 
 def coaching_reply(
@@ -157,8 +158,7 @@ def normalize_post_run_feedback(message: str) -> dict[str, Any]:
         raise RuntimeError("OPENAI_API_KEY is required to normalize post-run feedback.")
 
     payload = {
-        "model": os.environ.get("OPENAI_SMALL_MODEL")
-        or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "model": os.environ.get("OPENAI_SMALL_MODEL", DEFAULT_SMALL_MODEL),
         "instructions": (
             "Normalize a runner's reply to a post-run feel check. Return only JSON with "
             "keys is_feedback, rpe, legs, pain, notes. is_feedback is true only when the "
@@ -192,8 +192,7 @@ def resolve_pending_question(
         raise RuntimeError("OPENAI_API_KEY is required to resolve pending questions.")
 
     payload = {
-        "model": os.environ.get("OPENAI_SMALL_MODEL")
-        or os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
+        "model": os.environ.get("OPENAI_SMALL_MODEL", DEFAULT_SMALL_MODEL),
         "instructions": (
             "Decide whether the athlete's latest message answers the coach's pending "
             "question. Return only JSON with keys answers_question, kind, confidence, "

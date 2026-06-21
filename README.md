@@ -356,8 +356,8 @@ RPE 6, legs heavy, no pain, faded late
 
 Feedback is stored in `.data/run_feedback.jsonl` and included in future coach-log context so
 the coach can compare pace and workout execution against perceived effort over time.
-The reply is resolved and normalized through OpenAI into structured fields before storage;
-set `OPENAI_SMALL_MODEL` to use a cheaper model for these small extraction tasks.
+The reply is resolved and normalized through OpenAI into structured fields before storage.
+Small extraction tasks default to `gpt-5.4-mini`; set `OPENAI_SMALL_MODEL` to override it.
 
 To rebuild the derived run-memory store from local Strava data, coach log entries, plans,
 and post-run feedback:
