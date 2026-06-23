@@ -6,6 +6,7 @@ from typing import Any
 
 from .coach_time import coach_today
 from .heart_rate import format_heart_rate, observed_max_heart_rate
+from .weather_client import weather_summary
 from .workout_classifier import workout_classification_context
 
 METERS_PER_MILE = 1609.344
@@ -232,6 +233,9 @@ def _run_detail_lines(
     device = activity.get("device_name")
     if device:
         details.append(f"- Device: {device}")
+    weather = weather_summary(activity.get("weather"))
+    if weather:
+        details.append(f"- Weather near start: {weather}")
     return details
 
 

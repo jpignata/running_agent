@@ -48,6 +48,14 @@ Runtime data lives under `.data/`, which is ignored by git:
 Secrets are kept outside `.data/`: `.env`, `.strava_tokens.json`, and Garmin's token cache
 under `~/.garminconnect` are all ignored by git.
 
+External APIs used by the bot:
+
+- Strava API for activity summaries, detailed run data, laps, and route start coordinates.
+- Garmin Connect via `garminconnect` for sleep, HRV, resting heart rate, stress, Body Battery,
+  training readiness, training status, and VO2 max context.
+- OpenAI Responses API for coaching replies, structured helper extraction, and local-tool use.
+- Open-Meteo Archive API for weather near a run's Strava start location and start time.
+
 ### Coaching Context
 
 The coach builds replies from local context instead of treating each message as isolated:
@@ -89,6 +97,10 @@ python -m running_agent sync-strava --days 365
 That command saves run summaries to `.data/strava/activities.json` and detailed activity
 JSON to `.data/strava/details/`. Telegram polling and `/check` also save detailed activity
 JSON when a new run appears, so the local store stays warm over time.
+When Strava includes start coordinates, detailed run records are also enriched with
+Open-Meteo weather near the start time so coaching can interpret HR and effort in heat,
+humidity, wind, or precipitation context. Weather lookup failures do not block Strava sync
+or coaching replies.
 
 Regenerate the coach's private training state and working pace calibration with:
 

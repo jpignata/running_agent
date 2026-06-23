@@ -11,6 +11,7 @@ from .goal_store import training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import planned_workout_for_date, weekly_plan_context, weekly_plan_context_for_week
 from .strava_client import StravaClient
+from .weather_client import safe_enrich_activity_weather
 from .workout_classifier import classify_workout
 
 DETAIL_RUN_LIMIT = 4
@@ -170,6 +171,7 @@ def weekly_quality_detail_context(
                 f"{run_date.isoformat()} {activity.get('name', 'Run')}: detail unavailable ({error})."
             )
             continue
+        detailed = safe_enrich_activity_weather(detailed)
         contexts.append(detailed_activity_context(detailed, max_laps=30, target_date=run_date))
     return "\n\n---\n\n".join(contexts)
 

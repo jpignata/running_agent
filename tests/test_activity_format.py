@@ -52,6 +52,15 @@ class ActivityFormatTest(unittest.TestCase):
                 "elev_low": 70,
                 "elev_high": 80,
                 "device_name": "Garmin",
+                "weather": {
+                    "temperature_f": 74,
+                    "apparent_temperature_f": 78,
+                    "relative_humidity": 91,
+                    "dew_point_f": 71,
+                    "wind_speed_mph": 7,
+                    "wind_gust_mph": 15,
+                    "weather": "partly cloudy",
+                },
                 "laps": [
                     _lap(1, 0.75, 4 * 60 + 55, 4 * 60 + 55, 161, 169),
                     _lap(2, 0.08, 3 * 60, 3 * 60, 124, 168),
@@ -65,6 +74,11 @@ class ActivityFormatTest(unittest.TestCase):
         self.assertIn("Run details:", context)
         self.assertIn("- Distance: 3.00 mi", context)
         self.assertIn("- Elevation gain: 33 ft", context)
+        self.assertIn(
+            "- Weather near start: 74F, feels 78F, 91% humidity, 71F dew point, "
+            "wind 7 mph, gusts 15 mph, partly cloudy",
+            context,
+        )
         self.assertIn("Derived workout signals:", context)
         self.assertIn("Quality-looking reps:", context)
         self.assertIn("2 x 1200m / 0.75 mi", context)

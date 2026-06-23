@@ -10,6 +10,7 @@ from .heart_rate import observed_max_heart_rate
 from .openai_client import coaching_reply
 from .plan_store import weekly_plan_context_for_date
 from .strava_client import StravaClient
+from .weather_client import safe_enrich_activity_weather
 
 DEFAULT_SEARCH_DAYS = 120
 
@@ -30,6 +31,7 @@ def run_summary_for_date(
 
     activity = activities[0]
     detailed = client.detailed_activity(activity["id"])
+    detailed = safe_enrich_activity_weather(detailed)
     recent_activities = client.recent_activities(days=max(lookback_days, 21))
     max_heart_rate = observed_max_heart_rate([*recent_activities, detailed])
     prompt = (

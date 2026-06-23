@@ -48,6 +48,7 @@ from .post_run_feedback import append_post_run_feedback
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .strava_sync import save_synced_run_detail, sync_strava_runs
+from .weather_client import safe_enrich_activity_weather
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 28
@@ -372,6 +373,7 @@ class CoachAgent:
             {"message": "last_run_detail_start", "activity_id": last_run.get("id")},
         )
         detailed_run = self.strava.detailed_activity(last_run["id"])
+        detailed_run = safe_enrich_activity_weather(detailed_run)
         log_event(
             "debug",
             {"message": "last_run_detail_done", "activity_id": last_run.get("id")},
@@ -663,6 +665,7 @@ class CoachAgent:
         for run in reversed(new_runs):
             log_event("debug", {"message": "new_run_detail_start", "activity_id": run.get("id")})
             detailed_run = self.strava.detailed_activity(run["id"])
+            detailed_run = safe_enrich_activity_weather(detailed_run)
             log_event("debug", {"message": "new_run_detail_done", "activity_id": run.get("id")})
             save_synced_run_detail(run, detailed_run)
             append_run_result(detailed_run)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from running_agent.strava_store import load_run_detail, load_run_summaries
 from running_agent.strava_sync import save_synced_run_detail, sync_strava_runs
@@ -57,6 +58,24 @@ class StravaSyncTest(unittest.TestCase):
 
             self.assertEqual(load_run_summaries(summaries_path)["7"]["name"], "Morning Run")
             self.assertEqual(load_run_detail(7, details_dir)["id"], 7)
+
+    @patch(
+        "running_agent.strava_sync.safe_enrich_activity_weather",
+        side_effect=RuntimeError("weather down"),
+    )
+    def test_save_synced_run_detail_ignores_weather_failures(self, _weather) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            summaries_path = Path(tmp) / "activities.json"
+            details_dir = Path(tmp) / "details"
+
+            save_synced_run_detail(
+                {"id": 7, "type": "Run", "name": "Morning Run"},
+                {"id": 7, "name": "Morning Run", "laps": []},
+                summaries_path=summaries_path,
+                details_dir=details_dir,
+            )
+
+            self.assertEqual(load_run_detail(7, details_dir)["name"], "Morning Run")
 
 
 class _FakeStrava:

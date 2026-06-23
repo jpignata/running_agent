@@ -11,6 +11,7 @@ from .strava_store import (
     save_run_detail,
     save_run_summaries,
 )
+from .weather_client import safe_enrich_activity_weather
 
 
 def sync_strava_runs(
@@ -38,6 +39,7 @@ def sync_strava_runs(
             if isinstance(detail, dict):
                 if "id" not in detail:
                     detail = {**detail, "id": run["id"]}
+                detail = _enrich_weather_safely(detail)
                 save_run_detail(detail, details_dir)
                 details_fetched += 1
 
@@ -60,7 +62,15 @@ def save_synced_run_detail(
         return
     if "id" not in detail:
         detail = {**detail, "id": activity_id}
+    detail = _enrich_weather_safely(detail)
     summaries = load_run_summaries(summaries_path)
     summaries[str(activity_id)] = summary
     save_run_summaries(summaries, summaries_path)
     save_run_detail(detail, details_dir)
+
+
+def _enrich_weather_safely(detail: dict[str, Any]) -> dict[str, Any]:
+    try:
+        return safe_enrich_activity_weather(detail)
+    except Exception:
+        return detail
