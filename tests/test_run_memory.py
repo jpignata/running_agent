@@ -50,6 +50,17 @@ class RunMemoryTest(unittest.TestCase):
             save_run_detail(
                 {
                     **_run(2, "Workout", "2026-06-19T06:00:00Z", 6),
+                    "weather": {
+                        "source": "open-meteo",
+                        "time": "2026-06-19T06:00",
+                        "temperature_f": 74,
+                        "apparent_temperature_f": 79,
+                        "relative_humidity": 92,
+                        "dew_point_f": 71,
+                        "wind_speed_mph": 5,
+                        "wind_gust_mph": 12,
+                        "weather": "partly cloudy",
+                    },
                     "laps": [
                         {"distance": 400, "moving_time": 95},
                         {"distance": 100, "moving_time": 70},
@@ -104,6 +115,8 @@ class RunMemoryTest(unittest.TestCase):
         self.assertEqual(workout["lap_count"], 4)
         self.assertEqual(workout["average_heartrate_percent_max"], 80)
         self.assertEqual(workout["observed_max_heartrate"], 180)
+        self.assertEqual(workout["weather"]["temperature_f"], 74)
+        self.assertEqual(workout["weather"]["relative_humidity"], 92)
         self.assertEqual(workout["feedback"][0]["rpe"], 8)
         self.assertIn("high_rpe", workout["tags"])
         self.assertIn("leg_fatigue", workout["tags"])
@@ -145,6 +158,15 @@ class RunMemoryTest(unittest.TestCase):
                     "classification": "structured workout",
                     "average_heartrate": 144,
                     "average_heartrate_percent_max": 80,
+                    "weather": {
+                        "temperature_f": 74,
+                        "apparent_temperature_f": 79,
+                        "relative_humidity": 92,
+                        "dew_point_f": 71,
+                        "wind_speed_mph": 5,
+                        "wind_gust_mph": 12,
+                        "weather": "partly cloudy",
+                    },
                     "feedback": [{"rpe": 8, "legs": "heavy", "pain": "no"}],
                     "tags": ["high_rpe", "leg_fatigue"],
                 }
@@ -154,6 +176,11 @@ class RunMemoryTest(unittest.TestCase):
         self.assertIn("Run memory", context)
         self.assertIn("RPE 8", context)
         self.assertIn("avg HR 144 bpm / 80% max HR", context)
+        self.assertIn(
+            "weather 74F, feels 79F, 92% humidity, 71F dew point, "
+            "wind 5 mph, gusts 12 mph, partly cloudy",
+            context,
+        )
         self.assertIn("high_rpe", context)
 
     def test_validate_run_memory_accepts_feedback_reflected_in_records(self) -> None:

@@ -19,6 +19,7 @@ from .storage_paths import (
     STRAVA_DETAILS_DIR,
 )
 from .strava_store import activity_local_date, list_run_summaries, load_run_detail
+from .weather_client import weather_summary
 from .workout_classifier import classify_workout
 
 
@@ -136,6 +137,9 @@ def build_run_memory(
             "feedback": feedback,
             "tags": _tags(classification, planned, feedback),
         }
+        weather = _weather_public_fields(activity.get("weather"))
+        if weather:
+            record["weather"] = weather
         avg_hr_percent = heart_rate_percent(activity.get("average_heartrate"), max_heart_rate)
         if avg_hr_percent is not None:
             record["average_heartrate_percent_max"] = avg_hr_percent
@@ -176,6 +180,9 @@ def run_memory_context(records: list[dict[str, Any]] | None = None, *, limit: in
         hr_percent = record.get("average_heartrate_percent_max")
         if hr is not None and hr_percent is not None:
             parts.append(f"avg HR {float(hr):.0f} bpm / {hr_percent}% max HR")
+        weather = weather_summary(record.get("weather"))
+        if weather:
+            parts.append(f"weather {weather}")
         tags = record.get("tags") or []
         if tags:
             parts.append("tags " + ", ".join(tags))
@@ -308,6 +315,28 @@ def _feedback_public_fields(entry: dict[str, Any]) -> dict[str, Any]:
         for key in ("created_at", "raw", "rpe", "legs", "pain", "notes")
         if key in entry
     }
+
+
+def _weather_public_fields(weather: Any) -> dict[str, Any] | None:
+    if not isinstance(weather, dict):
+        return None
+    return {
+        key: weather[key]
+        for key in (
+            "source",
+            "time",
+            "temperature_f",
+            "apparent_temperature_f",
+            "relative_humidity",
+            "dew_point_f",
+            "precipitation_in",
+            "weather_code",
+            "weather",
+            "wind_speed_mph",
+            "wind_gust_mph",
+        )
+        if key in weather
+    } or None
 
 
 def _tags(classification: str, planned: str | None, feedback: list[dict[str, Any]]) -> list[str]:
