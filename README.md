@@ -50,11 +50,15 @@ under `~/.garminconnect` are all ignored by git.
 
 External APIs used by the bot:
 
-- Strava API for activity summaries, detailed run data, laps, and route start coordinates.
-- Garmin Connect via `garminconnect` for sleep, HRV, resting heart rate, stress, Body Battery,
-  training readiness, training status, and VO2 max context.
-- OpenAI Responses API for coaching replies, structured helper extraction, and local-tool use.
-- Open-Meteo Archive API for weather near a run's Strava start location and start time.
+- [Strava API v3](https://developers.strava.com/docs/reference/) for activity summaries,
+  detailed run data, laps, and route start coordinates.
+- Garmin Connect via [`garminconnect`](https://github.com/cyberjunky/python-garminconnect)
+  for sleep, HRV, resting heart rate, stress, Body Battery, training readiness, training
+  status, and VO2 max context.
+- [OpenAI Responses API](https://platform.openai.com/docs/api-reference/responses) for
+  coaching replies, structured helper extraction, and local-tool use.
+- [Open-Meteo Archive API](https://open-meteo.com/en/docs/historical-weather-api) for
+  weather near a run's Strava start location and start time.
 
 ### Coaching Context
 
