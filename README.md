@@ -389,10 +389,10 @@ Use `--validate` to check that source feedback entries are reflected in the rebu
 The same new-run check also stores the Strava summary and detailed activity JSON under
 `.data/strava/`, so future chat questions can look up that run's laps and splits locally.
 
-The morning check-in uses Garmin readiness context when configured, plus today's matched
-plan, the last week of runs, the coach log, and your overall goal. If there is no workout
-scheduled for the day or Strava already has a completed run for that date, the bot sends
-nothing.
+The morning check-in uses Garmin readiness context when configured, weather near the latest
+known Strava start location, today's matched plan, the last week of runs, the coach log, and
+your overall goal. If there is no workout scheduled for the day or Strava already has a
+completed run for that date, the bot sends nothing.
 
 The end-of-day report briefly recaps today's exercise, then gives a sleep, recovery, or
 next-day note to keep in mind. It does not send on Sundays because the weekly review already

@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date, time
 from unittest.mock import patch
 
-from running_agent.weather_client import enrich_activity_weather, weather_summary
+from running_agent.weather_client import (
+    OPEN_METEO_FORECAST_URL,
+    enrich_activity_weather,
+    weather_for_location_time,
+    weather_summary,
+)
 
 
 class WeatherClientTest(unittest.TestCase):
@@ -68,6 +74,34 @@ class WeatherClientTest(unittest.TestCase):
             summary,
             "74F, feels 78F, 91% humidity, 71F dew point, "
             "wind 7 mph, gusts 15 mph, 0.01 in precip, light rain",
+        )
+
+    @patch(
+        "running_agent.weather_client._fetch_open_meteo_hourly",
+        return_value={
+            "hourly": {
+                "time": ["2026-06-23T05:00", "2026-06-23T06:00"],
+                "temperature_2m": [70.0, 72.0],
+            }
+        },
+    )
+    def test_weather_for_location_time_uses_forecast_api(self, fetch) -> None:
+        weather = weather_for_location_time(
+            latitude=40.743385,
+            longitude=-74.25256,
+            target_date=date(2026, 6, 23),
+            target_time=time(5, 30),
+            timezone_name="America/New_York",
+        )
+
+        self.assertEqual(weather["temperature_f"], 70.0)
+        fetch.assert_called_once_with(
+            url=OPEN_METEO_FORECAST_URL,
+            latitude=40.743385,
+            longitude=-74.25256,
+            start_date="2026-06-23",
+            end_date="2026-06-23",
+            timezone_name="America/New_York",
         )
 
 

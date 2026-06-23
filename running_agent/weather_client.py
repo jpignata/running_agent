@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import date, datetime, time
 from typing import Any
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 OPEN_METEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 OPEN_METEO_HOURLY = (
     "temperature_2m",
     "apparent_temperature",
@@ -53,6 +54,25 @@ def weather_for_activity(activity: dict[str, Any]) -> dict[str, Any] | None:
     return _weather_at_start(payload, start)
 
 
+def weather_for_location_time(
+    *,
+    latitude: float,
+    longitude: float,
+    target_date: date,
+    target_time: time,
+    timezone_name: str = "auto",
+) -> dict[str, Any] | None:
+    payload = _fetch_open_meteo_hourly(
+        url=OPEN_METEO_FORECAST_URL,
+        latitude=latitude,
+        longitude=longitude,
+        start_date=target_date.isoformat(),
+        end_date=target_date.isoformat(),
+        timezone_name=timezone_name,
+    )
+    return _weather_at_start(payload, datetime.combine(target_date, target_time))
+
+
 def weather_summary(weather: dict[str, Any] | None) -> str | None:
     if not isinstance(weather, dict):
         return None
@@ -89,6 +109,7 @@ def weather_summary(weather: dict[str, Any] | None) -> str | None:
 
 def _fetch_open_meteo_hourly(
     *,
+    url: str = OPEN_METEO_ARCHIVE_URL,
     latitude: float,
     longitude: float,
     start_date: str,
@@ -106,7 +127,7 @@ def _fetch_open_meteo_hourly(
         "precipitation_unit": "inch",
         "timezone": timezone_name,
     }
-    request = Request(f"{OPEN_METEO_ARCHIVE_URL}?{urlencode(params)}")
+    request = Request(f"{url}?{urlencode(params)}")
     with urlopen(request, timeout=20) as response:
         return json.loads(response.read().decode("utf-8"))
 

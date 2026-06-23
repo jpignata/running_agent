@@ -461,6 +461,7 @@ def build_coaching_payload(
     training_goal: str | None = None,
     coach_log: str | None = None,
     garmin_context: str | None = None,
+    weather_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     tools_enabled: bool = True,
     max_output_tokens: int | None = None,
@@ -479,6 +480,7 @@ def build_coaching_payload(
             training_goal=training_goal,
             coach_log=coach_log,
             garmin_context=garmin_context,
+            weather_context=weather_context,
             conversation=conversation,
             include_coach_reflection=include_coach_reflection,
             pace_calibration_text=pace_calibration_text,
@@ -503,6 +505,7 @@ def build_coaching_input(
     training_goal: str | None = None,
     coach_log: str | None = None,
     garmin_context: str | None = None,
+    weather_context: str | None = None,
     conversation: list[dict[str, str]] | None = None,
     include_coach_reflection: bool = True,
     athlete_profile_text: str | None = None,
@@ -580,6 +583,8 @@ def build_coaching_input(
         prompt_parts.extend(["", "Recent coach log:", coach_log])
     if garmin_context:
         prompt_parts.extend(["", "Garmin readiness context:", garmin_context])
+    if weather_context:
+        prompt_parts.extend(["", "Weather context:", weather_context])
     if conversation:
         prior = "\n".join(f"{item['role']}: {item['content']}" for item in conversation[-8:])
         prompt_parts.extend(["", "Recent Telegram conversation:", prior])

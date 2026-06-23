@@ -195,6 +195,7 @@ class OpenAIClientTest(unittest.TestCase):
             training_summary="Training summary",
             recent_runs="Recent runs",
             garmin_context="Garmin context",
+            weather_context="Weather context",
         )
 
         self.assertEqual(reply, "Reply")
@@ -210,6 +211,7 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("Current training summary:\nTraining summary", payload["input"])
         self.assertIn("Recent runs:\nRecent runs", payload["input"])
         self.assertIn("Garmin readiness context:\nGarmin context", payload["input"])
+        self.assertIn("Weather context:\nWeather context", payload["input"])
         tools = {tool["name"]: tool for tool in payload["tools"]}
         self.assertIn("remember_coaching_note", tools)
         self.assertIn("update_training_goal", tools)

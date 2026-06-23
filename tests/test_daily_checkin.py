@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from running_agent.daily_checkin import (
     DAILY_CHECKIN_STATE_KEY,
+    current_weather_context,
     daily_workout_checkin,
     has_completed_run_for_date,
     has_planned_workout_for_date,
@@ -56,6 +57,7 @@ class DailyCheckinTest(unittest.TestCase):
 
     @patch("running_agent.daily_checkin.coach_log_context", return_value="Coach log context")
     @patch("running_agent.daily_checkin.training_goal_context", return_value="Goal context")
+    @patch("running_agent.daily_checkin.current_weather_context", return_value="Weather context")
     @patch(
         "running_agent.daily_checkin.weekly_plan_context_for_date",
         return_value="Matched plan for today",
@@ -65,6 +67,7 @@ class DailyCheckinTest(unittest.TestCase):
         self,
         coaching_reply,
         _weekly_plan_context_for_date,
+        _current_weather_context,
         _training_goal_context,
         _coach_log_context,
     ) -> None:
@@ -95,7 +98,41 @@ class DailyCheckinTest(unittest.TestCase):
         self.assertEqual(kwargs["training_goal"], "Goal context")
         self.assertEqual(kwargs["coach_log"], "Coach log context")
         self.assertEqual(kwargs["garmin_context"], "Garmin readiness context")
+        self.assertEqual(kwargs["weather_context"], "Weather context")
         self.assertFalse(kwargs["tools_enabled"])
+
+    @patch(
+        "running_agent.daily_checkin.weather_for_location_time",
+        return_value={
+            "temperature_f": 70,
+            "apparent_temperature_f": 77,
+            "relative_humidity": 99,
+            "dew_point_f": 70,
+            "wind_speed_mph": 2,
+            "wind_gust_mph": 11,
+            "weather": "drizzle",
+        },
+    )
+    def test_current_weather_context_uses_latest_run_location(self, weather_for_location_time):
+        context = current_weather_context(
+            datetime(2026, 6, 23).date(),
+            [
+                {
+                    "type": "Run",
+                    "start_latlng": [40.743385, -74.25256],
+                    "timezone": "(GMT-05:00) America/New_York",
+                }
+            ],
+        )
+
+        self.assertIn("Weather near latest known Strava start location", context)
+        self.assertIn("70F, feels 77F, 99% humidity", context)
+        weather_for_location_time.assert_called_once()
+        self.assertEqual(weather_for_location_time.call_args.kwargs["latitude"], 40.743385)
+        self.assertEqual(weather_for_location_time.call_args.kwargs["longitude"], -74.25256)
+        self.assertEqual(
+            weather_for_location_time.call_args.kwargs["timezone_name"], "America/New_York"
+        )
 
     @patch(
         "running_agent.daily_checkin.weekly_plan_context_for_date",
