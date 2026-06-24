@@ -260,6 +260,28 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertFalse(result.passed)
         self.assertIn("expected save_weekly_plan not to be called", result.checks[0].message)
 
+    def test_memory_tool_not_called_eval_fails_when_memory_is_saved(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.append_coaching_preference("Curious about ultras someday.")
+            return "Got it."
+
+        result = run_case(
+            {
+                "name": "hypothetical_memory",
+                "user_message": "Maybe someday I will try an ultra.",
+                "expected": {
+                    "tool_calls": {
+                        "not_called": ["remember_coaching_note"],
+                    }
+                },
+            },
+            reply_func=fake_reply,
+        )
+
+        self.assertFalse(result.passed)
+        self.assertIn("expected remember_coaching_note not to be called", result.checks[0].message)
+        self.assertEqual(result.tool_calls[0]["name"], "remember_coaching_note")
+
     def test_tool_call_called_any_eval_accepts_one_matching_tool(self) -> None:
         def fake_reply(*_args, **_kwargs) -> str:
             openai_client.update_weekly_plan_days({"Saturday": "rest"})

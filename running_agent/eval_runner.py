@@ -65,8 +65,10 @@ def run_case(
 
     saved_plans: list[str] = []
     saved_goals: list[str] = []
+    saved_notes: list[str] = []
     saved_race_results: list[dict[str, Any]] = []
     tool_calls: list[dict[str, Any]] = []
+    original_append_coaching_preference = openai_client.append_coaching_preference
     original_save_weekly_plan = openai_client.save_weekly_plan
     original_update_weekly_plan_days = openai_client.update_weekly_plan_days
     original_save_training_goal = openai_client.save_training_goal
@@ -77,6 +79,11 @@ def run_case(
     original_pace_calibration_context = coach_prompt.pace_calibration_context
     original_coach_reflection_context = coach_prompt.coach_reflection_context
     original_race_results_context = coach_prompt.race_results_context
+
+    def capture_append_coaching_preference(note: str):
+        saved_notes.append(note)
+        tool_calls.append({"name": "remember_coaching_note", "arguments": {"note": note}})
+        return None
 
     def capture_save_weekly_plan(plan_text: str):
         saved_plans.append(plan_text)
@@ -122,6 +129,7 @@ def run_case(
         tool_calls.append({"name": "get_local_run_details", "arguments": dict(kwargs)})
         return _tool_result(case, "get_local_run_details")
 
+    openai_client.append_coaching_preference = capture_append_coaching_preference
     openai_client.save_weekly_plan = capture_save_weekly_plan
     openai_client.update_weekly_plan_days = capture_update_weekly_plan_days
     openai_client.save_training_goal = capture_save_training_goal
@@ -153,6 +161,7 @@ def run_case(
     try:
         reply = _run_case_model_call(case, context, reply_func)
     finally:
+        openai_client.append_coaching_preference = original_append_coaching_preference
         openai_client.save_weekly_plan = original_save_weekly_plan
         openai_client.update_weekly_plan_days = original_update_weekly_plan_days
         openai_client.save_training_goal = original_save_training_goal

@@ -1,0 +1,25 @@
+{
+  "description": "Checks that casual, hypothetical future interests are not saved as durable coaching memory, goals, plans, or race results.",
+  "current_date": "2026-06-24",
+  "user_message": "Maybe someday I’ll try an ultra, but not anytime soon. I was just thinking out loud about what that would be like.",
+  "initial_context": {
+    "weekly_plan": "Monday: 7 easy\nTuesday: 7 easy + strides\nWednesday: VO2 workout\nThursday: rest or cross-training\nFriday: 6 easy + strides\nSaturday: 15 steady long run\nSunday: rest",
+    "training_summary": "Recent training is focused on building marathon durability with one quality session and one long run each week.",
+    "recent_runs": "Recent runs:\n- Sunday long run: 14.05 mi at 8:16/mi, avg HR 142.\n- Friday easy run: 5.8 mi, RPE 3.\n- Wednesday recovery run: 5.0 mi easy.",
+    "training_goal": "NYC Marathon on November 1, 2026, with a target of sub-3:10. Main priority is staying healthy and managing heel/plantar fasciitis history carefully."
+  },
+  "expected": {
+    "tool_calls": {
+      "not_called": [
+        "remember_coaching_note",
+        "update_training_goal",
+        "save_weekly_plan",
+        "update_weekly_plan_days",
+        "save_race_result"
+      ]
+    },
+    "reply_must_include": ["ultra"],
+    "reply_must_not_include": ["saved", "remembered", "updated your goal"],
+    "reply_max_chars": 1200
+  }
+}
