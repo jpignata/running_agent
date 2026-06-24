@@ -30,7 +30,7 @@ Core idea: maintain a compact readiness snapshot for the current goal:
 
 Buildable slices:
 
-1. Goal readiness snapshot.
+1. Goal readiness snapshot. Done.
    - Generate a deterministic snapshot from the saved goal, official race
      results, recent local Strava runs, pace calibration, coach log, weekly plan,
      and athlete feedback.
@@ -39,7 +39,7 @@ Buildable slices:
    - Keep the snapshot compact enough to include in prompts without crowding out
      run-specific context.
 
-2. Weekly review PR-progress section.
+2. Weekly review PR-progress section. Done.
    - Sunday weekly reviews should include a short goal-progress paragraph grounded
      in the readiness snapshot.
    - It should say what this week improved, what gap remains, and what next week
@@ -73,8 +73,9 @@ Done when:
 
 - The agent can produce a goal-readiness snapshot grounded in local deterministic
   evidence.
-- Weekly reviews and direct goal questions use that snapshot for PR-progress
-  claims.
+- Weekly reviews use that snapshot for PR-progress claims.
+- Direct goal questions use that snapshot for evidence, gaps, and next
+  checkpoint answers.
 - The coach names the next checkpoint that would increase confidence in the PR.
 - Confidence language is bucketed and evidence-backed, not vibes-based.
 - Readiness history can show whether the athlete is actually moving closer to
