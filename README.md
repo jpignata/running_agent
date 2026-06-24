@@ -324,9 +324,9 @@ The same model-tool pattern is available for goals. If you say something like
 `my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
 `.data/training_goal.json` so future coaching uses the updated target.
 
-Weekly plans can also be saved through natural chat. If you say something like
-`here is my plan for next week`, the model may rewrite it into the plain-text weekly plan
-format and save it in `.data/weekly_plan.json`.
+Weekly plans can also be drafted through natural chat. If you say something like
+`here is my plan for next week`, the bot repeats back its plain-text interpretation and asks
+whether to lock it in before saving anything to `.data/weekly_plan.json`.
 
 Telegram photo messages are supported too. If you send an image such as a course screenshot,
 with or without a caption, the bot downloads the Telegram image in memory and sends it to the
@@ -347,8 +347,9 @@ against what you intended to do:
 Here is my plan for this week: Mon 5 easy. Tue 6 x 800m. Wed rest. Thu 8 steady. Sat 14 long.
 ```
 
-The model may call its plan-saving tool and rewrite natural text into the saved weekly plan
-format. The older `/setplan <plan>` command still works, but it is no longer part of the
+The bot repeats back its interpretation in one line per planned day. Reply `lock it in` to
+save that draft to `.data/weekly_plan.json`, or `cancel` to discard it. The older
+`/setplan <plan>` command follows the same approval flow, but it is no longer part of the
 primary help surface.
 
 ### Add An Overall Goal

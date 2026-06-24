@@ -223,17 +223,18 @@ class OpenAIClientTest(unittest.TestCase):
         self.assertIn("get_garmin_readiness", tools)
         self.assertIn("get_garmin_recovery_trend", tools)
         self.assertIn(
-            "shares a day-by-day or week-long schedule",
+            "explicitly approves or asks to lock in",
             tools["save_weekly_plan"]["description"],
         )
         self.assertIn(
-            "even if they do not use words like save",
+            "repeat back the interpretation",
             tools["save_weekly_plan"]["description"],
         )
         self.assertIn(
-            "even if they simply write the schedule naturally",
+            "repeat back your interpretation of the plan",
             payload["instructions"],
         )
+        self.assertIn("do not call save_weekly_plan for unapproved drafts", payload["instructions"])
         self.assertIn("day-by-day lists with workout details", payload["instructions"])
         self.assertIn("update_weekly_plan_days with the changed weekdays", payload["instructions"])
         self.assertIn("quote the returned changed_days or receipt", payload["instructions"])

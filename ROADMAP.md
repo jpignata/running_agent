@@ -6,81 +6,6 @@ problem we have seen. This is the result of the robot and I brainstorming.
 
 ## Backlog
 
-### Goal Readiness Tracking
-
-Why: The coach should not just react to runs. It should track whether training
-evidence is moving the athlete toward the specific PR goal, what proof is still
-missing, and what the next best checkpoint should be. Vague "on track" answers
-are not enough; confidence needs to come from concrete race, workout, mileage,
-durability, recovery, and feedback evidence.
-
-Core idea: maintain a compact readiness snapshot for the current goal:
-
-- Goal: race distance, target time or pace, target date when known, and time remaining.
-- Current anchor: best recent race or official saved result, race-derived VDOT,
-  and confidence in that anchor.
-- Recent training evidence: weekly mileage trend, long-run durability, key
-  workouts, consistency, and subjective feedback.
-- Gap analysis: what is already good enough, what is close but unproven, the
-  likely limiter, and what would be risky to force.
-- Readiness bucket: one of too early to judge, building, plausible with clear
-  gaps, strongly supported, or at risk.
-- Next checkpoint: the next workout, race, or training block that would make the
-  PR more or less likely.
-
-Buildable slices:
-
-1. Goal readiness snapshot. Done.
-   - Generate a deterministic snapshot from the saved goal, official race
-     results, recent local Strava runs, pace calibration, coach log, weekly plan,
-     and athlete feedback.
-   - Include goal, current race/VDOT anchor, recent mileage, longest recent run,
-     key workout evidence, main gap, readiness bucket, and next checkpoint.
-   - Keep the snapshot compact enough to include in prompts without crowding out
-     run-specific context.
-
-2. Weekly review PR-progress section. Done.
-   - Sunday weekly reviews should include a short goal-progress paragraph grounded
-     in the readiness snapshot.
-   - It should say what this week improved, what gap remains, and what next week
-     should prove.
-   - Avoid unsupported words like "on track," "behind," or "missed" unless the
-     deterministic evidence supports them.
-
-3. Goal-question behavior. Done.
-   - When the athlete asks "am I on track?", "what do I need for my PR?", or a
-     similar goal-readiness question, the agent should answer from the readiness
-     snapshot instead of generic encouragement.
-   - The answer should include evidence, gaps, and the next checkpoint.
-   - If evidence is too thin, say what is missing rather than inventing confidence.
-
-4. Checkpoint workout selection. Done.
-   - Pick one next checkpoint based on goal distance, limiter, recent workload,
-     fatigue, and plan context.
-   - Examples: controlled 5 x 1K, 3 x mile, tune-up race, threshold progression,
-     long run with a moderate finish, or marathon-pace fueling rehearsal.
-   - Include guardrails so the bot does not prescribe a proof workout when recent
-     fatigue, soreness, mileage ramp, or race timing argues for recovery.
-
-5. Readiness history. Done.
-   - Store compact weekly readiness entries so progress can be compared over time.
-   - Suggested fields: week_start, goal summary, readiness bucket, main gap,
-     next checkpoint, key supporting evidence, and updated_at.
-   - Use history to say how the limiter has changed, for example from consistency
-     to race-pace tolerance.
-
-Done when:
-
-- The agent can produce a goal-readiness snapshot grounded in local deterministic
-  evidence.
-- Weekly reviews use that snapshot for PR-progress claims.
-- Direct goal questions use that snapshot for evidence, gaps, and next
-  checkpoint answers.
-- The coach names the next checkpoint that would increase confidence in the PR.
-- Confidence language is bucketed and evidence-backed, not vibes-based.
-- Readiness history can show whether the athlete is actually moving closer to
-  the goal over multiple weeks.
-
 ### Data Freshness Model
 
 Why: Garmin, Strava, plans, goals, official race results, notes, reflections,
@@ -142,51 +67,12 @@ Observed failure: A Sunday weekly preview for the week ending 2026-06-14 used th
 currently saved 2026-06-15 plan as if it described the completed week. That made
 the coach critique execution against the wrong plan and mis-frame mileage.
 
-Core distinction:
+Decision: keep `.data/weekly_plan.json` as the active plan and add
+`.data/weekly_plan_history.json` keyed by Monday `week_start`. Weekly review
+should load the reviewed-week snapshot for execution review and the active plan
+only for forward guidance.
 
-- The active plan answers "what should I do now or next?"
-- Historical plan context answers "what did we think this week was supposed to be?"
-- Weekly review needs both, but they must not be conflated.
-
-Design question: should the plan itself become dated, or should we add history?
-
-Option A - make the current plan dated more strictly:
-
-- Keep `.data/weekly_plan.json` as the only plan file.
-- Require every saved plan to have a `week_start`.
-- Weekly review only compares against the current plan when its `week_start`
-  matches the reviewed week.
-- If the current plan points at a future week, review says no saved plan exists
-  for the completed week.
-- Pros: smallest change, easy to reason about, avoids wrong comparisons.
-- Cons: once a new plan replaces the old one, missed/changed workouts from the
-  prior week are unavailable except for partial coach-log run snapshots.
-
-Option B - add weekly plan history:
-
-- Keep `.data/weekly_plan.json` as the active/current plan.
-- Add `.data/weekly_plan_history.json` keyed by Monday `week_start`.
-- Every full plan save or partial day update writes a snapshot for that
-  `week_start`.
-- Weekly review loads the reviewed-week snapshot from history and loads the
-  target-week plan separately for forward guidance.
-- Pros: preserves the coach's memory of prior plans, supports accurate missed-day
-  and over/under-plan review, lets the athlete save next week early.
-- Cons: new state file and more edge cases around partial updates, missing
-  `week_start`, corrections, and cleanup.
-
-Option C - attach plan snapshots to activities / coach log only:
-
-- Continue storing `planned_workout` on each completed run in `.data/coach_log.jsonl`.
-- Use those entries for weekly review.
-- Pros: already partly exists, strong evidence for completed run intent.
-- Cons: cannot represent missed workouts, rest/cross-training days, or total
-  planned mileage; not enough for reliable weekly reviews by itself.
-
-Likely direction: Option B, but implement it in small steps so Option A's safety
-guard lands first.
-
-Granular implementation:
+Buildable slices:
 
 1. Add strict week matching in weekly review.
    - Use a reviewed-week plan only if `week_start == reviewed_week_start`.

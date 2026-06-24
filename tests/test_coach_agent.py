@@ -136,6 +136,96 @@ class CoachAgentTest(unittest.TestCase):
 
         self.assertIn("RPE 6, legs heavy, no pain", replies[0])
 
+    def test_setplan_drafts_plan_for_approval_before_saving(self) -> None:
+        state: dict = {}
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        replies = agent.handle_message("/setplan\nMon easy 5\nTue workout\nSun long 10")
+
+        self.assertIn("Here is how I interpret the weekly plan", replies[0])
+        self.assertIn("Monday easy 5", replies[0])
+        self.assertIn("Tuesday workout", replies[0])
+        self.assertIn("Sunday long 10", replies[0])
+        self.assertIn("lock it in", replies[0])
+        self.assertEqual(
+            state["pending_plan_approval"]["plan_text"],
+            "Monday easy 5\nTuesday workout\nSunday long 10",
+        )
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.save_weekly_plan")
+    def test_plan_approval_saves_pending_plan(self, save_weekly_plan) -> None:
+        state = {
+            "pending_plan_approval": {
+                "kind": "weekly_plan",
+                "plan_text": "Monday easy 5\nTuesday workout",
+                "week_start": "2026-06-22",
+            }
+        }
+        saves = []
+        agent = CoachAgent(
+            strava_client=_FakeStrava(),
+            state=state,
+            save_state=lambda: saves.append(dict(state)),
+        )
+
+        replies = agent.handle_message("lock it in")
+
+        save_weekly_plan.assert_called_once_with(
+            "Monday easy 5\nTuesday workout",
+            week_start="2026-06-22",
+        )
+        self.assertEqual(replies, ["Locked in this weekly plan:\nMonday easy 5\nTuesday workout"])
+        self.assertNotIn("pending_plan_approval", state)
+        self.assertTrue(saves)
+
+    @patch("running_agent.coach_agent.save_weekly_plan")
+    def test_plan_rejection_discards_pending_plan(self, save_weekly_plan) -> None:
+        state = {
+            "pending_plan_approval": {
+                "kind": "weekly_plan",
+                "plan_text": "Monday easy 5\nTuesday workout",
+                "week_start": "",
+            }
+        }
+        agent = CoachAgent(strava_client=_FakeStrava(), state=state)
+
+        replies = agent.handle_message("cancel")
+
+        save_weekly_plan.assert_not_called()
+        self.assertEqual(replies, ["Okay, I discarded that plan draft."])
+        self.assertNotIn("pending_plan_approval", state)
+
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Model reply")
+    def test_natural_weekly_plan_message_drafts_without_model_call(self, coaching_reply) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava(), state={})
+
+        replies = agent.handle_message(
+            "next week is:\nMonday 5 easy\nTuesday workout\nSunday 10 long"
+        )
+
+        coaching_reply.assert_not_called()
+        self.assertIn("week starting", replies[0])
+        self.assertIn("Monday 5 easy", replies[0])
+        self.assertIn("Sunday 10 long", replies[0])
+
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Model reply")
+    def test_hypothetical_plan_question_still_goes_to_model(self, coaching_reply) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava(), state={})
+
+        replies = agent.handle_message(
+            "what might next week look like?\nMonday 5 easy\nTuesday workout"
+        )
+
+        self.assertEqual(replies, ["Model reply"])
+        coaching_reply.assert_called_once()
+        self.assertNotIn("pending_plan_approval", agent.state)
+
     @patch(
         "running_agent.coach_agent.resolve_pending_question",
         return_value={

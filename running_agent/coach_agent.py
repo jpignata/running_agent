@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import time as datetime_time
+from datetime import timedelta
 from typing import Any, Callable
 
 from .activity_format import detailed_activity_context, recent_runs_context
@@ -37,7 +38,13 @@ from .openai_client import (
     normalize_post_run_feedback,
     resolve_pending_question,
 )
-from .plan_store import save_weekly_plan, weekly_plan_context, weekly_plan_context_for_date
+from .plan_store import (
+    WEEKDAY_NAMES,
+    parse_weekly_plan,
+    save_weekly_plan,
+    weekly_plan_context,
+    weekly_plan_context_for_date,
+)
 from .plan_suggestion import (
     mark_sunday_plan_sent,
     next_week_start,
@@ -93,7 +100,7 @@ COMMANDS = (
     Command(("/plan",), "show the current weekly plan", "_plan_command"),
     Command(
         ("/setplan",),
-        "save this week's plan",
+        "draft this week's plan for approval",
         "_set_plan_command",
         show_in_help=False,
         usage="/setplan <plan>",
@@ -223,9 +230,15 @@ class CoachAgent:
         if command_spec:
             handler = getattr(self, command_spec.handler_name)
             return handler(text, command)
+        pending_plan_reply = self._pending_plan_approval_reply_or_none(text)
+        if pending_plan_reply:
+            return [pending_plan_reply]
         pending_reply = self._pending_question_reply_or_none(text)
         if pending_reply:
             return [pending_reply]
+        plan_draft_reply = self._plan_approval_draft_reply_or_none(text)
+        if plan_draft_reply:
+            return [plan_draft_reply]
         return [self.coach_reply(text)]
 
     def _help_command(self, _text: str, _command: str) -> list[str]:
@@ -715,8 +728,7 @@ class CoachAgent:
         plan_text = text[len("/setplan") :].strip()
         if not plan_text.strip():
             return "Send the plan after the command, like:\n/setplan\nMon easy 5\nTue workout"
-        save_weekly_plan(plan_text)
-        return "Saved this week's plan. I will use it in coaching."
+        return self._draft_weekly_plan_for_approval(plan_text)
 
     def _set_training_goal_from_message(self, text: str) -> str:
         goal_text = text[len("/setgoal") :].strip()
@@ -835,6 +847,53 @@ class CoachAgent:
         }
         self.state.pop("pending_post_run_feedback", None)
 
+    def _plan_approval_draft_reply_or_none(self, text: str) -> str | None:
+        parsed = parse_weekly_plan(text)
+        if len(parsed) < 2:
+            return None
+        lowered = text.lower()
+        if any(phrase in lowered for phrase in ("what might", "what could", "what should")):
+            return None
+        return self._draft_weekly_plan_for_approval(text)
+
+    def _draft_weekly_plan_for_approval(self, plan_text: str) -> str:
+        interpreted = _interpreted_weekly_plan(plan_text)
+        if not interpreted:
+            return (
+                "I could not parse a weekly plan from that. Send one line per day, like:\n"
+                "Monday 5 easy\nTuesday workout"
+            )
+        week_start = _plan_week_start_from_text(plan_text)
+        self.state["pending_plan_approval"] = {
+            "kind": "weekly_plan",
+            "plan_text": interpreted,
+            "week_start": week_start or "",
+            "drafted_at": coach_now().isoformat(),
+        }
+        self._save_state()
+        return _plan_approval_prompt(interpreted, week_start=week_start)
+
+    def _pending_plan_approval_reply_or_none(self, text: str) -> str | None:
+        pending = self.state.get("pending_plan_approval")
+        if not isinstance(pending, dict):
+            return None
+        if _is_plan_approval(text):
+            plan_text = str(pending.get("plan_text") or "").strip()
+            week_start = str(pending.get("week_start") or "").strip() or None
+            if not plan_text:
+                self.state.pop("pending_plan_approval", None)
+                self._save_state()
+                return "That pending plan draft was empty, so I cleared it."
+            save_weekly_plan(plan_text, week_start=week_start)
+            self.state.pop("pending_plan_approval", None)
+            self._save_state()
+            return "Locked in this weekly plan:\n" + plan_text
+        if _is_plan_rejection(text):
+            self.state.pop("pending_plan_approval", None)
+            self._save_state()
+            return "Okay, I discarded that plan draft."
+        return None
+
 
 def help_text() -> str:
     command_lines = [
@@ -849,6 +908,71 @@ def help_text() -> str:
         "decide whether to save that as future coaching context. If you state a durable race "
         "goal or target time, I can update the saved goal too."
     )
+
+
+def _interpreted_weekly_plan(plan_text: str) -> str:
+    parsed = parse_weekly_plan(plan_text)
+    lines = [
+        f"{weekday} {parsed[weekday]}"
+        for weekday in WEEKDAY_NAMES
+        if weekday in parsed and parsed[weekday].strip()
+    ]
+    return "\n".join(lines)
+
+
+def _plan_approval_prompt(plan_text: str, *, week_start: str | None = None) -> str:
+    intro = "Here is how I interpret the weekly plan:"
+    if week_start:
+        intro = f"Here is how I interpret the weekly plan for week starting {week_start}:"
+    return (
+        f"{intro}\n"
+        f"{plan_text}\n\n"
+        "Reply 'lock it in' to save this as the weekly plan, or 'cancel' to discard it."
+    )
+
+
+def _plan_week_start_from_text(text: str) -> str | None:
+    lowered = text.lower()
+    today = coach_today()
+    this_week_start = today - timedelta(days=today.weekday())
+    if "next week" in lowered:
+        return (this_week_start + timedelta(days=7)).isoformat()
+    if "this week" in lowered:
+        return this_week_start.isoformat()
+    return None
+
+
+def _is_plan_approval(text: str) -> bool:
+    normalized = _normalized_confirmation_text(text)
+    return normalized in {
+        "approve",
+        "approved",
+        "confirm",
+        "confirmed",
+        "lock it in",
+        "looks good",
+        "save it",
+        "yes",
+        "yes lock it in",
+        "yep",
+    }
+
+
+def _is_plan_rejection(text: str) -> bool:
+    normalized = _normalized_confirmation_text(text)
+    return normalized in {
+        "cancel",
+        "discard",
+        "dont save",
+        "do not save",
+        "no",
+        "nope",
+        "not yet",
+    }
+
+
+def _normalized_confirmation_text(text: str) -> str:
+    return " ".join(text.lower().replace("'", "").replace("’", "").strip(" .!").split())
 
 
 def _last_run_fallback_note(run: dict[str, Any], error: RuntimeError) -> str:
