@@ -173,7 +173,115 @@ class GoalReadinessTest(unittest.TestCase):
             )
 
             self.assertIn("distance signal: marathon", snapshot["goal"])
-            self.assertIn("marathon-pace", snapshot["next_checkpoint"])
+            self.assertIn("performance anchor", snapshot["next_checkpoint"])
+
+    def test_marathon_checkpoint_prioritizes_durability_before_marathon_pace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = _paths(Path(tmp))
+            write_json_file(
+                paths["goal"],
+                {
+                    "updated_at": "2026-06-01T12:00:00+00:00",
+                    "text": "NYC Marathon on November 1, 2026, target sub-3:10.",
+                },
+            )
+            write_json_file(
+                paths["race_results"],
+                {
+                    "results": [
+                        {
+                            "race_name": "North Jersey 5K",
+                            "race_date": "2026-06-07",
+                            "distance": "5K",
+                            "distance_meters": 5000.0,
+                            "time": "19:59",
+                            "time_seconds": 1199,
+                        }
+                    ]
+                },
+            )
+            activities = [
+                _run("Easy Run", "2026-06-24T06:00:00Z", 6),
+                _run("Track Workout", "2026-06-22T06:00:00Z", 7),
+                _run("Long Run", "2026-06-21T06:00:00Z", 12),
+                _run("Easy Run", "2026-06-19T06:00:00Z", 6),
+                _run("Easy Run", "2026-06-18T06:00:00Z", 6),
+                _run("Easy Run", "2026-06-17T06:00:00Z", 5),
+                _run("Easy Run", "2026-06-16T06:00:00Z", 5),
+                _run("Easy Run", "2026-06-13T06:00:00Z", 8),
+                _run("Steady Run", "2026-06-12T06:00:00Z", 8),
+                _run("Easy Run", "2026-06-11T06:00:00Z", 7),
+                _run("Easy Run", "2026-06-10T06:00:00Z", 7),
+                _run("Medium Easy Run", "2026-06-14T06:00:00Z", 10),
+                _run("Easy Run", "2026-06-09T06:00:00Z", 9),
+                _run("Recovery Run", "2026-06-08T06:00:00Z", 9),
+            ]
+
+            snapshot = goal_readiness_snapshot(
+                today=date(2026, 6, 24),
+                activities=activities,
+                goal_path=paths["goal"],
+                pace_path=paths["pace"],
+                coach_log_path=paths["coach_log"],
+                feedback_path=paths["feedback"],
+                race_results_path=paths["race_results"],
+            )
+
+            self.assertIn("Long-run durability", snapshot["main_gap"])
+            self.assertIn("Controlled long run progression", snapshot["next_checkpoint"])
+            self.assertIn("before adding marathon-pace segments", snapshot["next_checkpoint"])
+
+    def test_5k_checkpoint_prioritizes_pace_tolerance_when_volume_and_workouts_exist(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = _paths(Path(tmp))
+            write_json_file(
+                paths["goal"],
+                {
+                    "updated_at": "2026-06-01T12:00:00+00:00",
+                    "text": "Sub-19 5K PR this fall",
+                },
+            )
+            write_json_file(
+                paths["race_results"],
+                {
+                    "results": [
+                        {
+                            "race_name": "North Jersey 5K",
+                            "race_date": "2026-06-07",
+                            "distance": "5K",
+                            "distance_meters": 5000.0,
+                            "time": "19:44",
+                            "time_seconds": 1184,
+                        }
+                    ]
+                },
+            )
+            activities = [
+                _run("Easy Run", "2026-06-24T06:00:00Z", 6),
+                _run("Threshold Workout", "2026-06-22T06:00:00Z", 7),
+                _run("Long Run", "2026-06-21T06:00:00Z", 8),
+                _run("Easy Run", "2026-06-20T06:00:00Z", 4),
+                _run("Easy Run", "2026-06-19T06:00:00Z", 6),
+                _run("Easy Run", "2026-06-18T06:00:00Z", 5),
+                _run("Easy Run", "2026-06-17T06:00:00Z", 5),
+            ]
+
+            snapshot = goal_readiness_snapshot(
+                today=date(2026, 6, 24),
+                activities=activities,
+                goal_path=paths["goal"],
+                pace_path=paths["pace"],
+                coach_log_path=paths["coach_log"],
+                feedback_path=paths["feedback"],
+                race_results_path=paths["race_results"],
+            )
+
+            self.assertIn("5K pace tolerance", snapshot["main_gap"])
+            self.assertIn("5 x 1K", snapshot["next_checkpoint"])
 
 
 def _paths(root: Path) -> dict[str, Path]:

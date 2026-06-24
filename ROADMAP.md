@@ -54,7 +54,7 @@ Buildable slices:
    - The answer should include evidence, gaps, and the next checkpoint.
    - If evidence is too thin, say what is missing rather than inventing confidence.
 
-4. Checkpoint workout selection.
+4. Checkpoint workout selection. Done.
    - Pick one next checkpoint based on goal distance, limiter, recent workload,
      fatigue, and plan context.
    - Examples: controlled 5 x 1K, 3 x mile, tune-up race, threshold progression,

@@ -36,6 +36,22 @@ QUALITY_NAME_WORDS = (
     "mile",
 )
 
+MIN_WEEKLY_MILES = {
+    "marathon": 35,
+    "half marathon": 25,
+    "10K": 20,
+    "5K": 20,
+    "mile": 15,
+}
+
+MIN_LONG_RUN_MILES = {
+    "marathon": 16,
+    "half marathon": 10,
+    "10K": 8,
+    "5K": 7,
+    "mile": 6,
+}
+
 
 def goal_readiness_snapshot(
     *,
@@ -91,7 +107,15 @@ def goal_readiness_snapshot(
         "feedback_risks": risk_signals,
         "main_gap": main_gap,
         "readiness_bucket": bucket,
-        "next_checkpoint": _next_checkpoint(goal_text, main_gap, risk_signals, runs),
+        "next_checkpoint": _next_checkpoint(
+            goal_text=goal_text,
+            main_gap=main_gap,
+            risk_signals=risk_signals,
+            runs=runs,
+            race_anchor=race_anchor,
+            weekly_mileage=weekly_mileage,
+            key_workouts=key_workouts,
+        ),
     }
 
 
@@ -317,13 +341,38 @@ def _main_gap(
         return "No recent local runs are available for readiness evidence."
     if not race_anchor:
         return "No recent race or official result anchor is available for goal-specific confidence."
+    goal_distance = _goal_distance(goal_text)
     average_weekly = _mileage_summary(weekly_mileage)["average_weekly_miles"]
-    if average_weekly < 20:
-        return "Recent volume is still light; consistency and aerobic base are the main gap."
-    if not key_workouts:
+    minimum_weekly = MIN_WEEKLY_MILES.get(goal_distance or "", 20)
+    if average_weekly < minimum_weekly:
         return (
-            "Recent volume exists, but there is not enough quality or race-specific evidence yet."
+            f"Recent volume is still light for the {goal_distance or 'goal'}; "
+            "consistency and aerobic base are the main gap."
         )
+    longest = _longest_miles(runs)
+    minimum_long_run = MIN_LONG_RUN_MILES.get(goal_distance or "", 0)
+    if minimum_long_run and longest < minimum_long_run:
+        return (
+            f"Long-run durability is still the main gap for the {goal_distance}; "
+            f"recent longest run is {longest:.1f} mi."
+        )
+    if not key_workouts:
+        return "Recent volume exists, but there is not enough race-specific workout evidence yet."
+    if goal_distance == "marathon":
+        return (
+            "Need marathon-specific proof: fueling, controlled long-run rhythm, and the ability "
+            "to touch marathon pace without turning it into a race."
+        )
+    if goal_distance == "half marathon":
+        return (
+            "Need threshold durability: controlled sustained work that supports half-marathon pace."
+        )
+    if goal_distance == "10K":
+        return "Need threshold-to-10K rhythm proof: controlled work near race demand without overreaching."
+    if goal_distance == "5K":
+        return "Need 5K pace tolerance proof: repeatable work near race rhythm without fading late."
+    if goal_distance == "mile":
+        return "Need speed and mechanics proof: fast relaxed reps without excessive fatigue."
     return "Need the next checkpoint to show the target pace or distance-specific demand is repeatable."
 
 
@@ -349,10 +398,14 @@ def _readiness_bucket(
 
 
 def _next_checkpoint(
+    *,
     goal_text: str,
     main_gap: str,
     risk_signals: list[str],
     runs: list[dict[str, Any]],
+    race_anchor: dict[str, Any] | None,
+    weekly_mileage: dict[str, float],
+    key_workouts: list[str],
 ) -> str:
     if risk_signals:
         return "First checkpoint is a pain-free easy run or recovery day response before adding proof work."
@@ -360,20 +413,65 @@ def _next_checkpoint(
         return (
             "First checkpoint is a consistent week of easy running with one controlled longer run."
         )
+    if not race_anchor:
+        return "Tune-up race or controlled time trial to create a current performance anchor."
+
     goal_distance = _goal_distance(goal_text)
+    average_weekly = _mileage_summary(weekly_mileage)["average_weekly_miles"]
+    minimum_weekly = MIN_WEEKLY_MILES.get(goal_distance or "", 20)
+    if average_weekly < minimum_weekly:
+        return (
+            "Consistent mileage week before a bigger proof workout: build aerobic volume "
+            "without adding another hard stimulus."
+        )
+
+    longest = _longest_miles(runs)
+    minimum_long_run = MIN_LONG_RUN_MILES.get(goal_distance or "", 0)
+    if minimum_long_run and longest < minimum_long_run:
+        if goal_distance == "marathon":
+            return "Controlled long run progression with practiced fueling before adding marathon-pace segments."
+        return (
+            "Controlled longer run that proves durability before adding sharper race-specific work."
+        )
+
+    if not key_workouts:
+        return _first_quality_checkpoint(goal_distance)
+
     if goal_distance == "marathon":
-        return "Long run with practiced fueling and controlled marathon-pace segments."
+        return "Long run with practiced fueling and controlled marathon-pace segments, kept comfortably below race effort."
     if goal_distance == "half marathon":
-        return "Threshold progression or long run with a controlled moderate finish."
+        return "Threshold progression or long run with a controlled moderate finish to prove half-marathon durability."
     if goal_distance == "10K":
-        return "Threshold progression with controlled 10K-rhythm work."
+        return "Threshold progression with controlled 10K-rhythm work, such as cruise intervals that stay repeatable."
     if goal_distance == "mile":
-        return "Controlled repetition session that proves speed without turning into a race."
+        return "Controlled repetition session that proves speed and mechanics without turning into a race."
     if goal_distance == "5K":
         return "Controlled 5 x 1K or 3 x mile near 5K rhythm with recoveries that keep the work repeatable."
-    if "race or official result anchor" in main_gap:
-        return "Tune-up race or time trial to create a current performance anchor."
     return "A goal-specific workout that tests the main limiter without requiring a race effort."
+
+
+def _first_quality_checkpoint(goal_distance: str | None) -> str:
+    if goal_distance == "marathon":
+        return (
+            "Steady medium-long run or moderate-finish long run before adding marathon-pace proof."
+        )
+    if goal_distance == "half marathon":
+        return "Controlled threshold session, such as cruise intervals, to establish half-marathon support."
+    if goal_distance == "10K":
+        return (
+            "Controlled threshold-to-10K session, such as 4-5 x 5 minutes, without racing the reps."
+        )
+    if goal_distance == "5K":
+        return "Controlled 5K-rhythm workout, such as 5 x 1K, with repeatable recoveries."
+    if goal_distance == "mile":
+        return "Relaxed repetition session with full recovery to prove speed and mechanics."
+    return "Controlled quality workout matched to the goal distance."
+
+
+def _longest_miles(runs: list[dict[str, Any]]) -> float:
+    if not runs:
+        return 0.0
+    return max(miles(run) for run in runs)
 
 
 def _goal_distance(goal_text: str) -> str | None:
