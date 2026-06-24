@@ -6,6 +6,80 @@ problem we have seen. This is the result of the robot and I brainstorming.
 
 ## Backlog
 
+### Goal Readiness Tracking
+
+Why: The coach should not just react to runs. It should track whether training
+evidence is moving the athlete toward the specific PR goal, what proof is still
+missing, and what the next best checkpoint should be. Vague "on track" answers
+are not enough; confidence needs to come from concrete race, workout, mileage,
+durability, recovery, and feedback evidence.
+
+Core idea: maintain a compact readiness snapshot for the current goal:
+
+- Goal: race distance, target time or pace, target date when known, and time remaining.
+- Current anchor: best recent race or official saved result, race-derived VDOT,
+  and confidence in that anchor.
+- Recent training evidence: weekly mileage trend, long-run durability, key
+  workouts, consistency, and subjective feedback.
+- Gap analysis: what is already good enough, what is close but unproven, the
+  likely limiter, and what would be risky to force.
+- Readiness bucket: one of too early to judge, building, plausible with clear
+  gaps, strongly supported, or at risk.
+- Next checkpoint: the next workout, race, or training block that would make the
+  PR more or less likely.
+
+Buildable slices:
+
+1. Goal readiness snapshot.
+   - Generate a deterministic snapshot from the saved goal, official race
+     results, recent local Strava runs, pace calibration, coach log, weekly plan,
+     and athlete feedback.
+   - Include goal, current race/VDOT anchor, recent mileage, longest recent run,
+     key workout evidence, main gap, readiness bucket, and next checkpoint.
+   - Keep the snapshot compact enough to include in prompts without crowding out
+     run-specific context.
+
+2. Weekly review PR-progress section.
+   - Sunday weekly reviews should include a short goal-progress paragraph grounded
+     in the readiness snapshot.
+   - It should say what this week improved, what gap remains, and what next week
+     should prove.
+   - Avoid unsupported words like "on track," "behind," or "missed" unless the
+     deterministic evidence supports them.
+
+3. Goal-question behavior.
+   - When the athlete asks "am I on track?", "what do I need for my PR?", or a
+     similar goal-readiness question, the agent should answer from the readiness
+     snapshot instead of generic encouragement.
+   - The answer should include evidence, gaps, and the next checkpoint.
+   - If evidence is too thin, say what is missing rather than inventing confidence.
+
+4. Checkpoint workout selection.
+   - Pick one next checkpoint based on goal distance, limiter, recent workload,
+     fatigue, and plan context.
+   - Examples: controlled 5 x 1K, 3 x mile, tune-up race, threshold progression,
+     long run with a moderate finish, or marathon-pace fueling rehearsal.
+   - Include guardrails so the bot does not prescribe a proof workout when recent
+     fatigue, soreness, mileage ramp, or race timing argues for recovery.
+
+5. Readiness history.
+   - Store compact weekly readiness entries so progress can be compared over time.
+   - Suggested fields: week_start, goal summary, readiness bucket, main gap,
+     next checkpoint, key supporting evidence, and updated_at.
+   - Use history to say how the limiter has changed, for example from consistency
+     to race-pace tolerance.
+
+Done when:
+
+- The agent can produce a goal-readiness snapshot grounded in local deterministic
+  evidence.
+- Weekly reviews and direct goal questions use that snapshot for PR-progress
+  claims.
+- The coach names the next checkpoint that would increase confidence in the PR.
+- Confidence language is bucketed and evidence-backed, not vibes-based.
+- Readiness history can show whether the athlete is actually moving closer to
+  the goal over multiple weeks.
+
 ### Data Freshness Model
 
 Why: Garmin, Strava, plans, goals, official race results, notes, reflections,
