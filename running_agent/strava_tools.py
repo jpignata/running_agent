@@ -98,6 +98,23 @@ def get_local_run_details(
     return context
 
 
+def find_local_run(
+    *,
+    selector: str = "latest_run",
+    activity_id: str = "",
+    query: str = "",
+    date: str = "",
+    days: int = 365,
+) -> dict[str, Any] | None:
+    return _select_run(
+        selector=selector,
+        activity_id=activity_id,
+        query=query,
+        date=date,
+        days=days,
+    )
+
+
 def _select_run(
     *,
     selector: str,

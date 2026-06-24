@@ -7,6 +7,7 @@ from pathlib import Path
 from running_agent.post_run_feedback import (
     append_post_run_feedback,
     clean_post_run_feedback,
+    inferred_post_run_feedback,
     post_run_feedback_context,
     read_post_run_feedback,
 )
@@ -49,6 +50,14 @@ class PostRunFeedbackTest(unittest.TestCase):
         )
 
         self.assertEqual(feedback["pain"], "no")
+
+    def test_inferred_post_run_feedback_extracts_explicit_rpe(self) -> None:
+        feedback = inferred_post_run_feedback("feedback for last run: rpe 7, legs heavy, no pain")
+
+        self.assertEqual(
+            feedback,
+            {"is_feedback": True, "rpe": 7, "legs": "heavy", "pain": "no", "notes": None},
+        )
 
     def test_append_post_run_feedback_stores_private_jsonl(self) -> None:
         path = _temp_path()

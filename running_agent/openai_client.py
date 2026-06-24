@@ -19,8 +19,10 @@ from .coach_prompt import (
 from .garmin_context import safe_garmin_weekly_context
 from .goal_store import save_training_goal
 from .plan_store import save_weekly_plan, update_weekly_plan_days
+from .post_run_feedback import append_post_run_feedback, inferred_post_run_feedback
 from .race_results import save_race_result
-from .strava_tools import get_local_run_details, query_local_runs
+from .strava_store import activity_local_date
+from .strava_tools import find_local_run, get_local_run_details, query_local_runs
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.5"
@@ -243,6 +245,8 @@ def _handle_tool_calls(
             output = _execute_save_weekly_plan_tool(call)
         elif call.get("name") == "save_race_result":
             output = _execute_save_race_result_tool(call)
+        elif call.get("name") == "add_run_feedback":
+            output = _execute_add_run_feedback_tool(call)
         elif call.get("name") == "query_local_runs":
             output = _execute_query_local_runs_tool(call)
         elif call.get("name") == "get_local_run_details":
@@ -346,6 +350,75 @@ def _execute_save_race_result_tool(call: dict[str, Any]) -> dict[str, str] | Non
         source=str(arguments.get("source") or "athlete"),
     )
     return _tool_output(call["call_id"], {"saved": True, "result": result})
+
+
+def _execute_add_run_feedback_tool(call: dict[str, Any]) -> dict[str, str] | None:
+    arguments = _tool_arguments(call)
+    if arguments is None:
+        return None
+    feedback_text = str(arguments.get("feedback_text") or "").strip()
+    if not feedback_text:
+        return None
+    run = find_local_run(
+        selector=str(arguments.get("selector") or "latest_run"),
+        activity_id=str(arguments.get("activity_id") or ""),
+        query=str(arguments.get("query") or ""),
+        date=str(arguments.get("date") or ""),
+        days=_int_argument(arguments.get("days"), default=365),
+    )
+    if not run:
+        return _tool_output(
+            call["call_id"],
+            {
+                "saved": False,
+                "error": "No matching synced Strava run found in the local store.",
+            },
+        )
+
+    normalized = _feedback_normalized_from_tool_arguments(arguments, feedback_text)
+    entry = append_post_run_feedback(
+        feedback_text,
+        normalized=normalized,
+        activity_id=run.get("id"),
+        run_date=_run_date_text(run),
+    )
+    return _tool_output(
+        call["call_id"],
+        {
+            "saved": True,
+            "activity_id": entry.get("activity_id"),
+            "run_date": entry.get("run_date"),
+            "rpe": entry.get("rpe"),
+            "legs": entry.get("legs"),
+            "pain": entry.get("pain"),
+            "notes": entry.get("notes"),
+        },
+    )
+
+
+def _feedback_normalized_from_tool_arguments(
+    arguments: dict[str, Any],
+    feedback_text: str,
+) -> dict[str, Any]:
+    normalized: dict[str, Any] = {"is_feedback": True}
+    rpe = _int_argument(arguments.get("rpe"), default=0)
+    normalized["rpe"] = rpe if 1 <= rpe <= 10 else None
+    for key in ("legs", "pain", "notes"):
+        value = arguments.get(key)
+        normalized[key] = (
+            value.strip().lower() if isinstance(value, str) and value.strip() else None
+        )
+    if not any(normalized.get(key) is not None for key in ("rpe", "legs", "pain", "notes")):
+        inferred = inferred_post_run_feedback(feedback_text)
+        if inferred.get("is_feedback"):
+            return inferred
+        normalized["notes"] = feedback_text
+    return normalized
+
+
+def _run_date_text(run: dict[str, Any]) -> str | None:
+    run_date = activity_local_date(run)
+    return run_date.isoformat() if run_date else None
 
 
 def _clean_saved_weekly_plan(plan: str) -> str:

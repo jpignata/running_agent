@@ -385,6 +385,9 @@ Feedback is stored in `.data/run_feedback.jsonl` and included in future coach-lo
 the coach can compare pace and workout execution against perceived effort over time.
 The reply is resolved and normalized through OpenAI into structured fields before storage.
 Small extraction tasks default to `gpt-5.4-mini`; set `OPENAI_SMALL_MODEL` to override it.
+You can also add feedback later in natural chat, for example
+`here's my feedback for the last run: RPE 7, legs heavy, no pain`; the model resolves the
+matching synced run and saves the same feedback record.
 
 To rebuild the derived run-memory store from local Strava data, coach log entries, plans,
 and post-run feedback:

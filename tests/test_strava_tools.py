@@ -4,7 +4,7 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from running_agent.strava_tools import get_local_run_details, query_local_runs
+from running_agent.strava_tools import find_local_run, get_local_run_details, query_local_runs
 
 METERS_PER_MILE = 1609.344
 
@@ -122,6 +122,17 @@ class StravaToolsTest(unittest.TestCase):
         self.assertIn("Historical plan note", result)
         self.assertNotIn("Matched planned workout", result)
         load_run_detail.assert_called_once_with(5)
+
+    @patch("running_agent.strava_tools.coach_today", return_value=date(2026, 6, 3))
+    @patch("running_agent.strava_tools.list_run_summaries")
+    def test_find_local_run_selects_latest_run_for_feedback(self, list_run_summaries, _coach_today):
+        latest = _run(5, "Latest Easy", 5.0, "2026-06-03T06:00:00Z")
+        older = _run(4, "Older Easy", 4.0, "2026-06-01T06:00:00Z")
+        list_run_summaries.return_value = [latest, older]
+
+        result = find_local_run(selector="latest_run")
+
+        self.assertEqual(result, latest)
 
 
 def _run(

@@ -184,6 +184,76 @@ SAVE_RACE_RESULT_TOOL = {
     },
     "strict": True,
 }
+ADD_RUN_FEEDBACK_TOOL = {
+    "type": "function",
+    "name": "add_run_feedback",
+    "description": (
+        "Save athlete feedback for a completed run, such as RPE, legs, pain, soreness, "
+        "execution notes, or how the run felt. Use this when the athlete explicitly gives "
+        "feedback for any run, including phrases like 'feedback for my last run', 'for "
+        "yesterday's run', 'that track workout felt...', or an activity ID. Do not use this "
+        "for general coaching questions without actual run feedback."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "feedback_text": {
+                "type": "string",
+                "description": "The athlete's raw feedback text to preserve.",
+            },
+            "selector": {
+                "type": "string",
+                "description": "One of latest_run, latest_race, activity_id, date, or query.",
+            },
+            "activity_id": {
+                "type": "string",
+                "description": "Activity ID when selector is activity_id; otherwise empty.",
+            },
+            "query": {
+                "type": "string",
+                "description": "Search terms when selector is query; otherwise empty.",
+            },
+            "date": {
+                "type": "string",
+                "description": "YYYY-MM-DD date when selector is date; otherwise empty.",
+            },
+            "days": {
+                "type": "integer",
+                "description": "How many days back to search. Use 365 unless needed.",
+            },
+            "rpe": {
+                "type": "integer",
+                "description": "RPE 1-10 when provided, or 0 if not provided.",
+            },
+            "legs": {
+                "type": "string",
+                "description": "Short legs/fatigue description, or empty if not provided.",
+            },
+            "pain": {
+                "type": "string",
+                "description": "Short pain/soreness description, or empty if not provided.",
+            },
+            "notes": {
+                "type": "string",
+                "description": "Useful extra feedback notes, or empty if not provided.",
+            },
+        },
+        "required": [
+            "feedback_text",
+            "selector",
+            "activity_id",
+            "query",
+            "date",
+            "days",
+            "rpe",
+            "legs",
+            "pain",
+            "notes",
+        ],
+        "additionalProperties": False,
+    },
+    "strict": True,
+}
 QUERY_LOCAL_RUNS_TOOL = {
     "type": "function",
     "name": "query_local_runs",
@@ -304,6 +374,7 @@ COACHING_TOOLS = [
     UPDATE_WEEKLY_PLAN_DAYS_TOOL,
     SAVE_WEEKLY_PLAN_TOOL,
     SAVE_RACE_RESULT_TOOL,
+    ADD_RUN_FEEDBACK_TOOL,
     QUERY_LOCAL_RUNS_TOOL,
     GET_LOCAL_RUN_DETAILS_TOOL,
     GET_GARMIN_READINESS_TOOL,
@@ -379,6 +450,11 @@ COACHING_INSTRUCTIONS = (
     "more authoritative than GPS activity duration or Strava best efforts for VDOT calibration. "
     "A race-result correction is not a training-goal update unless the athlete explicitly asks "
     "to change the goal. Do not claim an official race result was saved unless save_race_result "
+    "was actually called. "
+    "When the athlete provides feedback for a completed run, such as RPE, legs, pain, "
+    "soreness, or execution notes, call add_run_feedback before answering. Resolve phrases "
+    "like last run, latest run, yesterday's run, a named workout, a date, or an activity ID "
+    "into the tool selector arguments. Do not claim feedback was saved unless add_run_feedback "
     "was actually called. "
     "Do not let an aspirational goal pace inflate current training paces. If evidence conflicts, "
     "state the uncertainty and choose a conservative range. Do not make a same-distance or "

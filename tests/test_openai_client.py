@@ -785,6 +785,87 @@ class OpenAIClientTest(unittest.TestCase):
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
+    @patch(
+        "running_agent.openai_client.find_local_run",
+        return_value={"id": 123, "name": "Easy Run", "start_date_local": "2026-06-23T06:00:00Z"},
+    )
+    @patch("running_agent.openai_client.append_post_run_feedback")
+    @patch(
+        "running_agent.openai_client._post_json",
+        side_effect=[
+            {
+                "id": "resp_1",
+                "output": [
+                    {
+                        "type": "function_call",
+                        "name": "add_run_feedback",
+                        "call_id": "call_feedback",
+                        "arguments": (
+                            '{"feedback_text": "rpe 7, legs heavy, no pain", '
+                            '"selector": "latest_run", "activity_id": "", "query": "", '
+                            '"date": "", "days": 365, "rpe": 7, "legs": "heavy", '
+                            '"pain": "no", "notes": ""}'
+                        ),
+                    }
+                ],
+            },
+            {"output_text": "Saved that feedback for the last run."},
+        ],
+    )
+    def test_coaching_reply_executes_add_run_feedback_tool(
+        self,
+        post_json,
+        append_post_run_feedback,
+        find_local_run,
+        _athlete_profile_context,
+    ) -> None:
+        append_post_run_feedback.return_value = {
+            "activity_id": 123,
+            "run_date": "2026-06-23",
+            "rpe": 7,
+            "legs": "heavy",
+            "pain": "no",
+        }
+
+        reply = coaching_reply(
+            "Here's my feedback for the last run: rpe 7, legs heavy, no pain.",
+            training_summary="Training summary",
+            recent_runs="Recent runs",
+        )
+
+        self.assertEqual(reply, "Saved that feedback for the last run.")
+        find_local_run.assert_called_once_with(
+            selector="latest_run", activity_id="", query="", date="", days=365
+        )
+        append_post_run_feedback.assert_called_once_with(
+            "rpe 7, legs heavy, no pain",
+            normalized={
+                "is_feedback": True,
+                "rpe": 7,
+                "legs": "heavy",
+                "pain": "no",
+                "notes": None,
+            },
+            activity_id=123,
+            run_date="2026-06-23",
+        )
+        followup_payload = post_json.call_args_list[1].args[1]
+        self.assertEqual(
+            followup_payload["input"],
+            [
+                {
+                    "type": "function_call_output",
+                    "call_id": "call_feedback",
+                    "output": (
+                        '{"saved": true, "activity_id": 123, "run_date": "2026-06-23", '
+                        '"rpe": 7, "legs": "heavy", "pain": "no", "notes": null}'
+                    ),
+                }
+            ],
+        )
+
+    @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
+    @patch("running_agent.coach_prompt.athlete_profile_context", return_value="Profile note")
     @patch("running_agent.daily_checkin.current_garmin_context", return_value="Readiness: 52")
     @patch(
         "running_agent.openai_client._post_json",

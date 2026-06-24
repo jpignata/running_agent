@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,37 @@ def clean_post_run_feedback(raw_text: str, normalized: dict[str, Any]) -> dict[s
     if pain:
         feedback["pain"] = pain
     return feedback
+
+
+def inferred_post_run_feedback(text: str) -> dict[str, Any]:
+    match = re.search(r"\brpe\s*[:=]?\s*(10|[1-9])\b", text, flags=re.IGNORECASE)
+    if not match:
+        return {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None}
+
+    lowered = text.lower()
+    legs = None
+    legs_match = re.search(
+        r"\blegs?\s+(great|good|normal|fine|fresh|heavy|dead|sore|tired)\b",
+        lowered,
+    )
+    if legs_match:
+        legs = legs_match.group(1)
+
+    pain = None
+    if re.search(r"\b(no pain|pain none|no soreness|soreness none)\b", lowered):
+        pain = "no"
+    else:
+        pain_match = re.search(r"\bpain\s+(mild|moderate|bad|sharp|worse|high)\b", lowered)
+        if pain_match:
+            pain = pain_match.group(1)
+
+    return {
+        "is_feedback": True,
+        "rpe": int(match.group(1)),
+        "legs": legs,
+        "pain": pain,
+        "notes": None,
+    }
 
 
 def _clean_pain(value: Any) -> str | None:

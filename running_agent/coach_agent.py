@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import time as datetime_time
@@ -44,7 +43,7 @@ from .plan_suggestion import (
     should_send_sunday_plan,
     suggest_next_week_plan,
 )
-from .post_run_feedback import append_post_run_feedback
+from .post_run_feedback import append_post_run_feedback, inferred_post_run_feedback
 from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .strava_sync import save_synced_run_detail, sync_strava_runs
@@ -774,7 +773,7 @@ class CoachAgent:
             resolution = {"answers_question": False, "extracted": {}}
         normalized = dict(resolution.get("extracted") or {})
         if not resolution.get("answers_question") or not normalized.get("is_feedback"):
-            normalized = _explicit_rpe_feedback(feedback_text)
+            normalized = inferred_post_run_feedback(feedback_text)
         if not normalized.get("is_feedback"):
             return None
         return self._save_normalized_post_run_feedback(feedback_text, normalized, pending=pending)
@@ -869,35 +868,6 @@ def _post_run_feedback_prompt() -> str:
         "How did that run feel? Any pain or soreness? A quick reply like "
         "'RPE 6, legs normal, no pain' is enough."
     )
-
-
-def _explicit_rpe_feedback(text: str) -> dict[str, Any]:
-    match = re.search(r"\brpe\s*[:=]?\s*(10|[1-9])\b", text, flags=re.IGNORECASE)
-    if not match:
-        return {"is_feedback": False, "rpe": None, "legs": None, "pain": None, "notes": None}
-
-    lowered = text.lower()
-    legs = None
-    legs_match = re.search(
-        r"\blegs?\s+(great|good|normal|fine|fresh|heavy|dead|sore|tired)\b",
-        lowered,
-    )
-    if legs_match:
-        legs = legs_match.group(1)
-
-    pain = None
-    if re.search(r"\b(no pain|pain none|no soreness|soreness none)\b", lowered):
-        pain = "no"
-    elif re.search(r"\bpain\s+(mild|moderate|bad|sharp|worse|high)\b", lowered):
-        pain = re.search(r"\bpain\s+(mild|moderate|bad|sharp|worse|high)\b", lowered).group(1)
-
-    return {
-        "is_feedback": True,
-        "rpe": int(match.group(1)),
-        "legs": legs,
-        "pain": pain,
-        "notes": None,
-    }
 
 
 def _post_run_feedback_follow_up(entry: dict[str, Any]) -> str:
