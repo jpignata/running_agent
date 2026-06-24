@@ -7,7 +7,8 @@ from .activity_format import detailed_activity_context, recent_runs_context
 from .coach_log import append_week_review, coach_log_context
 from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
-from .goal_readiness import goal_readiness_context
+from .goal_readiness import goal_readiness_context, goal_readiness_snapshot
+from .goal_readiness_history import save_goal_readiness_history_entry
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import planned_workout_for_date, weekly_plan_context, weekly_plan_context_for_week
@@ -32,7 +33,8 @@ def review_week(
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
     garmin_context = safe_garmin_weekly_context(days=7)
-    readiness_context = goal_readiness_context(activities=activities, days=lookback_days)
+    readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
+    readiness_context = goal_readiness_context(readiness_snapshot)
     prompt = (
         f"Review the athlete's training week from {week_start.isoformat()} through "
         f"{week_end.isoformat()} for use before suggesting next week's plan. Write like a real "
@@ -75,6 +77,10 @@ def review_week(
             week_end=week_end.isoformat(),
             summary=review,
         )
+        save_goal_readiness_history_entry(
+            week_start=week_start.isoformat(),
+            snapshot=readiness_snapshot,
+        )
 
     return review
 
@@ -94,7 +100,8 @@ def weekly_coaching_message(
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
     garmin_context = safe_garmin_weekly_context(days=7)
-    readiness_context = goal_readiness_context(activities=activities, days=lookback_days)
+    readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
+    readiness_context = goal_readiness_context(readiness_snapshot)
     prompt = (
         f"Write one integrated Sunday evening coaching message for Telegram. Review the week "
         f"from {week_start.isoformat()} through {week_end.isoformat()}, then handle next "
@@ -143,6 +150,10 @@ def weekly_coaching_message(
             week_start=week_start.isoformat(),
             week_end=week_end.isoformat(),
             summary=message,
+        )
+        save_goal_readiness_history_entry(
+            week_start=week_start.isoformat(),
+            snapshot=readiness_snapshot,
         )
 
     return message

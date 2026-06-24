@@ -88,10 +88,15 @@ class GoalReadinessTest(unittest.TestCase):
             self.assertEqual(snapshot["readiness_bucket"], "plausible with clear gaps")
             self.assertIn("5 x 1K", snapshot["next_checkpoint"])
 
-            context = goal_readiness_context(snapshot)
+            with unittest.mock.patch(
+                "running_agent.goal_readiness.goal_readiness_history_context",
+                return_value="Recent goal readiness history:\n- week 2026-06-22",
+            ):
+                context = goal_readiness_context(snapshot)
             self.assertIn("Goal readiness snapshot:", context)
             self.assertIn("official saved race result", context)
             self.assertIn("VDOT 51", context)
+            self.assertIn("Recent goal readiness history", context)
 
     def test_snapshot_is_too_early_without_goal_or_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -62,7 +62,7 @@ Buildable slices:
    - Include guardrails so the bot does not prescribe a proof workout when recent
      fatigue, soreness, mileage ramp, or race timing argues for recovery.
 
-5. Readiness history.
+5. Readiness history. Done.
    - Store compact weekly readiness entries so progress can be compared over time.
    - Suggested fields: week_start, goal summary, readiness bucket, main gap,
      next checkpoint, key supporting evidence, and updated_at.

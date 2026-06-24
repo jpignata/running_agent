@@ -19,8 +19,10 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(current_week_start(datetime(2026, 5, 31).date()).isoformat(), "2026-05-25")
 
     @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
+    @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
@@ -35,8 +37,10 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_plan_context,
         _training_goal_context,
         _coach_log_context,
+        goal_readiness_snapshot,
         goal_readiness_context,
         _safe_garmin_weekly_context,
+        save_goal_readiness_history_entry,
         append_week_review,
     ) -> None:
         review = review_week(
@@ -52,8 +56,9 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(kwargs["coach_log"], "Coach log")
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly")
         self.assertFalse(kwargs["tools_enabled"])
-        goal_readiness_context.assert_called_once()
-        self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 7)
+        goal_readiness_snapshot.assert_called_once()
+        self.assertEqual(goal_readiness_snapshot.call_args.kwargs["days"], 7)
+        goal_readiness_context.assert_called_once_with({"snapshot": True})
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("deterministic goal-readiness snapshot", prompt)
         self.assertIn("what next checkpoint would raise confidence", prompt)
@@ -62,18 +67,26 @@ class WeeklyReviewTest(unittest.TestCase):
             week_end="2026-05-31",
             summary="Good week. Keep it controlled.",
         )
+        save_goal_readiness_history_entry.assert_called_once_with(
+            week_start="2026-05-25",
+            snapshot={"snapshot": True},
+        )
 
     @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
+    @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch("running_agent.weekly_review.coaching_reply", side_effect=RuntimeError("offline"))
     def test_review_week_has_fallback(
         self,
         _coaching_reply,
         _weekly_quality_detail_context,
+        _goal_readiness_snapshot,
         _goal_readiness_context,
         _garmin,
+        save_goal_readiness_history_entry,
         append_week_review,
     ) -> None:
         review = review_week(
@@ -83,10 +96,13 @@ class WeeklyReviewTest(unittest.TestCase):
 
         self.assertIn("AI weekly review was unavailable (offline).", review)
         append_week_review.assert_called_once()
+        save_goal_readiness_history_entry.assert_called_once()
 
     @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
+    @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch(
@@ -105,8 +121,10 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_plan_context_for_week,
         _training_goal_context,
         _coach_log_context,
+        goal_readiness_snapshot,
         goal_readiness_context,
         _safe_garmin_weekly_context,
+        save_goal_readiness_history_entry,
         append_week_review,
     ) -> None:
         message = weekly_coaching_message(
@@ -123,8 +141,9 @@ class WeeklyReviewTest(unittest.TestCase):
         )
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
         self.assertFalse(kwargs["tools_enabled"])
-        goal_readiness_context.assert_called_once()
-        self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 42)
+        goal_readiness_snapshot.assert_called_once()
+        self.assertEqual(goal_readiness_snapshot.call_args.kwargs["days"], 42)
+        goal_readiness_context.assert_called_once_with({"snapshot": True})
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("recap that saved plan instead of suggesting a different one", prompt)
         self.assertIn("deterministic goal-readiness snapshot", prompt)
@@ -133,10 +152,16 @@ class WeeklyReviewTest(unittest.TestCase):
             week_end="2026-05-31",
             summary="You had a great week. Next week, keep it controlled.",
         )
+        save_goal_readiness_history_entry.assert_called_once_with(
+            week_start="2026-05-25",
+            snapshot={"snapshot": True},
+        )
 
     @patch("running_agent.weekly_review.append_week_review")
+    @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
+    @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch(
@@ -151,8 +176,10 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_plan_context_for_week,
         _training_goal_context,
         _coach_log_context,
+        _goal_readiness_snapshot,
         _goal_readiness_context,
         _safe_garmin_weekly_context,
+        save_goal_readiness_history_entry,
         append_week_review,
     ) -> None:
         with self.assertRaisesRegex(RuntimeError, "offline"):
@@ -163,6 +190,7 @@ class WeeklyReviewTest(unittest.TestCase):
             )
 
         append_week_review.assert_not_called()
+        save_goal_readiness_history_entry.assert_not_called()
 
     @patch("running_agent.weekly_review.planned_workout_for_date", return_value="4x1200m + 4x400m")
     def test_weekly_quality_detail_context_fetches_laps_for_planned_workout(

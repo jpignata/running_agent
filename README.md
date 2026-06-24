@@ -40,6 +40,7 @@ Runtime data lives under `.data/`, which is ignored by git:
 - `.data/athlete_profile.txt` - remembered coaching notes.
 - `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
 - `.data/coach_reflection.json` - the coach's private current training state.
+- `.data/goal_readiness_history.json` - compact weekly goal-readiness snapshots.
 - `.data/pace_calibration.json` - current working VDOT and training pace calibration.
 - `.data/garmin_snapshots.json` - cached Garmin recovery snapshots and baseline data.
 - `.data/strava/activities.json` - synced Strava run summaries.

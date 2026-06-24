@@ -9,6 +9,7 @@ from typing import Any
 from .activity_format import miles
 from .coach_log import read_coach_log
 from .coach_time import coach_today
+from .goal_readiness_history import goal_readiness_history_context
 from .goal_store import GOAL_PATH, load_training_goal
 from .pace_calibration import PACE_PATH, load_pace_calibration
 from .post_run_feedback import read_post_run_feedback
@@ -147,6 +148,8 @@ def goal_readiness_context(snapshot: dict[str, Any] | None = None, **kwargs: Any
         lines.append("- Feedback/risk signals: none flagged from recent post-run feedback.")
     lines.append(f"- Main gap: {snapshot.get('main_gap')}")
     lines.append(f"- Next checkpoint: {snapshot.get('next_checkpoint')}")
+    lines.append("")
+    lines.append(goal_readiness_history_context())
     pace = snapshot.get("pace_calibration")
     if pace:
         lines.append(f"- Saved pace calibration: {pace}")
