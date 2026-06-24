@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -377,17 +378,20 @@ def _next_checkpoint(
 
 def _goal_distance(goal_text: str) -> str | None:
     lowered = goal_text.lower()
-    if "half marathon" in lowered:
-        return "half marathon"
-    if "marathon" in lowered:
-        return "marathon"
-    if "10k" in lowered or "10 k" in lowered:
-        return "10K"
-    if "5k" in lowered or "5 k" in lowered:
-        return "5K"
-    if "mile" in lowered:
-        return "mile"
-    return None
+    matches: list[tuple[int, str]] = []
+    for label, pattern in (
+        ("half marathon", r"\bhalf\s+marathon\b"),
+        ("marathon", r"\bmarathon\b"),
+        ("10K", r"\b10\s*k\b"),
+        ("5K", r"\b5\s*k\b"),
+        ("mile", r"\bmile\b"),
+    ):
+        match = re.search(pattern, lowered)
+        if match:
+            matches.append((match.start(), label))
+    if not matches:
+        return None
+    return min(matches)[1]
 
 
 def _target_time(goal_text: str) -> str | None:

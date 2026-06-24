@@ -146,6 +146,35 @@ class GoalReadinessTest(unittest.TestCase):
             self.assertIn("pain", snapshot["feedback_risks"][0])
             self.assertIn("pain-free easy run", snapshot["next_checkpoint"])
 
+    def test_snapshot_uses_first_goal_distance_when_secondary_goal_mentions_another_race(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = _paths(Path(tmp))
+            write_json_file(
+                paths["goal"],
+                {
+                    "updated_at": "2026-06-01T12:00:00+00:00",
+                    "text": (
+                        "NYC Marathon on November 1, 2026, target sub-3:10. "
+                        "Secondary goal is a half marathon tune-up."
+                    ),
+                },
+            )
+
+            snapshot = goal_readiness_snapshot(
+                today=date(2026, 6, 24),
+                activities=[_run("Long Run", "2026-06-21T06:00:00Z", 14)],
+                goal_path=paths["goal"],
+                pace_path=paths["pace"],
+                coach_log_path=paths["coach_log"],
+                feedback_path=paths["feedback"],
+                race_results_path=paths["race_results"],
+            )
+
+            self.assertIn("distance signal: marathon", snapshot["goal"])
+            self.assertIn("marathon-pace", snapshot["next_checkpoint"])
+
 
 def _paths(root: Path) -> dict[str, Path]:
     return {
