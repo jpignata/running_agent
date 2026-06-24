@@ -46,6 +46,70 @@ Done when: There are deterministic or judged eval cases for morning, evening, an
 weekly scheduled messages covering brevity, complete sentences, plan/date
 alignment, Garmin overreaction, and plain-text Telegram style.
 
+### Prompt Cost, Latency, and Quality Pass
+
+Why: The main coaching prompt is quality-oriented but heavy. It sends a large
+always-on instruction block, broad context, and all chat tools for every
+tool-enabled coaching turn. That is useful for nuanced coaching, but quick
+Telegram interactions should not pay the same cost and latency as weekly
+planning or complex analysis.
+
+Buildable slices:
+
+1. Add workflow-specific output caps.
+   - Set explicit `max_output_tokens` for normal chat, morning check-ins,
+     post-run summaries, weekly reviews, and Sunday plan messages.
+   - Keep caps generous enough for complete coach texts, but prevent long
+     accidental report-style replies.
+   - Add tests that scheduled prompt builders pass the intended caps.
+
+2. Route simple tasks to the small model.
+   - Keep JSON extraction and pending-question resolution on the small model.
+   - Add a low-risk small-model path for simple factual/status replies that do
+     not need broad reasoning or tools.
+   - Preserve the full model for complex coaching, planning, race/pace analysis,
+     image understanding, and tool-heavy turns.
+
+3. Narrow tool sets by interaction intent.
+   - Send plan-edit tools only for likely plan updates.
+   - Send Garmin tools only for recovery/readiness/sleep questions.
+   - Send race-result and local-run detail tools only for race, pace, split, or
+     historical activity questions.
+   - Keep the default conversational tool set small enough that tool selection is
+     fast and predictable.
+
+4. Improve prompt-cache friendliness.
+   - Keep stable coaching instructions, rubrics, and tool schemas in consistent
+     order.
+   - Move highly dynamic context such as current date, athlete message, recent
+     runs, Garmin, weather, and conversation later in the input where practical.
+   - Add a lightweight prompt-size diagnostic for debug mode so changes can be
+     evaluated before they hit production.
+
+5. Convert JSON-only model calls to structured outputs.
+   - Use structured output schemas for post-run feedback normalization and
+     pending-question resolution.
+   - Keep local cleanup as a defensive fallback, but stop relying on "return only
+     JSON" as the primary contract.
+
+6. Trim accumulated global instructions.
+   - Move rare, domain-specific rules closer to the relevant route or tool
+     descriptions.
+   - Keep the main coaching stance compact: role, evidence discipline, plan/date
+     alignment, Telegram style, safety, and how to use supplied context.
+   - Add eval coverage before removing any instruction that was added for a known
+     regression.
+
+Done when:
+
+- Common Telegram replies use a smaller prompt and finish faster without losing
+  coaching quality.
+- Scheduled messages have explicit output caps and stay naturally concise.
+- Tool-enabled chat sends only the tools that are plausible for the current
+  interaction.
+- JSON extraction paths use schema-backed outputs.
+- A prompt-size/debug readout makes input growth visible during development.
+
 ### Telegram Conversation Polish
 
 Why: Typing indicators made the bot feel more human. Telegram has more small
