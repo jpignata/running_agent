@@ -45,6 +45,12 @@ class DebugContextTest(unittest.TestCase):
         self.assertEqual(context.goal_readiness, "Readiness context")
         self.assertEqual(context.athlete_profile, "Profile context")
         self.assertEqual(context.coach_reflection, "Coach thesis")
+        self.assertGreater(context.prompt_diagnostics["input_chars"], 0)
+        self.assertGreater(context.prompt_diagnostics["estimated_input_tokens"], 0)
+        self.assertEqual(
+            context.prompt_diagnostics["weekly_plan_chars"], len("Friday plan context")
+        )
+        self.assertEqual(context.prompt_diagnostics["tool_count"], len(context.tool_names))
         goal_readiness_context.assert_called_once()
         self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 14)
         self.assertIn("How's my recovery?", context.assembled_input)
@@ -80,6 +86,9 @@ class DebugContextTest(unittest.TestCase):
 
         self.assertIn("## Debug Metadata", text)
         self.assertIn("Tools enabled: yes", text)
+        self.assertIn("Prompt size:", text)
+        self.assertIn("Section chars:", text)
+        self.assertIn("tools.", text)
         self.assertIn("Garmin: not included in the initial prompt", text)
         self.assertIn("## User Message\nHow's my recovery?", text)
         self.assertIn("## Matched Weekly Plan\nFriday plan context", text)

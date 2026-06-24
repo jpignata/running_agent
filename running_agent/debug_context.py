@@ -33,6 +33,7 @@ class CoachDebugContext:
     coach_reflection: str
     conversation: list[dict[str, str]]
     assembled_input: str
+    prompt_diagnostics: dict[str, int]
 
 
 def build_chat_debug_context(
@@ -63,6 +64,18 @@ def build_chat_debug_context(
         athlete_profile_text=profile,
         coach_reflection_text=reflection,
     )
+    diagnostics = prompt_diagnostics(
+        assembled_input=assembled_input,
+        training_summary=training_summary,
+        recent_runs=recent_runs,
+        weekly_plan=weekly_plan,
+        training_goal=training_goal,
+        goal_readiness=readiness,
+        athlete_profile=profile,
+        coach_reflection=reflection,
+        conversation=conversation,
+        tools_enabled=tools_enabled,
+    )
     return CoachDebugContext(
         message=message,
         model=os.environ.get("OPENAI_MODEL", DEFAULT_MODEL),
@@ -77,7 +90,37 @@ def build_chat_debug_context(
         coach_reflection=reflection,
         conversation=conversation[-8:],
         assembled_input=assembled_input,
+        prompt_diagnostics=diagnostics,
     )
+
+
+def prompt_diagnostics(
+    *,
+    assembled_input: str,
+    training_summary: str,
+    recent_runs: str,
+    weekly_plan: str,
+    training_goal: str,
+    goal_readiness: str,
+    athlete_profile: str,
+    coach_reflection: str,
+    conversation: list[dict[str, str]],
+    tools_enabled: bool,
+) -> dict[str, int]:
+    conversation_text = _format_conversation(conversation[-8:])
+    return {
+        "input_chars": len(assembled_input),
+        "estimated_input_tokens": _estimated_tokens(assembled_input),
+        "training_summary_chars": len(training_summary),
+        "recent_runs_chars": len(recent_runs),
+        "weekly_plan_chars": len(weekly_plan),
+        "training_goal_chars": len(training_goal),
+        "goal_readiness_chars": len(goal_readiness),
+        "athlete_profile_chars": len(athlete_profile),
+        "coach_reflection_chars": len(coach_reflection),
+        "conversation_chars": len(conversation_text),
+        "tool_count": len(COACHING_TOOLS) if tools_enabled else 0,
+    }
 
 
 def format_chat_debug_context(context: CoachDebugContext) -> str:
@@ -90,6 +133,7 @@ def format_chat_debug_context(context: CoachDebugContext) -> str:
                     f"Model: {context.model}",
                     f"Tools enabled: {_yes_no(context.tools_enabled)}",
                     "Tools: " + (", ".join(context.tool_names) if context.tool_names else "none"),
+                    _format_prompt_diagnostics(context.prompt_diagnostics),
                     (
                         "Garmin: not included in the initial prompt unless supplied by a caller; "
                         "available through Garmin tools when tools are enabled."
@@ -119,6 +163,30 @@ def _format_conversation(conversation: list[dict[str, str]]) -> str:
     if not conversation:
         return "(none)"
     return "\n".join(f"{item['role']}: {item['content']}" for item in conversation)
+
+
+def _format_prompt_diagnostics(diagnostics: dict[str, int]) -> str:
+    return (
+        "Prompt size: "
+        f"{diagnostics.get('input_chars', 0)} chars, "
+        f"~{diagnostics.get('estimated_input_tokens', 0)} tokens, "
+        f"{diagnostics.get('tool_count', 0)} tools. "
+        "Section chars: "
+        f"training {diagnostics.get('training_summary_chars', 0)}, "
+        f"runs {diagnostics.get('recent_runs_chars', 0)}, "
+        f"plan {diagnostics.get('weekly_plan_chars', 0)}, "
+        f"goal {diagnostics.get('training_goal_chars', 0)}, "
+        f"readiness {diagnostics.get('goal_readiness_chars', 0)}, "
+        f"profile {diagnostics.get('athlete_profile_chars', 0)}, "
+        f"reflection {diagnostics.get('coach_reflection_chars', 0)}, "
+        f"conversation {diagnostics.get('conversation_chars', 0)}."
+    )
+
+
+def _estimated_tokens(text: str) -> int:
+    if not text:
+        return 0
+    return max(1, round(len(text) / 4))
 
 
 def _yes_no(value: bool) -> str:

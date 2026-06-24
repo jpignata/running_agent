@@ -85,7 +85,7 @@ Buildable slices:
    - Move highly dynamic context such as current date, athlete message, recent
      runs, Garmin, weather, and conversation later in the input where practical.
    - Add a lightweight prompt-size diagnostic for debug mode so changes can be
-     evaluated before they hit production.
+     evaluated before they hit production. Done.
 
 5. Convert JSON-only model calls to structured outputs.
    - Use structured output schemas for post-run feedback normalization and
