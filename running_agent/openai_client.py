@@ -27,6 +27,7 @@ from .strava_tools import find_local_run, get_local_run_details, query_local_run
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_SMALL_MODEL = "gpt-5.4-mini"
+SIMPLE_STATUS_ESCALATION = "ESCALATE_TO_COACHING_MODEL"
 
 
 def coaching_reply(
@@ -72,6 +73,61 @@ def coaching_reply(
     response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     if tools_enabled:
         response = _handle_tool_calls(response, payload, api_key)
+    text = _extract_output_text(response)
+    if not text:
+        raise RuntimeError("OpenAI response did not include text output.")
+    return text.strip()
+
+
+def simple_status_reply(
+    message: str,
+    *,
+    weekly_plan: str | None = None,
+    training_goal: str | None = None,
+    athlete_profile: str | None = None,
+    conversation: list[dict[str, str]] | None = None,
+    temperature: float | None = None,
+) -> str:
+    load_env_file()
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        return _simple_status_fallback(
+            weekly_plan=weekly_plan,
+            training_goal=training_goal,
+            athlete_profile=athlete_profile,
+        )
+
+    context_parts = [
+        "Answer a simple read-only status question for a Telegram running coach bot.",
+        "Use only the supplied local state. Do not infer missing run, Garmin, race, pace, "
+        "medical, or plan-change details.",
+        (
+            f"If the question requires coaching judgment, tools, run data, Garmin, race or "
+            f"pace analysis, image understanding, or any state mutation, reply exactly "
+            f"{SIMPLE_STATUS_ESCALATION}."
+        ),
+        "Keep any direct answer concise and plain text. Do not use Markdown.",
+        "",
+        "Athlete question:",
+        message,
+    ]
+    if weekly_plan:
+        context_parts.extend(["", "Current weekly plan:", weekly_plan])
+    if training_goal:
+        context_parts.extend(["", "Current training goal:", training_goal])
+    if athlete_profile:
+        context_parts.extend(["", "Remembered coaching notes:", athlete_profile])
+    if conversation:
+        prior = "\n".join(f"{item['role']}: {item['content']}" for item in conversation[-4:])
+        context_parts.extend(["", "Recent Telegram conversation:", prior])
+
+    payload: dict[str, Any] = {
+        "model": os.environ.get("OPENAI_SMALL_MODEL", DEFAULT_SMALL_MODEL),
+        "instructions": "Answer simple read-only coach status questions from supplied state.",
+        "input": "\n".join(context_parts),
+        "temperature": 0 if temperature is None else temperature,
+    }
+    response = _post_json(OPENAI_RESPONSES_URL, payload, api_key)
     text = _extract_output_text(response)
     if not text:
         raise RuntimeError("OpenAI response did not include text output.")
@@ -701,6 +757,18 @@ def _fallback_reply(message: str, training_summary: str) -> str:
         "Rule of thumb for this question: keep the next run easy unless the last few days have "
         "felt fresh, and add volume gradually before adding intensity."
     )
+
+
+def _simple_status_fallback(
+    *,
+    weekly_plan: str | None,
+    training_goal: str | None,
+    athlete_profile: str | None,
+) -> str:
+    available = [text for text in (weekly_plan, training_goal, athlete_profile) if text]
+    if not available:
+        return "I do not have saved local state for that yet."
+    return "\n\n".join(available)
 
 
 def _image_data_url(image_bytes: bytes, mime_type: str) -> str:

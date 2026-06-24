@@ -4,10 +4,12 @@ import unittest
 from unittest.mock import patch
 
 from running_agent.openai_client import (
+    SIMPLE_STATUS_ESCALATION,
     coaching_reply,
     image_coaching_reply,
     normalize_post_run_feedback,
     resolve_pending_question,
+    simple_status_reply,
 )
 
 
@@ -171,6 +173,46 @@ class OpenAIClientTest(unittest.TestCase):
                 "extracted": {},
             },
         )
+
+    @patch.dict(
+        "os.environ",
+        {"OPENAI_API_KEY": "key", "OPENAI_SMALL_MODEL": "tiny-status-model"},
+        clear=True,
+    )
+    @patch("running_agent.openai_client._post_json", return_value={"output_text": "Your goal."})
+    def test_simple_status_reply_uses_small_model_and_supplied_state(self, post_json) -> None:
+        reply = simple_status_reply(
+            "what's my goal?",
+            weekly_plan="Plan",
+            training_goal="Goal",
+            athlete_profile="Profile",
+            conversation=[{"role": "athlete", "content": "previous"}],
+        )
+
+        self.assertEqual(reply, "Your goal.")
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["model"], "tiny-status-model")
+        self.assertIn("Current training goal:\nGoal", payload["input"])
+        self.assertIn("Current weekly plan:\nPlan", payload["input"])
+        self.assertIn("Remembered coaching notes:\nProfile", payload["input"])
+        self.assertIn(SIMPLE_STATUS_ESCALATION, payload["input"])
+        self.assertNotIn("tools", payload)
+        self.assertEqual(payload["temperature"], 0)
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch("running_agent.openai_client.load_env_file")
+    def test_simple_status_reply_falls_back_to_local_state_without_api_key(
+        self,
+        _load_env_file,
+    ) -> None:
+        reply = simple_status_reply(
+            "show my plan",
+            weekly_plan="Plan",
+            training_goal="Goal",
+        )
+
+        self.assertIn("Plan", reply)
+        self.assertIn("Goal", reply)
 
     @patch.dict("os.environ", {"OPENAI_API_KEY": "key"}, clear=True)
     @patch(

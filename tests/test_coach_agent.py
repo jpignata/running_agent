@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 from running_agent.coach_agent import COMMANDS, CoachAgent, help_text
+from running_agent.openai_client import SIMPLE_STATUS_ESCALATION
 
 METERS_PER_MILE = 1609.344
 
@@ -711,6 +712,75 @@ class CoachAgentTest(unittest.TestCase):
         self.assertEqual(coaching_reply.call_args.kwargs["goal_readiness"], "Readiness")
         goal_readiness_context.assert_called_once()
         self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 28)
+
+    @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
+    @patch("running_agent.coach_agent.weekly_plan_context_for_date", return_value="Plan")
+    @patch("running_agent.coach_agent.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_agent.athlete_profile_context", return_value="Profile")
+    @patch("running_agent.coach_agent.simple_status_reply", return_value="Your goal is Goal.")
+    def test_coach_reply_routes_simple_status_to_small_model_without_strava(
+        self,
+        simple_status_reply,
+        athlete_profile_context,
+        training_goal_context,
+        weekly_plan_context_for_date,
+        _coach_today,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+        with patch.object(agent.strava, "recent_activities", side_effect=AssertionError):
+            reply = agent.coach_reply("what's my goal?")
+
+        self.assertEqual(reply, "Your goal is Goal.")
+        simple_status_reply.assert_called_once_with(
+            "what's my goal?",
+            weekly_plan="Plan",
+            training_goal="Goal",
+            athlete_profile="Profile",
+            conversation=[],
+        )
+        weekly_plan_context_for_date.assert_called_once_with(datetime(2026, 6, 4).date())
+        training_goal_context.assert_called_once()
+        athlete_profile_context.assert_called_once()
+
+    @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
+    @patch("running_agent.coach_agent.weekly_plan_context_for_date", return_value="Plan")
+    @patch("running_agent.coach_agent.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_agent.athlete_profile_context", return_value="Profile")
+    @patch("running_agent.coach_agent.goal_readiness_context", return_value="Readiness")
+    @patch("running_agent.coach_agent.simple_status_reply", return_value=SIMPLE_STATUS_ESCALATION)
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Full model reply.")
+    def test_coach_reply_escalates_simple_status_when_small_model_requests_it(
+        self,
+        coaching_reply,
+        simple_status_reply,
+        _goal_readiness_context,
+        _athlete_profile_context,
+        _training_goal_context,
+        _weekly_plan_context_for_date,
+        _coach_today,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        reply = agent.coach_reply("show my plan")
+
+        self.assertEqual(reply, "Full model reply.")
+        simple_status_reply.assert_called_once()
+        coaching_reply.assert_called_once()
+
+    @patch("running_agent.coach_agent.simple_status_reply")
+    @patch("running_agent.coach_agent.coaching_reply", return_value="Full model reply.")
+    def test_coach_reply_keeps_coaching_questions_on_full_model(
+        self,
+        coaching_reply,
+        simple_status_reply,
+    ) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        reply = agent.coach_reply("what should I do today?")
+
+        self.assertEqual(reply, "Full model reply.")
+        simple_status_reply.assert_not_called()
+        coaching_reply.assert_called_once()
 
     @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
     @patch(

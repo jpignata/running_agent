@@ -33,10 +33,12 @@ from .goal_readiness import goal_readiness_context
 from .goal_store import save_training_goal, training_goal_context
 from .heart_rate import observed_max_heart_rate
 from .openai_client import (
+    SIMPLE_STATUS_ESCALATION,
     coaching_reply,
     image_coaching_reply,
     normalize_post_run_feedback,
     resolve_pending_question,
+    simple_status_reply,
 )
 from .plan_store import (
     WEEKDAY_NAMES,
@@ -294,6 +296,11 @@ class CoachAgent:
         return messages or ["No scheduled messages due."]
 
     def coach_reply(self, text: str) -> str:
+        if _is_simple_status_question(text):
+            reply = self._simple_status_reply(text)
+            if reply != SIMPLE_STATUS_ESCALATION:
+                return reply
+
         log_event("debug", {"message": "coach_reply_recent_activities_start"})
         activities = self.strava.recent_activities(days=self.lookback_days)
         log_event(
@@ -315,6 +322,28 @@ class CoachAgent:
             conversation=self.conversation,
         )
         log_event("debug", {"message": "coach_reply_openai_done", "chars": len(reply)})
+        self.conversation.extend(
+            [
+                {"role": "athlete", "content": text},
+                {"role": "coach", "content": reply},
+            ]
+        )
+        self.conversation = self.conversation[-12:]
+        return reply
+
+    def _simple_status_reply(self, text: str) -> str:
+        log_event("debug", {"message": "simple_status_openai_start"})
+        reply = simple_status_reply(
+            text,
+            weekly_plan=weekly_plan_context_for_date(coach_today()),
+            training_goal=training_goal_context(),
+            athlete_profile=athlete_profile_context(),
+            conversation=list(self.conversation),
+        )
+        log_event("debug", {"message": "simple_status_openai_done", "chars": len(reply)})
+        if reply == SIMPLE_STATUS_ESCALATION:
+            log_event("debug", {"message": "simple_status_escalated"})
+            return reply
         self.conversation.extend(
             [
                 {"role": "athlete", "content": text},
@@ -973,6 +1002,57 @@ def _is_plan_rejection(text: str) -> bool:
 
 def _normalized_confirmation_text(text: str) -> str:
     return " ".join(text.lower().replace("'", "").replace("’", "").strip(" .!").split())
+
+
+def _is_simple_status_question(text: str) -> bool:
+    normalized = " ".join(text.lower().replace("'", "").replace("’", "").split())
+    if not normalized or normalized.startswith("/"):
+        return False
+    if normalized.startswith("remember ") or normalized.startswith("save "):
+        return False
+    if any(
+        phrase in normalized
+        for phrase in (
+            "what should",
+            "should i",
+            "how should",
+            "can i",
+            "am i",
+            "on track",
+            "ready",
+            "change",
+            "update",
+            "move",
+            "replace",
+            "set ",
+            "lock",
+            "garmin",
+            "recovery",
+            "readiness",
+            "sleep",
+            "run",
+            "workout",
+            "race",
+            "pace",
+            "split",
+            "lap",
+            "vdot",
+            "pain",
+            "sore",
+            "injury",
+        )
+    ):
+        return False
+    readback_words = ("what", "show", "current", "saved", "tell me", "remind")
+    if "goal" in normalized and any(word in normalized for word in readback_words):
+        return True
+    if "plan" in normalized and any(word in normalized for word in readback_words):
+        return True
+    if "preference" in normalized or "profile" in normalized:
+        return any(word in normalized for word in readback_words)
+    if "what do you remember" in normalized or "what have you remembered" in normalized:
+        return True
+    return False
 
 
 def _last_run_fallback_note(run: dict[str, Any], error: RuntimeError) -> str:

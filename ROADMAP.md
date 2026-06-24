@@ -64,9 +64,10 @@ Buildable slices:
    - Add tests that scheduled prompt builders pass the intended caps.
 
 2. Route simple tasks to the small model.
-   - Keep JSON extraction and pending-question resolution on the small model.
+   - Keep JSON extraction and pending-question resolution on the small model. Done.
    - Add a low-risk small-model path for simple factual/status replies that do
-     not need broad reasoning or tools.
+     not need broad reasoning or tools. Done for read-only goal, plan, and
+     remembered-preference readbacks, with escalation back to the full model.
    - Preserve the full model for complex coaching, planning, race/pace analysis,
      image understanding, and tool-heavy turns.
 
