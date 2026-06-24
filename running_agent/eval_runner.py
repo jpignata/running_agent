@@ -525,6 +525,14 @@ def score_goal_update(expected: dict[str, Any], saved_goals: list[str]) -> list[
                 f"saved goal includes {term!r}; got {saved_goal!r}",
             )
         )
+    for terms in goal_expected.get("must_include_any", []):
+        options = [str(term) for term in terms]
+        checks.append(
+            EvalCheck(
+                any(_contains_loose(saved_goal, term) for term in options),
+                f"saved goal includes one of {options!r}; got {saved_goal!r}",
+            )
+        )
     for term in goal_expected.get("must_not_include", []):
         checks.append(
             EvalCheck(

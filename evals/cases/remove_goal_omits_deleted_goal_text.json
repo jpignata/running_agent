@@ -13,7 +13,8 @@
       "called": ["update_training_goal"]
     },
     "goal": {
-      "must_include": ["NYC Marathon", "sub-3:10", "Jersey Shore Half Marathon", "2026-10-04", "1:36:14", "age-group win", "heel/plantar"],
+      "must_include": ["NYC Marathon", "sub-3:10", "Jersey Shore Half Marathon", "1:36:14", "age-group win", "heel/plantar"],
+      "must_include_any": [["2026-10-04", "October 4, 2026", "Oct 4, 2026"]],
       "must_not_include": ["5K", "19:59", "6:15", "remove", "removed", "eliminate", "eliminated", "for now", "no longer"]
     },
     "reply_must_include": ["Jersey Shore Half", "5K"],

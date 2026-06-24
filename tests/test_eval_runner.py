@@ -136,6 +136,21 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertEqual(result.tool_calls[0]["name"], "update_training_goal")
 
+    def test_goal_update_eval_accepts_prose_race_date(self) -> None:
+        def fake_reply(*_args, **_kwargs) -> str:
+            openai_client.save_training_goal(
+                "NYC Marathon sub-3:10. Jersey Shore Half Marathon on October 4, 2026, "
+                "target faster than 1:36:14 and race for age-group win. Manage heel/plantar."
+            )
+            return "Updated the goal around the Jersey Shore Half and removed the 5K target."
+
+        result = run_case(
+            load_case_path("remove_goal_omits_deleted_goal_text.json"),
+            reply_func=fake_reply,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+
     def test_goal_update_eval_fails_when_removed_goal_remains(self) -> None:
         def fake_reply(*_args, **_kwargs) -> str:
             openai_client.save_training_goal(
