@@ -21,8 +21,10 @@ class StravaToolsTest(unittest.TestCase):
     ) -> None:
         list_run_summaries.return_value = [
             _run(1, "Easy Run", 5, "2026-05-30T06:00:00Z"),
-            _run(2, "Memorial Day 10K Race", 6.2, "2026-05-25T07:00:00Z"),
+            _run(2, "Memorial Day 10K Race", 6.2, "2026-05-25T07:00:00Z", workout_type=1),
             _run(3, "Turkey Trot", 3.1, "2025-11-27T08:00:00Z", workout_type=1),
+            _run(4, "Alternating miles", 6.0, "2026-05-20T07:00:00Z"),
+            _run(5, "Untagged 10K Race", 6.2, "2026-05-19T07:00:00Z"),
         ]
 
         result = query_local_runs(days=365, limit=3, races_only=True)
@@ -30,6 +32,8 @@ class StravaToolsTest(unittest.TestCase):
         self.assertIn("id 2: Memorial Day 10K Race: 6.20 mi", result)
         self.assertIn("id 3: Turkey Trot: 3.10 mi", result)
         self.assertNotIn("Easy Run", result)
+        self.assertNotIn("Alternating miles", result)
+        self.assertNotIn("Untagged 10K Race", result)
 
     @patch("running_agent.strava_tools.coach_today", return_value=date(2026, 6, 3))
     @patch("running_agent.strava_tools.load_run_detail", return_value=None)

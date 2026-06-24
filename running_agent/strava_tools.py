@@ -6,10 +6,9 @@ from typing import Any
 from .activity_format import activity_headline, detailed_activity_context
 from .coach_time import coach_today
 from .heart_rate import observed_max_heart_rate
-from .strava_store import activity_local_date, list_run_summaries, load_run_detail
+from .race_results import official_result_for_activity
+from .strava_store import activity_local_date, list_run_summaries, load_run_detail, looks_like_race
 
-RACE_WORKOUT_TYPE = 1
-RACE_NAME_WORDS = ("race", "5k", "10k", "half marathon", "marathon", "mile")
 GENERIC_QUERY_WORDS = {
     "activity",
     "from",
@@ -46,7 +45,7 @@ def query_local_runs(
     if max_heart_rate is not None:
         lines.append(f"Heart-rate percentages use observed max HR {max_heart_rate} bpm.")
     for activity in runs:
-        race_note = " race-like" if _looks_like_race(activity) else ""
+        race_note = " race-like" if _is_race(activity) else ""
         detail_note = (
             " details synced" if load_run_detail(activity["id"]) else " details not synced"
         )
@@ -111,7 +110,7 @@ def _select_run(
     if selector == "activity_id" and activity_id:
         return next((run for run in runs if str(run.get("id")) == str(activity_id)), None)
     if selector == "latest_race":
-        return next((run for run in runs if _looks_like_race(run)), None)
+        return next((run for run in runs if _is_race(run)), None)
     if selector == "date" and date:
         return next((run for run in runs if str(activity_local_date(run)) == date), None)
     if selector == "query" and query.strip():
@@ -133,7 +132,7 @@ def _matching_runs(query: str, days: int, races_only: bool) -> list[dict[str, An
             continue
         runs.append(activity)
     if races_only:
-        runs = [activity for activity in runs if _looks_like_race(activity)]
+        runs = [activity for activity in runs if _is_race(activity)]
     if query.strip():
         terms = _query_terms(query)
         runs = [activity for activity in runs if _matches_terms(activity, terms)]
@@ -157,11 +156,8 @@ def _is_current_training_week(activity_date) -> bool:
     return week_start <= activity_date <= week_start + timedelta(days=6)
 
 
-def _looks_like_race(activity: dict[str, Any]) -> bool:
-    if activity.get("workout_type") == RACE_WORKOUT_TYPE:
-        return True
-    name = str(activity.get("name") or "").lower()
-    return any(word in name for word in RACE_NAME_WORDS)
+def _is_race(activity: dict[str, Any]) -> bool:
+    return looks_like_race(activity) or official_result_for_activity(activity) is not None
 
 
 def _matches_terms(activity: dict[str, Any], terms: list[str]) -> bool:

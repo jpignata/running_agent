@@ -6,9 +6,8 @@ from typing import Any
 
 from .activity_format import METERS_PER_MILE, miles
 from .race_results import official_result_for_activity
-from .strava_store import load_run_detail
+from .strava_store import load_run_detail, looks_like_race
 
-RACE_WORKOUT_TYPE = 1
 STANDARD_RACES = (
     ("1 mile", 1609.344),
     ("5K", 5000.0),
@@ -17,7 +16,6 @@ STANDARD_RACES = (
     ("Marathon", 42195.0),
 )
 STANDARD_DISTANCE_TOLERANCE = 0.03
-RACE_NAME_WORDS = ("race", "5k", "10k", "half marathon", "marathon", "mile")
 
 VDOT_PACE_TABLE = {
     45: ("9:00-9:53/mi", "7:59/mi", "7:31/mi", "6:55/mi", "6:20/mi"),
@@ -104,7 +102,10 @@ def race_vdot_estimates(activities: list[dict[str, Any]]) -> list[RaceVdotEstima
 
 
 def race_vdot_estimate(activity: dict[str, Any]) -> RaceVdotEstimate | None:
-    if activity.get("type") != "Run" or not _looks_like_race(activity):
+    if activity.get("type") != "Run":
+        return None
+    official_result = official_result_for_activity(activity)
+    if not looks_like_race(activity) and official_result is None:
         return None
     observed_distance = float(activity.get("distance") or 0)
     observed_seconds = int(activity.get("moving_time") or activity.get("elapsed_time") or 0)
@@ -112,6 +113,7 @@ def race_vdot_estimate(activity: dict[str, Any]) -> RaceVdotEstimate | None:
         activity,
         observed_distance,
         observed_seconds,
+        official_result,
     )
     if standard_distance <= 0 or performance_seconds <= 0 or observed_seconds <= 0:
         return None
@@ -134,8 +136,8 @@ def _race_performance(
     activity: dict[str, Any],
     observed_distance: float,
     observed_seconds: int,
+    official_result: dict[str, Any] | None = None,
 ) -> tuple[str, float, int, str]:
-    official_result = official_result_for_activity(activity)
     if official_result:
         return (
             str(official_result.get("distance") or "race"),
@@ -188,13 +190,6 @@ def _standardized_race_distance(distance_meters: float) -> tuple[str, float]:
         if relative_delta <= STANDARD_DISTANCE_TOLERANCE:
             return label, standard_distance
     return (f"{distance_meters / METERS_PER_MILE:.2f} mi", distance_meters)
-
-
-def _looks_like_race(activity: dict[str, Any]) -> bool:
-    if activity.get("workout_type") == RACE_WORKOUT_TYPE:
-        return True
-    name = str(activity.get("name") or "").lower()
-    return any(word in name for word in RACE_NAME_WORDS)
 
 
 def _clamp_table_vdot(value: int) -> int:

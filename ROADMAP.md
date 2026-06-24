@@ -6,15 +6,6 @@ problem we have seen. This is the result of the robot and I brainstorming.
 
 ## Backlog
 
-### Local Activity Store Health
-
-Why: The Strava local store is useful, but it needs clearer freshness and missing
-detail signals so bad answers are easier to trace.
-
-Done when: A command reports last sync time, activity count, detail count, missing
-details, latest race-like activities, official saved race results, and any
-obvious repair action.
-
 ### Data Freshness Model
 
 Why: Garmin, Strava, plans, goals, official race results, notes, reflections,

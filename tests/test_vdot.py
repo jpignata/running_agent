@@ -134,6 +134,43 @@ class VdotTest(unittest.TestCase):
             )
         )
 
+    def test_race_name_without_strava_race_tag_does_not_get_estimate(self) -> None:
+        self.assertIsNone(
+            race_vdot_estimate(
+                {
+                    "type": "Run",
+                    "name": "Untagged 10K Race",
+                    "distance": 10_000,
+                    "moving_time": 42 * 60,
+                }
+            )
+        )
+
+    @patch("running_agent.vdot.official_result_for_activity")
+    def test_official_result_without_strava_race_tag_gets_estimate(
+        self,
+        official_result_for_activity,
+    ) -> None:
+        official_result_for_activity.return_value = {
+            "distance": "Marathon",
+            "distance_meters": 42195.0,
+            "time_seconds": 3 * 3600 + 19 * 60 + 24,
+        }
+
+        estimate = race_vdot_estimate(
+            {
+                "type": "Run",
+                "name": "Wineglass Marathon",
+                "distance": 42_195,
+                "moving_time": 3 * 3600 + 20 * 60,
+            }
+        )
+
+        self.assertIsNotNone(estimate)
+        assert estimate is not None
+        self.assertEqual(estimate.race_label, "Marathon")
+        self.assertEqual(estimate.source, "official saved race result")
+
 
 if __name__ == "__main__":
     unittest.main()

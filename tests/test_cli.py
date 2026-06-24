@@ -33,6 +33,26 @@ class CliTest(unittest.TestCase):
         )
 
     @patch("builtins.print")
+    @patch("running_agent.cli.format_local_store_health", return_value="Store health")
+    @patch("running_agent.cli.local_store_health", return_value={"activity_count": 2})
+    @patch("running_agent.cli.StravaClient")
+    @patch("sys.argv", ["running-agent", "strava-store-health"])
+    def test_strava_store_health_command_reports_local_store_without_network(
+        self,
+        strava_client,
+        local_store_health,
+        format_local_store_health,
+        print_,
+    ) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        strava_client.assert_not_called()
+        local_store_health.assert_called_once_with()
+        format_local_store_health.assert_called_once_with({"activity_count": 2})
+        print_.assert_called_once_with("Store health")
+
+    @patch("builtins.print")
     @patch("running_agent.cli.run_memory_context", return_value="Run memory context")
     @patch(
         "running_agent.cli.validate_run_memory",

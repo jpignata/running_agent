@@ -101,6 +101,17 @@ python -m running_agent sync-strava --days 365
 That command saves run summaries to `.data/strava/activities.json` and detailed activity
 JSON to `.data/strava/details/`. Telegram polling and `/check` also save detailed activity
 JSON when a new run appears, so the local store stays warm over time.
+
+Check local Strava store freshness and missing detailed activities with:
+
+```bash
+python -m running_agent strava-store-health
+```
+
+This command only reads local files. It reports the last local summary-store update,
+activity and detail counts, missing details, latest race-like activities, saved official
+race results, and an obvious repair command when one applies.
+
 When Strava includes start coordinates, detailed run records are also enriched with
 Open-Meteo weather near the start time so coaching can interpret HR and effort in heat,
 humidity, wind, or precipitation context. Weather lookup failures do not block Strava sync

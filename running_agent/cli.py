@@ -14,6 +14,7 @@ from .run_memory import refresh_run_memory, run_memory_context, validate_run_mem
 from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
 from .storage_paths import STATE_PATH
 from .strava_client import StravaClient
+from .strava_store import format_local_store_health, local_store_health
 from .strava_sync import sync_strava_runs
 from .systemd_service import boot_linger_hint, install_telegram_user_service
 from .telegram_transport import TelegramTransport
@@ -44,6 +45,11 @@ def _main() -> int:
         type=int,
         default=365,
         help="How many days of Strava activities to sync.",
+    )
+
+    subparsers.add_parser(
+        "strava-store-health",
+        help="Report local Strava store freshness, completeness, and repair hints.",
     )
 
     run_memory = subparsers.add_parser(
@@ -225,6 +231,10 @@ def _main() -> int:
             f"saved {result['summaries_saved']} summaries; "
             f"fetched {result['details_fetched']} detailed activities."
         )
+        return 0
+
+    if args.command == "strava-store-health":
+        print(format_local_store_health(local_store_health()))
         return 0
 
     if args.command == "run-memory":
