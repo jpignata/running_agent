@@ -459,6 +459,7 @@ def build_coaching_payload(
     recent_runs: str,
     weekly_plan: str | None = None,
     training_goal: str | None = None,
+    goal_readiness: str | None = None,
     coach_log: str | None = None,
     garmin_context: str | None = None,
     weather_context: str | None = None,
@@ -478,6 +479,7 @@ def build_coaching_payload(
             recent_runs=recent_runs,
             weekly_plan=weekly_plan,
             training_goal=training_goal,
+            goal_readiness=goal_readiness,
             coach_log=coach_log,
             garmin_context=garmin_context,
             weather_context=weather_context,
@@ -503,6 +505,7 @@ def build_coaching_input(
     recent_runs: str,
     weekly_plan: str | None = None,
     training_goal: str | None = None,
+    goal_readiness: str | None = None,
     coach_log: str | None = None,
     garmin_context: str | None = None,
     weather_context: str | None = None,
@@ -579,6 +582,8 @@ def build_coaching_input(
         prompt_parts.extend(["", "Athlete-provided weekly plan:", weekly_plan])
     if training_goal:
         prompt_parts.extend(["", "Athlete-provided overall training goal:", training_goal])
+    if goal_readiness:
+        prompt_parts.extend(["", "Deterministic goal-readiness snapshot:", goal_readiness])
     if coach_log:
         prompt_parts.extend(["", "Recent coach log:", coach_log])
     if garmin_context:

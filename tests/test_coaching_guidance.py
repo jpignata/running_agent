@@ -84,6 +84,23 @@ class CoachingGuidanceTest(unittest.TestCase):
         self.assertIn("Use the working VDOT as a pace governor", context)
         self.assertIn("Prescribe the least intense tool", context)
 
+    def test_coaching_input_includes_goal_readiness_snapshot(self) -> None:
+        context = build_coaching_input(
+            message="Am I on track?",
+            training_summary="Recent training.",
+            recent_runs="Recent runs.",
+            goal_readiness="Readiness bucket: building",
+            coaching_philosophy_text="Coaching philosophy.",
+            athlete_profile_text="Athlete profile.",
+            coach_reflection_text="Coach reflection.",
+            include_coach_reflection=False,
+            pace_calibration_text="Pace calibration.",
+            run_memory_text="Run memory context.",
+        )
+
+        self.assertIn("Deterministic goal-readiness snapshot:", context)
+        self.assertIn("Readiness bucket: building", context)
+
 
 if __name__ == "__main__":
     unittest.main()

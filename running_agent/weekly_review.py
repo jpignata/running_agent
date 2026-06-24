@@ -7,6 +7,7 @@ from .activity_format import detailed_activity_context, recent_runs_context
 from .coach_log import append_week_review, coach_log_context
 from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
+from .goal_readiness import goal_readiness_context
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
 from .plan_store import planned_workout_for_date, weekly_plan_context, weekly_plan_context_for_week
@@ -31,6 +32,7 @@ def review_week(
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
     garmin_context = safe_garmin_weekly_context(days=7)
+    readiness_context = goal_readiness_context(activities=activities, days=lookback_days)
     prompt = (
         f"Review the athlete's training week from {week_start.isoformat()} through "
         f"{week_end.isoformat()} for use before suggesting next week's plan. Write like a real "
@@ -43,9 +45,12 @@ def review_week(
         "provided for structured workouts, tempos, races, or long runs. Interpret Garmin data "
         "against the week: low readiness after quality work can be normal, while repeated poor "
         "sleep, elevated resting HR, low HRV, high stress, unusual Body Battery, or failed "
-        "workouts may indicate recovery debt. Include a clear coaching judgment about whether "
-        "the week made the stated goal more credible, exposed a limiter, or left the goal status "
-        "unchanged. End with one concise coaching takeaway that should guide next week's plan, "
+        "workouts may indicate recovery debt. Use the deterministic goal-readiness snapshot for "
+        "PR-progress claims: name what this week improved, what gap remains, and what next "
+        "checkpoint would raise confidence. Use its readiness bucket unless the week's evidence "
+        "clearly changes the interpretation, and do not say the athlete is on track, behind, or "
+        "missing the goal unless the snapshot and completed week support that. End with one "
+        "concise coaching takeaway that should guide next week's plan, "
         "but phrase it conversationally. Keep it plain text and under 220 words."
     )
 
@@ -56,6 +61,7 @@ def review_week(
             recent_runs=recent_runs,
             weekly_plan=weekly_plan_context(),
             training_goal=training_goal_context(),
+            goal_readiness=readiness_context,
             coach_log=coach_log_context(),
             garmin_context=garmin_context,
             tools_enabled=False,
@@ -88,6 +94,7 @@ def weekly_coaching_message(
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
     garmin_context = safe_garmin_weekly_context(days=7)
+    readiness_context = goal_readiness_context(activities=activities, days=lookback_days)
     prompt = (
         f"Write one integrated Sunday evening coaching message for Telegram. Review the week "
         f"from {week_start.isoformat()} through {week_end.isoformat()}, then handle next "
@@ -100,8 +107,11 @@ def weekly_coaching_message(
         "Compare the saved weekly plan with what was completed, including mileage, quality "
         "sessions, long run, missed or extra work, and Garmin recovery patterns. Use detailed "
         "lap context when provided for structured workouts, tempos, races, or long runs. "
-        "Make a clear coaching judgment about whether the recent evidence supports the stated "
-        "goal, makes it uncertain, or exposes a specific limiter that next week should address. "
+        "Use the deterministic goal-readiness snapshot for PR-progress claims: name what this "
+        "week improved, what gap remains, and what next checkpoint would raise confidence. Use "
+        "its readiness bucket unless the week's evidence clearly changes the interpretation, and "
+        "do not say the athlete is on track, behind, or missing the goal unless the snapshot and "
+        "completed week support that. "
         "If the weekly plan context says there is a saved weekly plan for the target week, recap "
         "that saved plan instead of suggesting a different one. In that case, explain briefly why "
         "it fits or what to watch, but do not replace it. If there is no saved target-week plan, transition "
@@ -122,6 +132,7 @@ def weekly_coaching_message(
         recent_runs=recent_runs,
         weekly_plan=weekly_plan_context_for_week(target_week_start),
         training_goal=training_goal_context(),
+        goal_readiness=readiness_context,
         coach_log=coach_log_context(),
         garmin_context=garmin_context,
         tools_enabled=False,
