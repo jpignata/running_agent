@@ -85,7 +85,7 @@ class EvalRunnerTest(unittest.TestCase):
         image_coaching_reply.assert_called_once()
         self.assertGreater(len(image_coaching_reply.call_args.kwargs["image_bytes"]), 0)
         self.assertEqual(image_coaching_reply.call_args.kwargs["mime_type"], "image/jpeg")
-        self.assertEqual(image_coaching_reply.call_args.kwargs["temperature"], 0.1)
+        self.assertIsNone(image_coaching_reply.call_args.kwargs["temperature"])
 
     def test_retrieval_eval_passes_when_model_queries_races(self) -> None:
         seen_kwargs = {}
@@ -109,7 +109,7 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertEqual(result.tool_calls[0]["name"], "query_local_runs")
         self.assertTrue(result.tool_calls[0]["arguments"]["races_only"])
-        self.assertEqual(seen_kwargs["temperature"], 0.1)
+        self.assertIsNone(seen_kwargs["temperature"])
 
     def test_retrieval_eval_fails_without_lookup(self) -> None:
         result = run_case(
@@ -407,6 +407,10 @@ class EvalRunnerTest(unittest.TestCase):
     def test_eval_temperature_uses_environment_override(self) -> None:
         self.assertEqual(eval_temperature(), 0.2)
 
+    @patch.dict("os.environ", {}, clear=True)
+    def test_eval_temperature_defaults_to_none(self) -> None:
+        self.assertIsNone(eval_temperature())
+
     @patch.dict("os.environ", {"OPENAI_EVAL_TEMPERATURE": "warm"}, clear=True)
     def test_eval_temperature_rejects_invalid_override(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "OPENAI_EVAL_TEMPERATURE"):
@@ -417,7 +421,7 @@ class EvalRunnerTest(unittest.TestCase):
         "running_agent.eval_runner.openai_client._post_json",
         return_value={"output_text": '{"passed": true, "rationale": "OK.", "failures": []}'},
     )
-    def test_run_judge_model_sets_eval_temperature(self, post_json) -> None:
+    def test_run_judge_model_omits_eval_temperature_by_default(self, post_json) -> None:
         run_judge_model(
             {
                 "name": "case",
@@ -428,8 +432,30 @@ class EvalRunnerTest(unittest.TestCase):
         )
 
         payload = post_json.call_args.args[1]
-        self.assertEqual(payload["temperature"], 0.1)
+        self.assertNotIn("temperature", payload)
         self.assertEqual(payload["input"][0]["role"], "user")
+
+    @patch.dict(
+        "os.environ",
+        {"OPENAI_API_KEY": "key", "OPENAI_EVAL_TEMPERATURE": "0.2"},
+        clear=True,
+    )
+    @patch(
+        "running_agent.eval_runner.openai_client._post_json",
+        return_value={"output_text": '{"passed": true, "rationale": "OK.", "failures": []}'},
+    )
+    def test_run_judge_model_can_set_eval_temperature(self, post_json) -> None:
+        run_judge_model(
+            {
+                "name": "case",
+                "user_message": "Question",
+                "judge": {"criteria": ["Do the thing"], "pass_condition": "Pass if done."},
+            },
+            "Reply",
+        )
+
+        payload = post_json.call_args.args[1]
+        self.assertEqual(payload["temperature"], 0.2)
 
     def test_format_eval_results_omits_debug_details_by_default(self) -> None:
         text = format_eval_results([sample_result()])

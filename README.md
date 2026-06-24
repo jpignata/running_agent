@@ -484,10 +484,11 @@ recall, working VDOT pace calibration, post-run feedback roundtrips, plain-text 
 formatting, and judged coaching quality for subjective safety cases.
 
 Some evals use a judge model to make a criteria-based pass/fail call; set
-`OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls use
-temperature `0.1`; set `OPENAI_EVAL_TEMPERATURE` to override it. By default, eval output
-only shows pass/fail checks; add `--debug` to include saved plans, tool calls, and model
-replies. Eval cases are key-driven: `expected` runs deterministic rule checks, `judge`
-runs judge-model criteria checks, and cases can use either or both. Tool interaction
-rules live under `expected.tool_calls.called` and `expected.tool_calls.not_called`.
-Saved-plan content checks live under `expected.plan`.
+`OPENAI_EVAL_JUDGE_MODEL` to override the default judge model. Eval model calls omit
+temperature by default so they work with GPT-5.5; set `OPENAI_EVAL_TEMPERATURE` only when
+running a model that supports it. By default, eval output only shows pass/fail checks; add
+`--debug` to include saved plans, tool calls, and model replies. Eval cases are key-driven:
+`expected` runs deterministic rule checks, `judge` runs judge-model criteria checks, and
+cases can use either or both. Tool interaction rules live under
+`expected.tool_calls.called` and `expected.tool_calls.not_called`. Saved-plan content
+checks live under `expected.plan`.

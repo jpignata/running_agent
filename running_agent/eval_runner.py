@@ -17,7 +17,6 @@ from .plan_store import parse_weekly_plan
 
 CASE_DIR = Path(__file__).resolve().parent.parent / "evals" / "cases"
 DEFAULT_JUDGE_MODEL = "gpt-5.5"
-DEFAULT_EVAL_TEMPERATURE = 0.1
 
 
 @dataclass(frozen=True)
@@ -633,8 +632,8 @@ def run_judge_model(case: dict[str, Any], reply: str) -> dict[str, Any]:
                 ],
             }
         ],
-        "temperature": eval_temperature(),
     }
+    _apply_eval_temperature(payload)
     response = openai_client._post_json(openai_client.OPENAI_RESPONSES_URL, payload, api_key)
     text = openai_client._extract_output_text(response)
     return _parse_judge_response(text)
@@ -782,14 +781,20 @@ def _parse_judge_response(text: str) -> dict[str, Any]:
     return parsed
 
 
-def eval_temperature() -> float:
+def eval_temperature() -> float | None:
     raw = os.environ.get("OPENAI_EVAL_TEMPERATURE")
     if raw is None:
-        return DEFAULT_EVAL_TEMPERATURE
+        return None
     try:
         return float(raw)
     except ValueError as exc:
         raise RuntimeError(f"OPENAI_EVAL_TEMPERATURE must be a number, got {raw!r}") from exc
+
+
+def _apply_eval_temperature(payload: dict[str, Any]) -> None:
+    temperature = eval_temperature()
+    if temperature is not None:
+        payload["temperature"] = temperature
 
 
 def main(argv: list[str] | None = None) -> int:
