@@ -9,6 +9,7 @@ from .coach_prompt import COACHING_TOOLS, build_coaching_input
 from .coach_reflection import coach_reflection_context
 from .coach_time import coach_now, coach_today
 from .feedback import summarize_training
+from .goal_readiness import goal_readiness_context
 from .goal_store import training_goal_context
 from .openai_client import DEFAULT_MODEL
 from .plan_store import weekly_plan_context_for_date
@@ -27,6 +28,7 @@ class CoachDebugContext:
     recent_runs: str
     weekly_plan: str
     training_goal: str
+    goal_readiness: str
     athlete_profile: str
     coach_reflection: str
     conversation: list[dict[str, str]]
@@ -47,6 +49,7 @@ def build_chat_debug_context(
     recent_runs = recent_runs_context(activities)
     weekly_plan = weekly_plan_context_for_date(coach_today())
     training_goal = training_goal_context()
+    readiness = goal_readiness_context(activities=activities, days=lookback_days)
     profile = athlete_profile_context()
     reflection = coach_reflection_context()
     assembled_input = build_coaching_input(
@@ -55,6 +58,7 @@ def build_chat_debug_context(
         recent_runs=recent_runs,
         weekly_plan=weekly_plan,
         training_goal=training_goal,
+        goal_readiness=readiness,
         conversation=conversation,
         athlete_profile_text=profile,
         coach_reflection_text=reflection,
@@ -68,6 +72,7 @@ def build_chat_debug_context(
         recent_runs=recent_runs,
         weekly_plan=weekly_plan,
         training_goal=training_goal,
+        goal_readiness=readiness,
         athlete_profile=profile,
         coach_reflection=reflection,
         conversation=conversation[-8:],
@@ -97,6 +102,7 @@ def format_chat_debug_context(context: CoachDebugContext) -> str:
         _section("Recent Runs", context.recent_runs),
         _section("Matched Weekly Plan", context.weekly_plan),
         _section("Training Goal", context.training_goal),
+        _section("Goal Readiness", context.goal_readiness),
         _section("Coaching Notes", context.athlete_profile),
         _section("Coach Reflection", context.coach_reflection),
         _section("Recent Conversation", _format_conversation(context.conversation)),

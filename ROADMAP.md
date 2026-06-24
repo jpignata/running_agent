@@ -47,7 +47,7 @@ Buildable slices:
    - Avoid unsupported words like "on track," "behind," or "missed" unless the
      deterministic evidence supports them.
 
-3. Goal-question behavior.
+3. Goal-question behavior. Done.
    - When the athlete asks "am I on track?", "what do I need for my PR?", or a
      similar goal-readiness question, the agent should answer from the readiness
      snapshot instead of generic encouragement.

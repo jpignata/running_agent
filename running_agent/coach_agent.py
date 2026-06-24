@@ -28,6 +28,7 @@ from .event_log import log_event, start_trace
 from .feedback import summarize_training
 from .garmin_cache import refresh_garmin_snapshots
 from .garmin_context import safe_garmin_weekly_context
+from .goal_readiness import goal_readiness_context
 from .goal_store import save_training_goal, training_goal_context
 from .heart_rate import observed_max_heart_rate
 from .openai_client import (
@@ -294,6 +295,10 @@ class CoachAgent:
             recent_runs=recent_runs_context(activities),
             weekly_plan=weekly_plan_context_for_date(coach_today()),
             training_goal=training_goal_context(),
+            goal_readiness=goal_readiness_context(
+                activities=activities,
+                days=self.lookback_days,
+            ),
             conversation=self.conversation,
         )
         log_event("debug", {"message": "coach_reply_openai_done", "chars": len(reply)})

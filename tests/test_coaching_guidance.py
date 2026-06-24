@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from running_agent.coach_prompt import build_coaching_input
+from running_agent.coach_prompt import COACHING_INSTRUCTIONS, build_coaching_input
 from running_agent.coaching_guidance import (
     DANIELS_TRAINING_RUBRIC,
     GARMIN_COACHING_RUBRIC,
@@ -100,6 +100,8 @@ class CoachingGuidanceTest(unittest.TestCase):
 
         self.assertIn("Deterministic goal-readiness snapshot:", context)
         self.assertIn("Readiness bucket: building", context)
+        self.assertIn("When the athlete asks a goal-readiness question", COACHING_INSTRUCTIONS)
+        self.assertIn("Answer with concrete evidence", COACHING_INSTRUCTIONS)
 
 
 if __name__ == "__main__":

@@ -598,10 +598,12 @@ class CoachAgentTest(unittest.TestCase):
         return_value="Matched Thursday plan context",
     )
     @patch("running_agent.coach_agent.training_goal_context", return_value="Goal")
+    @patch("running_agent.coach_agent.goal_readiness_context", return_value="Readiness")
     @patch("running_agent.coach_agent.coaching_reply", return_value="Recovery is steady.")
     def test_coach_reply_passes_today_plan_context(
         self,
         coaching_reply,
+        goal_readiness_context,
         _training_goal_context,
         weekly_plan_context_for_date,
         _coach_today,
@@ -616,6 +618,9 @@ class CoachAgentTest(unittest.TestCase):
             coaching_reply.call_args.kwargs["weekly_plan"],
             "Matched Thursday plan context",
         )
+        self.assertEqual(coaching_reply.call_args.kwargs["goal_readiness"], "Readiness")
+        goal_readiness_context.assert_called_once()
+        self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 28)
 
     @patch("running_agent.coach_agent.coach_today", return_value=datetime(2026, 6, 4).date())
     @patch(

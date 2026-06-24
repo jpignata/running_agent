@@ -1,0 +1,31 @@
+{
+  "description": "Checks that direct goal-readiness questions use the deterministic snapshot instead of generic encouragement.",
+  "current_date": "2026-06-24",
+  "user_message": "Am I on track for sub-3:10 at NYC?",
+  "initial_context": {
+    "training_summary": "Reviewed 21 runs over the last 42 days. Total volume: 218.7 mi, averaging 31.2 mi per week. Longest run: 14.0 mi.",
+    "recent_runs": "Recent runs:\n- Brookside Run: 14.0 mi on 2026-06-21.\n- Track: 7.4 mi on 2026-06-10.\n- North Jersey Pride Run: 5K race in 19:59 on 2026-06-07.",
+    "weekly_plan": "Monday: 5 easy\nTuesday: 6 easy\nWednesday: workout\nThursday: 5 easy\nFriday: rest\nSaturday: 14 long\nSunday: 4 recovery",
+    "training_goal": "NYC Marathon on November 1, 2026, with a target of sub-3:10. Main priority is staying healthy.",
+    "goal_readiness": "Goal readiness snapshot:\n- Goal: NYC Marathon on November 1, 2026, target sub-3:10 | distance signal: marathon | target time signal: 3:10\n- Readiness bucket: plausible with clear gaps\n- Current anchor: 2026-06-07: North Jersey Pride Run, 5K in 19:59 from official saved race result, VDOT 49.9\n- Recent mileage: 218.7 mi over 42 days; average 31.2 mi/week.\n- Longest recent run: 2026-06-21: Brookside Run, 14.0 mi\n- Key workout evidence: 2026-06-10: Track, 7.4 mi; 2026-06-07: North Jersey Pride Run, 3.1 mi\n- Feedback/risk signals: none flagged from recent post-run feedback.\n- Main gap: Need the next checkpoint to show the target pace or distance-specific demand is repeatable.\n- Next checkpoint: Long run with practiced fueling and controlled marathon-pace segments.",
+    "pace_calibration": "Current VDOT and pace calibration: official 19:59 5K, VDOT 49.9; use VDOT 50 conservatively. Marathon pace 7:18/mi."
+  },
+  "expected": {
+    "reply_must_include": [
+      "plausible",
+      "clear gaps",
+      "14",
+      "5K",
+      "checkpoint"
+    ],
+    "reply_must_match": [
+      "(?i)(marathon-pace|marathon pace|fueling)",
+      "(?i)(gap|missing|still need|need)"
+    ],
+    "reply_must_not_match": [
+      "(?i)^\\s*yes[, ]+you'?re on track",
+      "(?i)definitely on track",
+      "(?i)guaranteed"
+    ]
+  }
+}

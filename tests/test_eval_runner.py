@@ -232,6 +232,23 @@ class EvalRunnerTest(unittest.TestCase):
         self.assertTrue(result.passed, format_eval_results([result]))
         self.assertIs(coach_prompt.race_results_context, original_race_results_context)
 
+    def test_run_case_passes_goal_readiness_context_to_reply(self) -> None:
+        def fake_reply(*_args, **kwargs) -> str:
+            self.assertEqual(kwargs["goal_readiness"], "Fixture readiness")
+            return "Plausible with clear gaps; next checkpoint is marathon-pace fueling."
+
+        result = run_case(
+            {
+                "name": "fixture_goal_readiness",
+                "user_message": "Am I on track?",
+                "initial_context": {"goal_readiness": "Fixture readiness"},
+                "expected": {"reply_must_include": ["Plausible", "checkpoint"]},
+            },
+            reply_func=fake_reply,
+        )
+
+        self.assertTrue(result.passed, format_eval_results([result]))
+
     def test_tool_call_not_called_eval_passes_when_tool_is_not_called(self) -> None:
         result = run_case(
             {
@@ -549,6 +566,7 @@ class EvalRunnerTest(unittest.TestCase):
 
         self.assertIn("adjust_existing_weekly_plan", results)
         self.assertIn("current_week_mileage_breakdown", results)
+        self.assertIn("goal_readiness_question_uses_snapshot", results)
         self.assertIn("hypothetical_plan_no_save", results)
         self.assertIn("image_plan_update_from_screenshot", results)
         self.assertIn("judged_soreness_long_run", results)

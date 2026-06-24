@@ -11,6 +11,7 @@ class DebugContextTest(unittest.TestCase):
     @patch("running_agent.debug_context.coach_today", return_value=date(2026, 6, 5))
     @patch("running_agent.debug_context.athlete_profile_context", return_value="Profile context")
     @patch("running_agent.debug_context.coach_reflection_context", return_value="Coach thesis")
+    @patch("running_agent.debug_context.goal_readiness_context", return_value="Readiness context")
     @patch("running_agent.debug_context.training_goal_context", return_value="Goal context")
     @patch(
         "running_agent.debug_context.weekly_plan_context_for_date",
@@ -20,6 +21,7 @@ class DebugContextTest(unittest.TestCase):
         self,
         weekly_plan_context_for_date,
         _training_goal_context,
+        goal_readiness_context,
         _coach_reflection_context,
         _athlete_profile_context,
         _coach_today,
@@ -40,16 +42,21 @@ class DebugContextTest(unittest.TestCase):
         self.assertIn("get_garmin_readiness", context.tool_names)
         self.assertEqual(context.weekly_plan, "Friday plan context")
         self.assertEqual(context.training_goal, "Goal context")
+        self.assertEqual(context.goal_readiness, "Readiness context")
         self.assertEqual(context.athlete_profile, "Profile context")
         self.assertEqual(context.coach_reflection, "Coach thesis")
+        goal_readiness_context.assert_called_once()
+        self.assertEqual(goal_readiness_context.call_args.kwargs["days"], 14)
         self.assertIn("How's my recovery?", context.assembled_input)
         self.assertIn("Friday plan context", context.assembled_input)
+        self.assertIn("Readiness context", context.assembled_input)
         self.assertIn("Profile context", context.assembled_input)
         self.assertIn("Coach thesis", context.assembled_input)
 
     @patch("running_agent.debug_context.coach_today", return_value=date(2026, 6, 5))
     @patch("running_agent.debug_context.athlete_profile_context", return_value="Profile context")
     @patch("running_agent.debug_context.coach_reflection_context", return_value="Coach thesis")
+    @patch("running_agent.debug_context.goal_readiness_context", return_value="Readiness context")
     @patch("running_agent.debug_context.training_goal_context", return_value="Goal context")
     @patch(
         "running_agent.debug_context.weekly_plan_context_for_date",
@@ -59,6 +66,7 @@ class DebugContextTest(unittest.TestCase):
         self,
         _weekly_plan_context_for_date,
         _training_goal_context,
+        _goal_readiness_context,
         _coach_reflection_context,
         _athlete_profile_context,
         _coach_today,
@@ -75,6 +83,7 @@ class DebugContextTest(unittest.TestCase):
         self.assertIn("Garmin: not included in the initial prompt", text)
         self.assertIn("## User Message\nHow's my recovery?", text)
         self.assertIn("## Matched Weekly Plan\nFriday plan context", text)
+        self.assertIn("## Goal Readiness\nReadiness context", text)
         self.assertIn("## Assembled Model Input", text)
 
 
