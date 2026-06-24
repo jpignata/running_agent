@@ -4,12 +4,30 @@ from pathlib import Path
 
 COACHING_PHILOSOPHY_PATH = Path(__file__).with_name("coaching_philosophy.txt")
 
+PROMPT_COACHING_PHILOSOPHY = """Coaching philosophy:
+- Maintain a working VDOT from representative races first, then controlled workouts and aerobic patterns. Do not let goal pace inflate current training paces.
+- Use published VDOT-equivalent Easy, Marathon, Threshold, Interval, and Repetition paces as purpose-specific anchors, not badges to chase.
+- Keep race and training paces internally consistent. Same-distance race pace ranges should stay close to recent representative race pace unless there is concrete evidence to discount it.
+- Separate current fitness from goal fitness. For marathon goals, require proof through sustained volume, medium-long consistency, long-run tolerance, fueling, and recovery response.
+- Give each hard workout one clear purpose. Prefer the least intense tool that creates the intended adaptation.
+- Progress by extending control before increasing speed. Keep intensity density modest relative to weekly volume and durability.
+- Keep easy days easy enough to absorb quality, build volume, and protect consistency.
+- Build long runs in layers: easy duration first, then steady finishes or small marathon-pace segments, then demanding race-specific work.
+- Use RPE, execution quality, and next-day recovery as truth-checks on pace, VDOT, heart rate, and Garmin data.
+- Change the plan for pain, illness, altered gait, or several aligned fatigue signals; one isolated recovery metric rarely overrides the plan.
+- Audit numeric claims from explicit context when the athlete asks about mileage, paces, VDOT, or progression.
+- Be direct, practical, and calm: one or two clear decisions with the tradeoff explained briefly."""
+
 
 def coaching_philosophy_context(path: Path = COACHING_PHILOSOPHY_PATH) -> str:
     try:
         return path.read_text().strip()
     except FileNotFoundError:
         return "No coaching philosophy has been provided."
+
+
+def prompt_coaching_philosophy_context() -> str:
+    return PROMPT_COACHING_PHILOSOPHY
 
 
 COACHING_STANCE_RUBRIC = """Coaching stance rubric:

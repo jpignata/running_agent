@@ -9,7 +9,7 @@ from .coaching_guidance import (
     GARMIN_COACHING_RUBRIC,
     RPE_COACHING_RUBRIC,
     TRAINING_PROGRESSION_RUBRIC,
-    coaching_philosophy_context,
+    prompt_coaching_philosophy_context,
 )
 from .pace_calibration import pace_calibration_context
 from .race_results import race_results_context
@@ -603,7 +603,7 @@ def build_coaching_input(
     philosophy = (
         coaching_philosophy_text
         if coaching_philosophy_text is not None
-        else coaching_philosophy_context()
+        else prompt_coaching_philosophy_context()
     )
     pace_calibration = (
         pace_calibration_text if pace_calibration_text is not None else pace_calibration_context()

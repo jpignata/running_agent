@@ -94,6 +94,9 @@ Buildable slices:
      JSON" as the primary contract.
 
 6. Trim accumulated global instructions.
+   - Replace the full always-on coaching philosophy reference with a compact
+     prompt summary while preserving the full file as documentation/reference.
+     Done.
    - Move rare, domain-specific rules closer to the relevant route or tool
      descriptions.
    - Keep the main coaching stance compact: role, evidence discipline, plan/date

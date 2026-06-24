@@ -8,6 +8,7 @@ from running_agent.coach_prompt import COACHING_INSTRUCTIONS, build_coaching_inp
 from running_agent.coaching_guidance import (
     DANIELS_TRAINING_RUBRIC,
     GARMIN_COACHING_RUBRIC,
+    PROMPT_COACHING_PHILOSOPHY,
     RPE_COACHING_RUBRIC,
     coaching_philosophy_context,
 )
@@ -31,6 +32,22 @@ class CoachingGuidanceTest(unittest.TestCase):
         context = coaching_philosophy_context(missing_path)
 
         self.assertEqual(context, "No coaching philosophy has been provided.")
+
+    def test_coaching_input_uses_compact_prompt_philosophy_by_default(self) -> None:
+        context = build_coaching_input(
+            message="How should I run today?",
+            training_summary="Recent training.",
+            recent_runs="Recent runs.",
+            athlete_profile_text="Athlete profile.",
+            coach_reflection_text="Coach reflection.",
+            include_coach_reflection=False,
+            pace_calibration_text="Pace calibration.",
+            run_memory_text="Run memory context.",
+        )
+
+        self.assertIn(PROMPT_COACHING_PHILOSOPHY, context)
+        self.assertIn("Maintain a working VDOT", context)
+        self.assertLess(len(PROMPT_COACHING_PHILOSOPHY), len(coaching_philosophy_context()))
 
     def test_coaching_input_includes_rpe_rubric(self) -> None:
         context = build_coaching_input(

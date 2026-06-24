@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from .activity_format import recent_runs_context
 from .athlete_profile import athlete_profile_context
-from .coach_prompt import COACHING_TOOLS, build_coaching_input
+from .coach_prompt import COACHING_INSTRUCTIONS, COACHING_TOOLS, build_coaching_input
 from .coach_reflection import coach_reflection_context
 from .coach_time import coach_now, coach_today
 from .feedback import summarize_training
@@ -108,9 +108,15 @@ def prompt_diagnostics(
     tools_enabled: bool,
 ) -> dict[str, int]:
     conversation_text = _format_conversation(conversation[-8:])
+    tool_schema_chars = _tool_schema_chars() if tools_enabled else 0
+    request_chars = len(assembled_input) + len(COACHING_INSTRUCTIONS) + tool_schema_chars
     return {
         "input_chars": len(assembled_input),
         "estimated_input_tokens": _estimated_tokens(assembled_input),
+        "instructions_chars": len(COACHING_INSTRUCTIONS),
+        "tool_schema_chars": tool_schema_chars,
+        "estimated_request_chars": request_chars,
+        "estimated_request_tokens": _estimated_tokens_by_chars(request_chars),
         "training_summary_chars": len(training_summary),
         "recent_runs_chars": len(recent_runs),
         "weekly_plan_chars": len(weekly_plan),
@@ -171,6 +177,11 @@ def _format_prompt_diagnostics(diagnostics: dict[str, int]) -> str:
         f"{diagnostics.get('input_chars', 0)} chars, "
         f"~{diagnostics.get('estimated_input_tokens', 0)} tokens, "
         f"{diagnostics.get('tool_count', 0)} tools. "
+        "Estimated full request: "
+        f"{diagnostics.get('estimated_request_chars', 0)} chars, "
+        f"~{diagnostics.get('estimated_request_tokens', 0)} tokens "
+        f"(instructions {diagnostics.get('instructions_chars', 0)} chars, "
+        f"tools {diagnostics.get('tool_schema_chars', 0)} chars). "
         "Section chars: "
         f"training {diagnostics.get('training_summary_chars', 0)}, "
         f"runs {diagnostics.get('recent_runs_chars', 0)}, "
@@ -184,9 +195,19 @@ def _format_prompt_diagnostics(diagnostics: dict[str, int]) -> str:
 
 
 def _estimated_tokens(text: str) -> int:
-    if not text:
+    return _estimated_tokens_by_chars(len(text))
+
+
+def _estimated_tokens_by_chars(chars: int) -> int:
+    if chars <= 0:
         return 0
-    return max(1, round(len(text) / 4))
+    return max(1, round(chars / 4))
+
+
+def _tool_schema_chars() -> int:
+    import json
+
+    return len(json.dumps(COACHING_TOOLS, sort_keys=True))
 
 
 def _yes_no(value: bool) -> str:
