@@ -124,6 +124,9 @@ def weekly_plan_context_for_date(target_date: date, path: Path = PLAN_PATH) -> s
     text = plan.get("text", "").strip()
     if not text:
         return "No weekly plan has been provided."
+    week_start = plan.get("week_start")
+    if week_start and not _week_contains_date(week_start, target_date):
+        return f"No saved weekly plan explicitly applies to {target_date.strftime('%A, %b %-d')}."
 
     parsed = parse_weekly_plan(text)
     weekday = target_date.strftime("%A")
@@ -154,6 +157,9 @@ def upcoming_plan_context_after_date(
     text = plan.get("text", "").strip()
     if not text:
         return "No upcoming plan context available."
+    week_start = plan.get("week_start")
+    if week_start and not _week_contains_date(week_start, target_date):
+        return "No upcoming plan context available."
 
     parsed = parse_weekly_plan(text)
     upcoming = []
@@ -177,6 +183,9 @@ def planned_workout_for_date(target_date: date, path: Path = PLAN_PATH) -> str |
         return None
     text = plan.get("text", "").strip()
     if not text:
+        return None
+    week_start = plan.get("week_start")
+    if week_start and not _week_contains_date(week_start, target_date):
         return None
     return parse_weekly_plan(text).get(target_date.strftime("%A"))
 
@@ -230,3 +239,11 @@ def _week_label(week_start: str | date) -> str:
     if parsed == current_week_start + timedelta(days=7):
         return "next week"
     return f"week of {parsed.month}/{parsed.day}"
+
+
+def _week_contains_date(week_start: str, target_date: date) -> bool:
+    try:
+        parsed = date.fromisoformat(week_start)
+    except ValueError:
+        return False
+    return parsed <= target_date <= parsed + timedelta(days=6)

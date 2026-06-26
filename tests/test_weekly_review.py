@@ -25,7 +25,7 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
-    @patch("running_agent.weekly_review.weekly_plan_context", return_value="Weekly plan")
+    @patch("running_agent.weekly_review.weekly_plan_context_for_week", return_value="Weekly plan")
     @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch(
         "running_agent.weekly_review.coaching_reply", return_value="Good week. Keep it controlled."
@@ -34,7 +34,7 @@ class WeeklyReviewTest(unittest.TestCase):
         self,
         coaching_reply,
         _weekly_quality_detail_context,
-        _weekly_plan_context,
+        weekly_plan_context_for_week,
         _training_goal_context,
         _coach_log_context,
         goal_readiness_snapshot,
@@ -62,6 +62,7 @@ class WeeklyReviewTest(unittest.TestCase):
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("deterministic goal-readiness snapshot", prompt)
         self.assertIn("what next checkpoint would raise confidence", prompt)
+        weekly_plan_context_for_week.assert_called_once_with(datetime(2026, 5, 25).date())
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",

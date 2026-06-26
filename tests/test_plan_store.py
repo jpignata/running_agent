@@ -44,6 +44,11 @@ class PlanStoreTest(unittest.TestCase):
 
         self.assertEqual(planned_workout_for_date(date(2026, 5, 29), path), "easy 6")
 
+    def test_planned_workout_for_date_ignores_plan_from_another_week(self) -> None:
+        path = _plan_file("Friday easy 6", week_start="2026-06-01")
+
+        self.assertIsNone(planned_workout_for_date(date(2026, 5, 29), path))
+
     def test_weekly_plan_context_for_date_prioritizes_matched_day(self) -> None:
         path = _plan_file("Monday easy 7\nFriday easy 6")
 
@@ -53,6 +58,14 @@ class PlanStoreTest(unittest.TestCase):
         self.assertIn("Matched plan day: Friday", context)
         self.assertIn("Planned workout for Friday: easy 6", context)
         self.assertIn("Full weekly plan:", context)
+
+    def test_weekly_plan_context_for_date_ignores_plan_from_another_week(self) -> None:
+        path = _plan_file("Friday easy 6", week_start="2026-06-01")
+
+        context = weekly_plan_context_for_date(date(2026, 5, 29), path)
+
+        self.assertIn("No saved weekly plan explicitly applies to Friday, May 29", context)
+        self.assertNotIn("easy 6", context)
 
     def test_upcoming_plan_context_after_date_lists_remaining_week(self) -> None:
         path = _plan_file(
@@ -73,6 +86,13 @@ class PlanStoreTest(unittest.TestCase):
         self.assertNotIn("Wednesday 6x800m", context)
         self.assertIn("Saturday: easy 4", context)
         self.assertIn("Sunday: 5K race", context)
+
+    def test_upcoming_plan_context_after_date_ignores_plan_from_another_week(self) -> None:
+        path = _plan_file("Saturday easy 4\nSunday 5K race", week_start="2026-06-08")
+
+        context = upcoming_plan_context_after_date(date(2026, 6, 3), path)
+
+        self.assertEqual(context, "No upcoming plan context available.")
 
     def test_update_weekly_plan_days_preserves_existing_days_and_adds_missing_day(self) -> None:
         path = _plan_file(

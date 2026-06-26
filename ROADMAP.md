@@ -143,11 +143,11 @@ only for forward guidance.
 Buildable slices:
 
 1. Add strict week matching in weekly review.
-   - Use a reviewed-week plan only if `week_start == reviewed_week_start`.
-   - Use the target-week plan only for next-week guidance.
-   - If no reviewed-week plan exists, tell the model that explicitly.
+   - Use a reviewed-week plan only if `week_start == reviewed_week_start`. Done.
+   - Use the target-week plan only for next-week guidance. Done.
+   - If no reviewed-week plan exists, tell the model that explicitly. Done.
    - Add tests where the current saved plan is for next week and must not be used
-     to judge the completed week.
+     to judge the completed week. Done.
 
 2. Add deterministic weekly-review facts.
    - Compute completed mileage for the reviewed Monday-Sunday window.

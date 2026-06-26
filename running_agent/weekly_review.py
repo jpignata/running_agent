@@ -11,7 +11,7 @@ from .goal_readiness import goal_readiness_context, goal_readiness_snapshot
 from .goal_readiness_history import save_goal_readiness_history_entry
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
-from .plan_store import planned_workout_for_date, weekly_plan_context, weekly_plan_context_for_week
+from .plan_store import planned_workout_for_date, weekly_plan_context_for_week
 from .strava_client import StravaClient
 from .weather_client import safe_enrich_activity_weather
 from .workout_classifier import classify_workout
@@ -61,7 +61,7 @@ def review_week(
             prompt,
             training_summary=summarize_training(activities, days=lookback_days),
             recent_runs=recent_runs,
-            weekly_plan=weekly_plan_context(),
+            weekly_plan=weekly_plan_context_for_week(week_start),
             training_goal=training_goal_context(),
             goal_readiness=readiness_context,
             coach_log=coach_log_context(),
