@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import re
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from .activity_format import detailed_activity_context, recent_runs_context
+from .activity_format import detailed_activity_context
+from .activity_format import miles as activity_miles
+from .activity_format import recent_runs_context
 from .coach_log import append_week_review, coach_log_context
 from .feedback import summarize_training
 from .garmin_context import safe_garmin_weekly_context
@@ -11,13 +14,19 @@ from .goal_readiness import goal_readiness_context, goal_readiness_snapshot
 from .goal_readiness_history import save_goal_readiness_history_entry
 from .goal_store import training_goal_context
 from .openai_client import coaching_reply
-from .plan_store import planned_workout_for_date, weekly_plan_context_for_week
+from .plan_store import (
+    load_weekly_plan,
+    parse_weekly_plan,
+    planned_workout_for_date,
+    weekly_plan_context_for_week,
+)
 from .strava_client import StravaClient
 from .weather_client import safe_enrich_activity_weather
 from .workout_classifier import classify_workout
 
 DETAIL_RUN_LIMIT = 4
 QUALITY_NAME_WORDS = ("track", "tempo", "interval", "workout", "threshold", "fartlek", "race")
+REST_DAY_WORDS = ("rest", "off", "cross", "strength", "mobility", "yoga")
 
 
 def review_week(
@@ -32,6 +41,9 @@ def review_week(
     detailed_runs = weekly_quality_detail_context(client, activities, week_start, week_end)
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
+    recent_runs = (
+        f"{recent_runs}\n\n" f"{reviewed_week_facts_context(activities, week_start, week_end)}"
+    )
     garmin_context = safe_garmin_weekly_context(days=7)
     readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
     readiness_context = goal_readiness_context(readiness_snapshot)
@@ -41,8 +53,12 @@ def review_week(
         "coach texting the athlete, not like a report. Start with a natural sentence such as "
         "'You had a great week,' 'This was a solid week,' or 'This was a challenging week,' "
         "based on the data. Do not use a title, section headers, markdown, or label-style "
-        "phrases like 'Takeaway:' or 'By weekday:'. Compare the saved weekly plan with what "
-        "was completed, note mileage, quality sessions, long run, missed or extra work, and "
+        "phrases like 'Takeaway:' or 'By weekday:'. Use the reviewed-week deterministic facts "
+        "for completed mileage and plan-comparison claims. If those facts say no reviewed-week "
+        "plan or no planned mileage is available, do not say the athlete was over plan, under "
+        "plan, short of plan, or missed planned mileage. Compare the saved weekly plan with what "
+        "was completed only when the deterministic facts support that comparison; otherwise note "
+        "mileage, quality sessions, long run, extra work, and "
         "Garmin recovery patterns. Use detailed lap context when it is "
         "provided for structured workouts, tempos, races, or long runs. Interpret Garmin data "
         "against the week: low readiness after quality work can be normal, while repeated poor "
@@ -99,6 +115,9 @@ def weekly_coaching_message(
     detailed_runs = weekly_quality_detail_context(client, activities, week_start, week_end)
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
+    recent_runs = (
+        f"{recent_runs}\n\n" f"{reviewed_week_facts_context(activities, week_start, week_end)}"
+    )
     garmin_context = safe_garmin_weekly_context(days=7)
     readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
     readiness_context = goal_readiness_context(readiness_snapshot)
@@ -111,8 +130,12 @@ def weekly_coaching_message(
         "solid week,' or 'This was a challenging week,' based on the data. Do not use a title, "
         "section headers, markdown, or label-style phrases like 'Weekly review:', 'Next week:', "
         "'Takeaway:', 'By weekday:', or 'Why this setup:'. "
-        "Compare the saved weekly plan with what was completed, including mileage, quality "
-        "sessions, long run, missed or extra work, and Garmin recovery patterns. Use detailed "
+        "Use the reviewed-week deterministic facts for completed mileage and plan-comparison "
+        "claims. If those facts say no reviewed-week plan or no planned mileage is available, "
+        "do not say the athlete was over plan, under plan, short of plan, or missed planned "
+        "mileage. Compare a reviewed-week saved plan with what was completed only when the "
+        "deterministic facts support that comparison; otherwise cover mileage, quality "
+        "sessions, long run, extra work, and Garmin recovery patterns. Use detailed "
         "lap context when provided for structured workouts, tempos, races, or long runs. "
         "Use the deterministic goal-readiness snapshot for PR-progress claims: name what this "
         "week improved, what gap remains, and what next checkpoint would raise confidence. Use "
@@ -161,6 +184,42 @@ def weekly_coaching_message(
 
 def current_week_start(today: date) -> date:
     return today - timedelta(days=today.weekday())
+
+
+def reviewed_week_facts_context(
+    activities: list[dict[str, Any]],
+    week_start: date,
+    week_end: date,
+) -> str:
+    runs = [
+        activity
+        for activity in activities
+        if activity.get("type") == "Run"
+        and (run_date := _activity_local_date(activity)) is not None
+        and week_start <= run_date <= week_end
+    ]
+    completed_miles = sum(activity_miles(run) for run in runs)
+    lines = [
+        "Reviewed-week deterministic facts:",
+        f"- Reviewed window: {week_start.isoformat()} through {week_end.isoformat()}.",
+        f"- Completed synced runs in reviewed window: {len(runs)}.",
+        f"- Completed synced mileage in reviewed window: {completed_miles:.1f} mi.",
+    ]
+
+    planned_miles, planned_note = _reviewed_week_planned_mileage(week_start)
+    lines.append(f"- Reviewed-week plan status: {planned_note}")
+    if planned_miles is not None:
+        delta = completed_miles - planned_miles
+        lines.append(f"- Explicit planned mileage: {planned_miles:.1f} mi.")
+        lines.append(f"- Completed minus explicit planned mileage: {delta:+.1f} mi.")
+    else:
+        lines.append("- Explicit planned mileage: unavailable.")
+        lines.append("- Completed versus planned mileage: unavailable.")
+    lines.append(
+        "- Do not claim missed, under-plan, over-plan, or short-of-plan mileage unless "
+        "explicit planned mileage is available above."
+    )
+    return "\n".join(lines)
 
 
 def weekly_quality_detail_context(
@@ -217,6 +276,80 @@ def _activity_local_date(activity: dict[str, Any]) -> date | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
     except ValueError:
         return None
+
+
+def _reviewed_week_planned_mileage(week_start: date) -> tuple[float | None, str]:
+    plan = load_weekly_plan()
+    if not plan:
+        return None, "no saved reviewed-week plan."
+    if plan.get("week_start") != week_start.isoformat():
+        return None, "no saved plan explicitly applies to the reviewed week."
+    text = plan.get("text", "").strip()
+    if not text:
+        return None, "reviewed-week plan is empty."
+
+    parsed = parse_weekly_plan(text)
+    if not parsed:
+        return None, "reviewed-week plan has no parseable day lines."
+
+    total = 0.0
+    unavailable_days: list[str] = []
+    for weekday in WEEKDAYS_IN_ORDER:
+        workout = parsed.get(weekday)
+        if not workout:
+            continue
+        miles = _planned_miles_from_workout(workout)
+        if miles is None:
+            unavailable_days.append(weekday)
+            continue
+        total += miles
+
+    if unavailable_days:
+        return (
+            None,
+            "reviewed-week plan exists, but planned mileage is not explicit for "
+            + ", ".join(unavailable_days)
+            + ".",
+        )
+    return total, "reviewed-week plan exists and explicit mileage was parsed."
+
+
+WEEKDAYS_IN_ORDER = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+
+
+def _planned_miles_from_workout(workout: str) -> float | None:
+    normalized = workout.strip().lower()
+    if not normalized:
+        return None
+    if any(word in f" {normalized} " for word in REST_DAY_WORDS):
+        return 0.0
+    if _has_unmeasured_workout_components(normalized):
+        return None
+
+    explicit_miles = [
+        float(match.group(1))
+        for match in re.finditer(r"(?<![a-z0-9])(\d+(?:\.\d+)?)\s*(?:mi|mile|miles)\b", normalized)
+    ]
+    if explicit_miles:
+        return sum(explicit_miles)
+
+    bare = re.match(
+        r"^(\d+(?:\.\d+)?)\s+(?:easy|recovery|steady|long|progression|tempo)\b", normalized
+    )
+    if bare:
+        return float(bare.group(1))
+    return None
+
+
+def _has_unmeasured_workout_components(workout: str) -> bool:
+    if re.search(r"\b\d+\s*x\s*\d+(?:m|k)\b", workout):
+        return True
+    if re.search(r"\b(?:cd|cooldown|cool down)\b", workout) and not re.search(
+        r"\d+(?:\.\d+)?\s*(?:mi|mile|miles)\s*(?:cd|cooldown|cool down)\b",
+        workout,
+    ):
+        return True
+    return False
 
 
 def _fallback_week_review(

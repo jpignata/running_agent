@@ -7,6 +7,7 @@ from unittest.mock import patch
 from running_agent.weekly_review import (
     current_week_start,
     review_week,
+    reviewed_week_facts_context,
     weekly_coaching_message,
     weekly_quality_detail_context,
 )
@@ -18,6 +19,7 @@ class WeeklyReviewTest(unittest.TestCase):
     def test_current_week_start_returns_monday(self) -> None:
         self.assertEqual(current_week_start(datetime(2026, 5, 31).date()).isoformat(), "2026-05-25")
 
+    @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
@@ -42,6 +44,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _safe_garmin_weekly_context,
         save_goal_readiness_history_entry,
         append_week_review,
+        _load_weekly_plan,
     ) -> None:
         review = review_week(
             _FakeStravaClient([_run("Easy Run")]),
@@ -51,6 +54,8 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(review, "Good week. Keep it controlled.")
         kwargs = coaching_reply.call_args.kwargs
         self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        self.assertIn("Reviewed-week deterministic facts:", kwargs["recent_runs"])
+        self.assertIn("Completed synced mileage in reviewed window: 5.0 mi.", kwargs["recent_runs"])
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
         self.assertEqual(kwargs["coach_log"], "Coach log")
@@ -61,6 +66,8 @@ class WeeklyReviewTest(unittest.TestCase):
         goal_readiness_context.assert_called_once_with({"snapshot": True})
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("deterministic goal-readiness snapshot", prompt)
+        self.assertIn("reviewed-week deterministic facts", prompt)
+        self.assertIn("do not say the athlete was over plan", prompt)
         self.assertIn("what next checkpoint would raise confidence", prompt)
         weekly_plan_context_for_week.assert_called_once_with(datetime(2026, 5, 25).date())
         append_week_review.assert_called_once_with(
@@ -73,6 +80,7 @@ class WeeklyReviewTest(unittest.TestCase):
             snapshot={"snapshot": True},
         )
 
+    @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
@@ -89,6 +97,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _garmin,
         save_goal_readiness_history_entry,
         append_week_review,
+        _load_weekly_plan,
     ) -> None:
         review = review_week(
             _FakeStravaClient([_run("Easy Run")]),
@@ -99,6 +108,7 @@ class WeeklyReviewTest(unittest.TestCase):
         append_week_review.assert_called_once()
         save_goal_readiness_history_entry.assert_called_once()
 
+    @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
@@ -127,6 +137,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _safe_garmin_weekly_context,
         save_goal_readiness_history_entry,
         append_week_review,
+        _load_weekly_plan,
     ) -> None:
         message = weekly_coaching_message(
             _FakeStravaClient([_run("Easy Run")]),
@@ -140,6 +151,8 @@ class WeeklyReviewTest(unittest.TestCase):
             kwargs["weekly_plan"],
             "Saved weekly plan for target week starting 2026-06-01:\nMonday 5 easy",
         )
+        self.assertIn("Reviewed-week deterministic facts:", kwargs["recent_runs"])
+        self.assertIn("Completed versus planned mileage: unavailable.", kwargs["recent_runs"])
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
         self.assertFalse(kwargs["tools_enabled"])
         goal_readiness_snapshot.assert_called_once()
@@ -148,6 +161,7 @@ class WeeklyReviewTest(unittest.TestCase):
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("recap that saved plan instead of suggesting a different one", prompt)
         self.assertIn("deterministic goal-readiness snapshot", prompt)
+        self.assertIn("reviewed-week deterministic facts", prompt)
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",
@@ -158,6 +172,7 @@ class WeeklyReviewTest(unittest.TestCase):
             snapshot={"snapshot": True},
         )
 
+    @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
     @patch("running_agent.weekly_review.safe_garmin_weekly_context", return_value="Garmin weekly")
@@ -182,6 +197,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _safe_garmin_weekly_context,
         save_goal_readiness_history_entry,
         append_week_review,
+        _load_weekly_plan,
     ) -> None:
         with self.assertRaisesRegex(RuntimeError, "offline"):
             weekly_coaching_message(
@@ -238,6 +254,82 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(context, "")
         self.assertEqual(client.detailed_activity_ids, [])
 
+    @patch(
+        "running_agent.weekly_review.load_weekly_plan",
+        return_value={
+            "week_start": "2026-05-25",
+            "updated_at": "2026-05-24T12:00:00+00:00",
+            "text": "\n".join(
+                [
+                    "Monday 5 easy",
+                    "Tuesday rest",
+                    "Wednesday 6 miles with strides",
+                    "Friday 4 mi recovery",
+                    "Sunday 10 long",
+                ]
+            ),
+        },
+    )
+    def test_reviewed_week_facts_include_completed_and_planned_mileage(
+        self, _load_weekly_plan
+    ) -> None:
+        context = reviewed_week_facts_context(
+            [
+                _run("Monday", start_date_local="2026-05-25T06:00:00Z", miles=5),
+                _run("Wednesday", start_date_local="2026-05-27T06:00:00Z", miles=6),
+                _run("Sunday", start_date_local="2026-05-31T06:00:00Z", miles=10),
+                _run("Next week", start_date_local="2026-06-01T06:00:00Z", miles=5),
+                {"type": "Ride", "distance": 20 * METERS_PER_MILE},
+            ],
+            datetime(2026, 5, 25).date(),
+            datetime(2026, 5, 31).date(),
+        )
+
+        self.assertIn("Completed synced runs in reviewed window: 3.", context)
+        self.assertIn("Completed synced mileage in reviewed window: 21.0 mi.", context)
+        self.assertIn("Explicit planned mileage: 25.0 mi.", context)
+        self.assertIn("Completed minus explicit planned mileage: -4.0 mi.", context)
+
+    @patch(
+        "running_agent.weekly_review.load_weekly_plan",
+        return_value={
+            "week_start": "2026-06-01",
+            "updated_at": "2026-05-31T12:00:00+00:00",
+            "text": "Monday 5 easy",
+        },
+    )
+    def test_reviewed_week_facts_refuse_future_plan_comparison(self, _load_weekly_plan) -> None:
+        context = reviewed_week_facts_context(
+            [_run("Easy Run", start_date_local="2026-05-25T06:00:00Z", miles=5)],
+            datetime(2026, 5, 25).date(),
+            datetime(2026, 5, 31).date(),
+        )
+
+        self.assertIn("no saved plan explicitly applies to the reviewed week", context)
+        self.assertIn("Explicit planned mileage: unavailable.", context)
+        self.assertIn("Completed versus planned mileage: unavailable.", context)
+
+    @patch(
+        "running_agent.weekly_review.load_weekly_plan",
+        return_value={
+            "week_start": "2026-05-25",
+            "updated_at": "2026-05-24T12:00:00+00:00",
+            "text": "Tuesday 2mi WU, 4x1200m, CD\nWednesday 4x1200m\nSaturday long run",
+        },
+    )
+    def test_reviewed_week_facts_treat_ambiguous_plan_mileage_as_unavailable(
+        self, _load_weekly_plan
+    ) -> None:
+        context = reviewed_week_facts_context(
+            [_run("Workout", start_date_local="2026-05-27T06:00:00Z", miles=7)],
+            datetime(2026, 5, 25).date(),
+            datetime(2026, 5, 31).date(),
+        )
+
+        self.assertIn("reviewed-week plan exists", context)
+        self.assertIn("planned mileage is not explicit for Tuesday, Wednesday, Saturday", context)
+        self.assertIn("Explicit planned mileage: unavailable.", context)
+
 
 class _FakeStravaClient:
     def __init__(self, activities: list[dict]):
@@ -253,14 +345,18 @@ class _FakeStravaClient:
         return self.details[activity_id]
 
 
-def _run(name: str) -> dict:
+def _run(
+    name: str,
+    start_date_local: str = "2026-05-29T06:00:00Z",
+    miles: float = 5,
+) -> dict:
     return {
         "id": 1,
         "type": "Run",
         "name": name,
-        "distance": 5 * METERS_PER_MILE,
-        "moving_time": 40 * 60,
-        "start_date_local": "2026-05-29T06:00:00Z",
+        "distance": miles * METERS_PER_MILE,
+        "moving_time": int(miles * 8 * 60),
+        "start_date_local": start_date_local,
     }
 
 

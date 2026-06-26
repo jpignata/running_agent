@@ -150,11 +150,11 @@ Buildable slices:
      to judge the completed week. Done.
 
 2. Add deterministic weekly-review facts.
-   - Compute completed mileage for the reviewed Monday-Sunday window.
-   - Estimate planned mileage from explicit plan miles when a matching plan exists.
-   - Include planned/completed/delta only when the plan is for the reviewed week.
+   - Compute completed mileage for the reviewed Monday-Sunday window. Done.
+   - Estimate planned mileage from explicit plan miles when a matching plan exists. Done.
+   - Include planned/completed/delta only when the plan is for the reviewed week. Done.
    - Tell the model not to use words like "only," "under plan," or "missed" unless
-     those claims are supported by the deterministic facts.
+     those claims are supported by the deterministic facts. Done.
 
 3. Add `.data/weekly_plan_history.json`.
    - Suggested shape:
