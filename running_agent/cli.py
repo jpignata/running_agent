@@ -9,6 +9,7 @@ from .auth import build_authorization_url
 from .coach_agent import DEFAULT_LOOKBACK_DAYS, CoachAgent
 from .coach_reflection import generate_coach_reflection
 from .eval_runner import main as eval_runner_main
+from .plan_store import backfill_current_weekly_plan_history
 from .repl_transport import ReplTransport
 from .run_memory import refresh_run_memory, run_memory_context, validate_run_memory
 from .scheduled_preview import format_scheduled_preview, preview_scheduled_message
@@ -94,6 +95,16 @@ def _main() -> int:
         type=int,
         default=DEFAULT_LOOKBACK_DAYS,
         help="Training lookback window in days.",
+    )
+
+    weekly_plan_history = subparsers.add_parser(
+        "weekly-plan-history",
+        help="Inspect or repair local weekly plan history snapshots.",
+    )
+    weekly_plan_history.add_argument(
+        "--backfill-current",
+        action="store_true",
+        help="Snapshot the active weekly plan into history when it has a week_start.",
     )
 
     preview = subparsers.add_parser(
@@ -265,6 +276,16 @@ def _main() -> int:
     if args.command == "debug-context":
         coach = CoachAgent(lookback_days=args.days, strava_client=StravaClient())
         print(coach.debug_context(args.message))
+        return 0
+
+    if args.command == "weekly-plan-history":
+        if not args.backfill_current:
+            parser.error("weekly-plan-history requires --backfill-current")
+        result = backfill_current_weekly_plan_history()
+        if result.get("backfilled"):
+            print(f"Backfilled weekly plan history for {result['week_start']}.")
+        else:
+            print(f"Weekly plan history not changed: {result.get('reason', 'unknown reason')}")
         return 0
 
     if args.command == "preview":

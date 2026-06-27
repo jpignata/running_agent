@@ -129,13 +129,7 @@ only for forward guidance.
 
 Buildable slices:
 
-1. Backfill gently from current state.
-   - If `.data/weekly_plan.json` has a `week_start`, treat it as one history
-     snapshot.
-   - Do not try to infer old plans from conversation or Strava.
-   - Existing coach-log run snapshots remain useful partial evidence.
-
-2. Update weekly review prompt/context.
+1. Update weekly review prompt/context.
    - Provide separate fields/sections for:
      reviewed-week plan,
      reviewed-week deterministic facts,
@@ -145,7 +139,7 @@ Buildable slices:
      athlete was over/under the plan; judge from completed runs and say plan
      comparison is unavailable.
 
-3. Add regression evals.
+2. Add regression evals.
    - Regression eval for "next week's plan saved early" so the review does not
      compare completed runs against a future plan.
 

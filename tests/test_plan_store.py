@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.plan_store import (
+    backfill_current_weekly_plan_history,
     load_weekly_plan_history,
     parse_weekly_plan,
     planned_workout_for_date,
@@ -192,6 +193,39 @@ class PlanStoreTest(unittest.TestCase):
             self.assertIn("Monday reviewed plan", context)
             self.assertNotIn("Monday future plan", context)
 
+    def test_backfill_current_weekly_plan_history_snapshots_active_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "weekly_plan.json"
+            history_path = Path(tmpdir) / "weekly_plan_history.json"
+            _write_plan_file(
+                plan_path,
+                "Monday 5 easy",
+                week_start="2026-06-15",
+                updated_at="2026-06-14T12:00:00+00:00",
+            )
+
+            result = backfill_current_weekly_plan_history(plan_path, history_path)
+            second_result = backfill_current_weekly_plan_history(plan_path, history_path)
+
+            self.assertTrue(result["backfilled"])
+            self.assertEqual(result["week_start"], "2026-06-15")
+            self.assertEqual(second_result["week_start"], "2026-06-15")
+            snapshot = weekly_plan_history_for_week(date(2026, 6, 15), history_path)
+            self.assertIsNotNone(snapshot)
+            self.assertEqual(snapshot["text"], "Monday 5 easy")
+
+    def test_backfill_current_weekly_plan_history_requires_week_start(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "weekly_plan.json"
+            history_path = Path(tmpdir) / "weekly_plan_history.json"
+            _write_plan_file(plan_path, "Monday 5 easy")
+
+            result = backfill_current_weekly_plan_history(plan_path, history_path)
+
+            self.assertFalse(result["backfilled"])
+            self.assertEqual(result["reason"], "Active weekly plan has no week_start.")
+            self.assertEqual(load_weekly_plan_history(history_path), {"plans": {}})
+
     @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
     def test_weekly_plan_context_describes_next_week_naturally(self, _coach_today) -> None:
         path = _plan_file("Monday 5 easy", week_start="2026-06-15")
@@ -258,11 +292,25 @@ def _plan_file(
     handle = tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False)
     path = Path(handle.name)
     with handle:
-        data = {"updated_at": updated_at, "text": text}
-        if week_start:
-            data["week_start"] = week_start
-        json.dump(data, handle)
+        _write_plan(handle, text, week_start=week_start, updated_at=updated_at)
     return path
+
+
+def _write_plan_file(
+    path: Path,
+    text: str,
+    week_start: str | None = None,
+    updated_at: str = "2026-05-29T15:10:00+00:00",
+) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        _write_plan(handle, text, week_start=week_start, updated_at=updated_at)
+
+
+def _write_plan(handle, text: str, week_start: str | None, updated_at: str) -> None:
+    data = {"updated_at": updated_at, "text": text}
+    if week_start:
+        data["week_start"] = week_start
+    json.dump(data, handle)
 
 
 if __name__ == "__main__":

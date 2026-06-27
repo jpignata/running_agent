@@ -36,6 +36,8 @@ Runtime data lives under `.data/`, which is ignored by git:
 
 - `.data/state.json` - Telegram chat state, scheduler markers, and last-seen activity IDs.
 - `.data/weekly_plan.json` - the current saved weekly plan.
+- `.data/weekly_plan_history.json` - saved weekly plan snapshots keyed by Monday
+  `week_start`.
 - `.data/training_goal.json` - the current saved training goal.
 - `.data/athlete_profile.txt` - remembered coaching notes.
 - `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
@@ -67,7 +69,8 @@ The coach builds replies from local context instead of treating each message as 
 
 - Recent Strava runs, using a four-week default lookback for normal chat and summaries,
   including detailed laps when they matter, such as workouts, races, and long runs.
-- The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible.
+- The saved weekly plan in `.data/weekly_plan.json`, parsed by weekday when possible,
+  plus `.data/weekly_plan_history.json` for reviewed-week plan snapshots.
 - The saved training goal in `.data/training_goal.json`.
 - Athlete-specific notes in `.data/athlete_profile.txt`.
 - The global coaching philosophy in `running_agent/coaching_philosophy.txt`.
@@ -134,9 +137,16 @@ last week?`, the model can call local lookup tools to search synced runs and loa
 lap data. These tools do not call Strava directly; if a run has not been synced locally, run
 `python -m running_agent sync-strava --days 365`.
 
-Only the current weekly plan is stored. Historical activity lookups should use the run's lap
-data and derived workout signals; they cannot reliably compare old runs against the plan that
-was current at the time unless that plan is still the saved plan.
+Weekly reviews use `.data/weekly_plan_history.json` when a reviewed-week snapshot exists,
+so saving next week's plan early does not corrupt the review of the current week. To seed
+history from the active plan when it has a `week_start`, run:
+
+```bash
+python -m running_agent weekly-plan-history --backfill-current
+```
+
+The backfill is intentionally conservative: it snapshots only the current active plan and
+does not infer old plans from conversation, Strava, or coach logs.
 
 ## Setup
 

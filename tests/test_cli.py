@@ -175,6 +175,42 @@ class CliTest(unittest.TestCase):
         print_.assert_called_once_with("Debug context")
 
     @patch("builtins.print")
+    @patch(
+        "running_agent.cli.backfill_current_weekly_plan_history",
+        return_value={"backfilled": True, "week_start": "2026-06-15"},
+    )
+    @patch("sys.argv", ["running-agent", "weekly-plan-history", "--backfill-current"])
+    def test_weekly_plan_history_command_backfills_current_plan(
+        self,
+        backfill_current_weekly_plan_history,
+        print_,
+    ) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        backfill_current_weekly_plan_history.assert_called_once_with()
+        print_.assert_called_once_with("Backfilled weekly plan history for 2026-06-15.")
+
+    @patch("builtins.print")
+    @patch(
+        "running_agent.cli.backfill_current_weekly_plan_history",
+        return_value={"backfilled": False, "reason": "Active weekly plan has no week_start."},
+    )
+    @patch("sys.argv", ["running-agent", "weekly-plan-history", "--backfill-current"])
+    def test_weekly_plan_history_command_reports_noop(
+        self,
+        backfill_current_weekly_plan_history,
+        print_,
+    ) -> None:
+        exit_code = cli._main()
+
+        self.assertEqual(exit_code, 0)
+        backfill_current_weekly_plan_history.assert_called_once_with()
+        print_.assert_called_once_with(
+            "Weekly plan history not changed: Active weekly plan has no week_start."
+        )
+
+    @patch("builtins.print")
     @patch("running_agent.cli.StravaClient")
     @patch("running_agent.cli.load_agent_state", return_value={"state": "value"})
     @patch("running_agent.cli.format_scheduled_preview", return_value="Preview text")

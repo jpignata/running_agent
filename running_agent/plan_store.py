@@ -134,6 +134,31 @@ def weekly_plan_history_for_week(
     return plan
 
 
+def backfill_current_weekly_plan_history(
+    path: Path = PLAN_PATH,
+    history_path: Path = HISTORY_PATH,
+) -> dict[str, Any]:
+    plan = load_weekly_plan(path)
+    if not plan:
+        return {"backfilled": False, "reason": "No active weekly plan found."}
+    week_start = _normalize_week_start(plan.get("week_start"))
+    if not week_start:
+        return {
+            "backfilled": False,
+            "reason": "Active weekly plan has no week_start.",
+        }
+    text = str(plan.get("text") or "").strip()
+    if not text:
+        return {"backfilled": False, "reason": "Active weekly plan is empty."}
+
+    save_weekly_plan_history_snapshot(plan, path=history_path)
+    return {
+        "backfilled": True,
+        "week_start": week_start,
+        "text": text,
+    }
+
+
 def weekly_plan_context(path: Path = PLAN_PATH) -> str:
     plan = load_weekly_plan(path)
     if not plan:
