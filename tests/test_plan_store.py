@@ -9,13 +9,16 @@ from unittest.mock import patch
 
 from running_agent.coach_time import COACH_TIME_ZONE
 from running_agent.plan_store import (
+    load_weekly_plan_history,
     parse_weekly_plan,
     planned_workout_for_date,
+    save_weekly_plan,
     upcoming_plan_context_after_date,
     update_weekly_plan_days,
     weekly_plan_context,
     weekly_plan_context_for_date,
     weekly_plan_context_for_week,
+    weekly_plan_history_for_week,
 )
 
 
@@ -117,6 +120,78 @@ class PlanStoreTest(unittest.TestCase):
             "Sunday 10 miles",
         )
 
+    def test_save_weekly_plan_writes_history_snapshot_when_week_start_is_known(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "weekly_plan.json"
+            history_path = Path(tmpdir) / "weekly_plan_history.json"
+
+            save_weekly_plan(
+                "Monday 5 easy",
+                path=plan_path,
+                week_start="2026-06-15",
+                history_path=history_path,
+            )
+
+            history = load_weekly_plan_history(history_path)
+            snapshot = history["plans"]["2026-06-15"]
+            self.assertEqual(snapshot["week_start"], "2026-06-15")
+            self.assertEqual(snapshot["text"], "Monday 5 easy")
+
+    def test_update_weekly_plan_days_refreshes_matching_history_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "weekly_plan.json"
+            history_path = Path(tmpdir) / "weekly_plan_history.json"
+            save_weekly_plan(
+                "Monday 5 easy\nTuesday 6 easy",
+                path=plan_path,
+                week_start=date(2026, 6, 15),
+                history_path=history_path,
+            )
+
+            update_weekly_plan_days(
+                {"Tuesday": "rest"},
+                path=plan_path,
+                history_path=history_path,
+            )
+
+            snapshot = weekly_plan_history_for_week(date(2026, 6, 15), history_path)
+            self.assertIsNotNone(snapshot)
+            self.assertEqual(snapshot["text"], "Monday 5 easy\nTuesday rest")
+
+    @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 30))
+    def test_weekly_plan_context_for_week_can_prefer_history(self, _coach_today) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            plan_path = Path(tmpdir) / "weekly_plan.json"
+            history_path = Path(tmpdir) / "weekly_plan_history.json"
+            save_weekly_plan(
+                "Monday future plan",
+                path=plan_path,
+                week_start="2026-06-22",
+                history_path=history_path,
+            )
+            save_weekly_plan(
+                "Monday reviewed plan",
+                path=plan_path,
+                week_start="2026-06-15",
+                history_path=history_path,
+            )
+            save_weekly_plan(
+                "Monday future plan",
+                path=plan_path,
+                week_start="2026-06-22",
+                history_path=history_path,
+            )
+
+            context = weekly_plan_context_for_week(
+                date(2026, 6, 15),
+                plan_path,
+                history_path,
+                prefer_history=True,
+            )
+
+            self.assertIn("Monday reviewed plan", context)
+            self.assertNotIn("Monday future plan", context)
+
     @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
     def test_weekly_plan_context_describes_next_week_naturally(self, _coach_today) -> None:
         path = _plan_file("Monday 5 easy", week_start="2026-06-15")
@@ -165,9 +240,10 @@ class PlanStoreTest(unittest.TestCase):
     @patch("running_agent.plan_store.coach_today", return_value=date(2026, 6, 14))
     def test_weekly_plan_context_for_week_requires_matching_week_start(self, _coach_today) -> None:
         path = _plan_file("Monday 5 easy", week_start="2026-06-15")
+        history_path = path.with_suffix(".history.json")
 
-        matching = weekly_plan_context_for_week(date(2026, 6, 15), path)
-        missing = weekly_plan_context_for_week(date(2026, 6, 22), path)
+        matching = weekly_plan_context_for_week(date(2026, 6, 15), path, history_path)
+        missing = weekly_plan_context_for_week(date(2026, 6, 22), path, history_path)
 
         self.assertIn("Saved weekly plan for next week", matching)
         self.assertIn("Monday 5 easy", matching)

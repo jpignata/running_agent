@@ -19,6 +19,7 @@ class WeeklyReviewTest(unittest.TestCase):
     def test_current_week_start_returns_monday(self) -> None:
         self.assertEqual(current_week_start(datetime(2026, 5, 31).date()).isoformat(), "2026-05-25")
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
@@ -45,6 +46,7 @@ class WeeklyReviewTest(unittest.TestCase):
         save_goal_readiness_history_entry,
         append_week_review,
         _load_weekly_plan,
+        _weekly_plan_history_for_week,
     ) -> None:
         review = review_week(
             _FakeStravaClient([_run("Easy Run")]),
@@ -69,7 +71,9 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("reviewed-week deterministic facts", prompt)
         self.assertIn("do not say the athlete was over plan", prompt)
         self.assertIn("what next checkpoint would raise confidence", prompt)
-        weekly_plan_context_for_week.assert_called_once_with(datetime(2026, 5, 25).date())
+        weekly_plan_context_for_week.assert_called_once_with(
+            datetime(2026, 5, 25).date(), prefer_history=True
+        )
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",
@@ -80,6 +84,7 @@ class WeeklyReviewTest(unittest.TestCase):
             snapshot={"snapshot": True},
         )
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
@@ -98,6 +103,7 @@ class WeeklyReviewTest(unittest.TestCase):
         save_goal_readiness_history_entry,
         append_week_review,
         _load_weekly_plan,
+        _weekly_plan_history_for_week,
     ) -> None:
         review = review_week(
             _FakeStravaClient([_run("Easy Run")]),
@@ -108,6 +114,7 @@ class WeeklyReviewTest(unittest.TestCase):
         append_week_review.assert_called_once()
         save_goal_readiness_history_entry.assert_called_once()
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
@@ -138,6 +145,7 @@ class WeeklyReviewTest(unittest.TestCase):
         save_goal_readiness_history_entry,
         append_week_review,
         _load_weekly_plan,
+        _weekly_plan_history_for_week,
     ) -> None:
         message = weekly_coaching_message(
             _FakeStravaClient([_run("Easy Run")]),
@@ -172,6 +180,7 @@ class WeeklyReviewTest(unittest.TestCase):
             snapshot={"snapshot": True},
         )
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch("running_agent.weekly_review.load_weekly_plan", return_value=None)
     @patch("running_agent.weekly_review.append_week_review")
     @patch("running_agent.weekly_review.save_goal_readiness_history_entry")
@@ -198,6 +207,7 @@ class WeeklyReviewTest(unittest.TestCase):
         save_goal_readiness_history_entry,
         append_week_review,
         _load_weekly_plan,
+        _weekly_plan_history_for_week,
     ) -> None:
         with self.assertRaisesRegex(RuntimeError, "offline"):
             weekly_coaching_message(
@@ -254,6 +264,7 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertEqual(context, "")
         self.assertEqual(client.detailed_activity_ids, [])
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch(
         "running_agent.weekly_review.load_weekly_plan",
         return_value={
@@ -271,7 +282,7 @@ class WeeklyReviewTest(unittest.TestCase):
         },
     )
     def test_reviewed_week_facts_include_completed_and_planned_mileage(
-        self, _load_weekly_plan
+        self, _load_weekly_plan, _weekly_plan_history_for_week
     ) -> None:
         context = reviewed_week_facts_context(
             [
@@ -290,6 +301,7 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("Explicit planned mileage: 25.0 mi.", context)
         self.assertIn("Completed minus explicit planned mileage: -4.0 mi.", context)
 
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
     @patch(
         "running_agent.weekly_review.load_weekly_plan",
         return_value={
@@ -298,7 +310,9 @@ class WeeklyReviewTest(unittest.TestCase):
             "text": "Monday 5 easy",
         },
     )
-    def test_reviewed_week_facts_refuse_future_plan_comparison(self, _load_weekly_plan) -> None:
+    def test_reviewed_week_facts_refuse_future_plan_comparison(
+        self, _load_weekly_plan, _weekly_plan_history_for_week
+    ) -> None:
         context = reviewed_week_facts_context(
             [_run("Easy Run", start_date_local="2026-05-25T06:00:00Z", miles=5)],
             datetime(2026, 5, 25).date(),
@@ -310,6 +324,36 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("Completed versus planned mileage: unavailable.", context)
 
     @patch(
+        "running_agent.weekly_review.weekly_plan_history_for_week",
+        return_value={
+            "week_start": "2026-05-25",
+            "updated_at": "2026-05-24T12:00:00+00:00",
+            "text": "Monday 5 easy",
+        },
+    )
+    @patch(
+        "running_agent.weekly_review.load_weekly_plan",
+        return_value={
+            "week_start": "2026-06-01",
+            "updated_at": "2026-05-31T12:00:00+00:00",
+            "text": "Monday 10 future",
+        },
+    )
+    def test_reviewed_week_facts_prefer_history_over_active_plan(
+        self, _load_weekly_plan, _weekly_plan_history_for_week
+    ) -> None:
+        context = reviewed_week_facts_context(
+            [_run("Easy Run", start_date_local="2026-05-25T06:00:00Z", miles=5)],
+            datetime(2026, 5, 25).date(),
+            datetime(2026, 5, 31).date(),
+        )
+
+        self.assertIn("Explicit planned mileage: 5.0 mi.", context)
+        self.assertIn("Completed minus explicit planned mileage: +0.0 mi.", context)
+        self.assertNotIn("10 future", context)
+
+    @patch("running_agent.weekly_review.weekly_plan_history_for_week", return_value=None)
+    @patch(
         "running_agent.weekly_review.load_weekly_plan",
         return_value={
             "week_start": "2026-05-25",
@@ -318,7 +362,7 @@ class WeeklyReviewTest(unittest.TestCase):
         },
     )
     def test_reviewed_week_facts_treat_ambiguous_plan_mileage_as_unavailable(
-        self, _load_weekly_plan
+        self, _load_weekly_plan, _weekly_plan_history_for_week
     ) -> None:
         context = reviewed_week_facts_context(
             [_run("Workout", start_date_local="2026-05-27T06:00:00Z", miles=7)],

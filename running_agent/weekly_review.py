@@ -19,6 +19,7 @@ from .plan_store import (
     parse_weekly_plan,
     planned_workout_for_date,
     weekly_plan_context_for_week,
+    weekly_plan_history_for_week,
 )
 from .strava_client import StravaClient
 from .weather_client import safe_enrich_activity_weather
@@ -41,9 +42,8 @@ def review_week(
     detailed_runs = weekly_quality_detail_context(client, activities, week_start, week_end)
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
-    recent_runs = (
-        f"{recent_runs}\n\n" f"{reviewed_week_facts_context(activities, week_start, week_end)}"
-    )
+    facts = reviewed_week_facts_context(activities, week_start, week_end)
+    recent_runs = f"{recent_runs}\n\n{facts}"
     garmin_context = safe_garmin_weekly_context(days=7)
     readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
     readiness_context = goal_readiness_context(readiness_snapshot)
@@ -77,7 +77,7 @@ def review_week(
             prompt,
             training_summary=summarize_training(activities, days=lookback_days),
             recent_runs=recent_runs,
-            weekly_plan=weekly_plan_context_for_week(week_start),
+            weekly_plan=weekly_plan_context_for_week(week_start, prefer_history=True),
             training_goal=training_goal_context(),
             goal_readiness=readiness_context,
             coach_log=coach_log_context(),
@@ -115,9 +115,8 @@ def weekly_coaching_message(
     detailed_runs = weekly_quality_detail_context(client, activities, week_start, week_end)
     if detailed_runs:
         recent_runs = f"{recent_runs}\n\nDetailed quality/long-run context:\n{detailed_runs}"
-    recent_runs = (
-        f"{recent_runs}\n\n" f"{reviewed_week_facts_context(activities, week_start, week_end)}"
-    )
+    facts = reviewed_week_facts_context(activities, week_start, week_end)
+    recent_runs = f"{recent_runs}\n\n{facts}"
     garmin_context = safe_garmin_weekly_context(days=7)
     readiness_snapshot = goal_readiness_snapshot(activities=activities, days=lookback_days)
     readiness_context = goal_readiness_context(readiness_snapshot)
@@ -279,7 +278,7 @@ def _activity_local_date(activity: dict[str, Any]) -> date | None:
 
 
 def _reviewed_week_planned_mileage(week_start: date) -> tuple[float | None, str]:
-    plan = load_weekly_plan()
+    plan = weekly_plan_history_for_week(week_start) or load_weekly_plan()
     if not plan:
         return None, "no saved reviewed-week plan."
     if plan.get("week_start") != week_start.isoformat():

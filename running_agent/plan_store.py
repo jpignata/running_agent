@@ -7,10 +7,11 @@ from typing import Any
 
 from .coach_time import coach_today
 from .storage import read_json_file, write_json_file
-from .storage_paths import WEEKLY_PLAN_PATH
+from .storage_paths import WEEKLY_PLAN_HISTORY_PATH, WEEKLY_PLAN_PATH
 from .time_format import human_datetime
 
 PLAN_PATH = WEEKLY_PLAN_PATH
+HISTORY_PATH = WEEKLY_PLAN_HISTORY_PATH
 WEEKDAYS = {
     "mon": "Monday",
     "monday": "Monday",
@@ -38,6 +39,7 @@ def save_weekly_plan(
     plan_text: str,
     path: Path = PLAN_PATH,
     week_start: str | date | None = None,
+    history_path: Path = HISTORY_PATH,
 ) -> dict[str, Any]:
     plan_text = plan_text.strip()
     if not plan_text:
@@ -51,12 +53,15 @@ def save_weekly_plan(
     if normalized_week_start:
         plan["week_start"] = normalized_week_start
     write_json_file(path, plan)
+    if normalized_week_start:
+        save_weekly_plan_history_snapshot(plan, path=history_path)
     return plan
 
 
 def update_weekly_plan_days(
     updates: dict[str, str],
     path: Path = PLAN_PATH,
+    history_path: Path = HISTORY_PATH,
 ) -> dict[str, Any]:
     normalized = _normalize_plan_updates(updates)
     if not normalized:
@@ -75,11 +80,58 @@ def update_weekly_plan_days(
         "\n".join(plan_lines),
         path=path,
         week_start=(existing or {}).get("week_start") if existing else None,
+        history_path=history_path,
     )
 
 
 def load_weekly_plan(path: Path = PLAN_PATH) -> dict[str, Any] | None:
     return read_json_file(path, default=None)
+
+
+def load_weekly_plan_history(path: Path = HISTORY_PATH) -> dict[str, Any]:
+    history = read_json_file(path, default={"plans": {}})
+    if not isinstance(history, dict):
+        return {"plans": {}}
+    plans = history.get("plans")
+    if not isinstance(plans, dict):
+        history["plans"] = {}
+    return history
+
+
+def save_weekly_plan_history_snapshot(
+    plan: dict[str, Any],
+    path: Path = HISTORY_PATH,
+) -> dict[str, Any]:
+    week_start = _normalize_week_start(plan.get("week_start"))
+    text = str(plan.get("text") or "").strip()
+    if not week_start or not text:
+        return load_weekly_plan_history(path)
+
+    snapshot = {
+        "week_start": week_start,
+        "updated_at": str(plan.get("updated_at") or datetime.now(timezone.utc).isoformat()),
+        "text": text,
+    }
+    history = load_weekly_plan_history(path)
+    history["plans"][week_start] = snapshot
+    write_json_file(path, history)
+    return history
+
+
+def weekly_plan_history_for_week(
+    target_week_start: date,
+    path: Path = HISTORY_PATH,
+) -> dict[str, Any] | None:
+    history = load_weekly_plan_history(path)
+    plan = history.get("plans", {}).get(target_week_start.isoformat())
+    if not isinstance(plan, dict):
+        return None
+    text = str(plan.get("text") or "").strip()
+    if not text:
+        return None
+    if plan.get("week_start") != target_week_start.isoformat():
+        return None
+    return plan
 
 
 def weekly_plan_context(path: Path = PLAN_PATH) -> str:
@@ -96,19 +148,24 @@ def weekly_plan_context(path: Path = PLAN_PATH) -> str:
     return f"Weekly plan, last updated {updated_at}:\n{text}"
 
 
-def weekly_plan_context_for_week(target_week_start: date, path: Path = PLAN_PATH) -> str:
-    plan = load_weekly_plan(path)
+def weekly_plan_context_for_week(
+    target_week_start: date,
+    path: Path = PLAN_PATH,
+    history_path: Path = HISTORY_PATH,
+    prefer_history: bool = False,
+) -> str:
+    active_plan = load_weekly_plan(path)
+    history_plan = weekly_plan_history_for_week(target_week_start, history_path)
+    candidates = [history_plan, active_plan] if prefer_history else [active_plan, history_plan]
+    plan = next(
+        (_plan for _plan in candidates if _plan_matches_week(_plan, target_week_start)), None
+    )
     if not plan:
-        return "No saved weekly plan for the target week."
-    text = plan.get("text", "").strip()
-    if not text:
-        return "No saved weekly plan for the target week."
-    week_start = plan.get("week_start")
-    if week_start != target_week_start.isoformat():
         return (
             f"No saved weekly plan explicitly applies to week starting "
             f"{target_week_start.isoformat()}."
         )
+    text = str(plan.get("text") or "").strip()
     updated_at = human_datetime(plan.get("updated_at"))
     return (
         f"Saved weekly plan for {_week_label(target_week_start)}, "
@@ -247,3 +304,11 @@ def _week_contains_date(week_start: str, target_date: date) -> bool:
     except ValueError:
         return False
     return parsed <= target_date <= parsed + timedelta(days=6)
+
+
+def _plan_matches_week(plan: dict[str, Any] | None, target_week_start: date) -> bool:
+    if not plan:
+        return False
+    if plan.get("week_start") != target_week_start.isoformat():
+        return False
+    return bool(str(plan.get("text") or "").strip())

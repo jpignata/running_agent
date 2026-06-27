@@ -158,12 +158,12 @@ Buildable slices:
 
 3. Add `.data/weekly_plan_history.json`.
    - Suggested shape:
-     `{ "plans": { "2026-06-08": { "week_start": "2026-06-08", "updated_at": "...", "text": "..." } } }`
-   - Keep it ignored/private like the other `.data/` files.
+     `{ "plans": { "2026-06-08": { "week_start": "2026-06-08", "updated_at": "...", "text": "..." } } }`. Done.
+   - Keep it ignored/private like the other `.data/` files. Done.
    - On `save_weekly_plan`, write both current plan and history when `week_start`
-     is known.
+     is known. Done.
    - On `update_weekly_plan_days`, update the current plan and refresh the matching
-     history snapshot.
+     history snapshot. Done.
 
 4. Backfill gently from current state.
    - If `.data/weekly_plan.json` has a `week_start`, treat it as one history
