@@ -63,15 +63,7 @@ Buildable slices:
      accidental report-style replies.
    - Add tests that scheduled prompt builders pass the intended caps.
 
-2. Route simple tasks to the small model.
-   - Keep JSON extraction and pending-question resolution on the small model. Done.
-   - Add a low-risk small-model path for simple factual/status replies that do
-     not need broad reasoning or tools. Done for read-only goal, plan, and
-     remembered-preference readbacks, with escalation back to the full model.
-   - Preserve the full model for complex coaching, planning, race/pace analysis,
-     image understanding, and tool-heavy turns.
-
-3. Narrow tool sets by interaction intent.
+2. Narrow tool sets by interaction intent.
    - Send plan-edit tools only for likely plan updates.
    - Send Garmin tools only for recovery/readiness/sleep questions.
    - Send race-result and local-run detail tools only for race, pace, split, or
@@ -79,24 +71,19 @@ Buildable slices:
    - Keep the default conversational tool set small enough that tool selection is
      fast and predictable.
 
-4. Improve prompt-cache friendliness.
+3. Improve prompt-cache friendliness.
    - Keep stable coaching instructions, rubrics, and tool schemas in consistent
      order.
    - Move highly dynamic context such as current date, athlete message, recent
      runs, Garmin, weather, and conversation later in the input where practical.
-   - Add a lightweight prompt-size diagnostic for debug mode so changes can be
-     evaluated before they hit production. Done.
 
-5. Convert JSON-only model calls to structured outputs.
+4. Convert JSON-only model calls to structured outputs.
    - Use structured output schemas for post-run feedback normalization and
      pending-question resolution.
    - Keep local cleanup as a defensive fallback, but stop relying on "return only
      JSON" as the primary contract.
 
-6. Trim accumulated global instructions.
-   - Replace the full always-on coaching philosophy reference with a compact
-     prompt summary while preserving the full file as documentation/reference.
-     Done.
+5. Trim accumulated global instructions.
    - Move rare, domain-specific rules closer to the relevant route or tool
      descriptions.
    - Keep the main coaching stance compact: role, evidence discipline, plan/date
@@ -142,36 +129,13 @@ only for forward guidance.
 
 Buildable slices:
 
-1. Add strict week matching in weekly review.
-   - Use a reviewed-week plan only if `week_start == reviewed_week_start`. Done.
-   - Use the target-week plan only for next-week guidance. Done.
-   - If no reviewed-week plan exists, tell the model that explicitly. Done.
-   - Add tests where the current saved plan is for next week and must not be used
-     to judge the completed week. Done.
-
-2. Add deterministic weekly-review facts.
-   - Compute completed mileage for the reviewed Monday-Sunday window. Done.
-   - Estimate planned mileage from explicit plan miles when a matching plan exists. Done.
-   - Include planned/completed/delta only when the plan is for the reviewed week. Done.
-   - Tell the model not to use words like "only," "under plan," or "missed" unless
-     those claims are supported by the deterministic facts. Done.
-
-3. Add `.data/weekly_plan_history.json`.
-   - Suggested shape:
-     `{ "plans": { "2026-06-08": { "week_start": "2026-06-08", "updated_at": "...", "text": "..." } } }`. Done.
-   - Keep it ignored/private like the other `.data/` files. Done.
-   - On `save_weekly_plan`, write both current plan and history when `week_start`
-     is known. Done.
-   - On `update_weekly_plan_days`, update the current plan and refresh the matching
-     history snapshot. Done.
-
-4. Backfill gently from current state.
+1. Backfill gently from current state.
    - If `.data/weekly_plan.json` has a `week_start`, treat it as one history
      snapshot.
    - Do not try to infer old plans from conversation or Strava.
    - Existing coach-log run snapshots remain useful partial evidence.
 
-5. Update weekly review prompt/context.
+2. Update weekly review prompt/context.
    - Provide separate fields/sections for:
      reviewed-week plan,
      reviewed-week deterministic facts,
@@ -181,9 +145,7 @@ Buildable slices:
      athlete was over/under the plan; judge from completed runs and say plan
      comparison is unavailable.
 
-6. Add tests and evals.
-   - Unit tests for history save/update/read.
-   - Weekly review test where reviewed-week plan and target-week plan differ.
+3. Add regression evals.
    - Regression eval for "next week's plan saved early" so the review does not
      compare completed runs against a future plan.
 
