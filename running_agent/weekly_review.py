@@ -73,14 +73,17 @@ def review_week(
     )
 
     try:
+        reviewed_week_plan = weekly_plan_context_for_week(week_start, prefer_history=True)
         review = coaching_reply(
             prompt,
             training_summary=summarize_training(activities, days=lookback_days),
             recent_runs=recent_runs,
-            weekly_plan=weekly_plan_context_for_week(week_start, prefer_history=True),
+            weekly_plan=_review_context_sections(
+                reviewed_week_plan=reviewed_week_plan,
+            ),
             training_goal=training_goal_context(),
             goal_readiness=readiness_context,
-            coach_log=coach_log_context(),
+            coach_log=_labeled_section("Coach log", coach_log_context()),
             garmin_context=garmin_context,
             tools_enabled=False,
         )
@@ -141,7 +144,9 @@ def weekly_coaching_message(
         "its readiness bucket unless the week's evidence clearly changes the interpretation, and "
         "do not say the athlete is on track, behind, or missing the goal unless the snapshot and "
         "completed week support that. "
-        "If the weekly plan context says there is a saved weekly plan for the target week, recap "
+        "Use the labeled reviewed-week plan only to judge the completed week. Use the labeled "
+        "target-week plan only for forward guidance. If the target-week plan section says there "
+        "is a saved weekly plan for the target week, recap "
         "that saved plan instead of suggesting a different one. In that case, explain briefly why "
         "it fits or what to watch, but do not replace it. If there is no saved target-week plan, transition "
         "naturally into a specific Monday-through-Sunday plan. Any new suggested plan must "
@@ -155,14 +160,19 @@ def weekly_coaching_message(
         "Keep it plain text, conversational, and concise."
     )
 
+    reviewed_week_plan = weekly_plan_context_for_week(week_start, prefer_history=True)
+    target_week_plan = weekly_plan_context_for_week(target_week_start)
     message = coaching_reply(
         prompt,
         training_summary=summarize_training(activities, days=lookback_days),
         recent_runs=recent_runs,
-        weekly_plan=weekly_plan_context_for_week(target_week_start),
+        weekly_plan=_review_context_sections(
+            reviewed_week_plan=reviewed_week_plan,
+            target_week_plan=target_week_plan,
+        ),
         training_goal=training_goal_context(),
         goal_readiness=readiness_context,
-        coach_log=coach_log_context(),
+        coach_log=_labeled_section("Coach log", coach_log_context()),
         garmin_context=garmin_context,
         tools_enabled=False,
     )
@@ -183,6 +193,21 @@ def weekly_coaching_message(
 
 def current_week_start(today: date) -> date:
     return today - timedelta(days=today.weekday())
+
+
+def _review_context_sections(
+    *,
+    reviewed_week_plan: str,
+    target_week_plan: str | None = None,
+) -> str:
+    sections = [_labeled_section("Reviewed-week plan", reviewed_week_plan)]
+    if target_week_plan is not None:
+        sections.append(_labeled_section("Target-week plan", target_week_plan))
+    return "\n\n".join(sections)
+
+
+def _labeled_section(title: str, body: str) -> str:
+    return f"{title}:\n{body}"
 
 
 def reviewed_week_facts_context(

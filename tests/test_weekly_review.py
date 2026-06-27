@@ -55,12 +55,12 @@ class WeeklyReviewTest(unittest.TestCase):
 
         self.assertEqual(review, "Good week. Keep it controlled.")
         kwargs = coaching_reply.call_args.kwargs
-        self.assertEqual(kwargs["weekly_plan"], "Weekly plan")
+        self.assertEqual(kwargs["weekly_plan"], "Reviewed-week plan:\nWeekly plan")
         self.assertIn("Reviewed-week deterministic facts:", kwargs["recent_runs"])
         self.assertIn("Completed synced mileage in reviewed window: 5.0 mi.", kwargs["recent_runs"])
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
-        self.assertEqual(kwargs["coach_log"], "Coach log")
+        self.assertEqual(kwargs["coach_log"], "Coach log:\nCoach log")
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly")
         self.assertFalse(kwargs["tools_enabled"])
         goal_readiness_snapshot.assert_called_once()
@@ -125,7 +125,10 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch(
         "running_agent.weekly_review.weekly_plan_context_for_week",
-        return_value="Saved weekly plan for target week starting 2026-06-01:\nMonday 5 easy",
+        side_effect=[
+            "Saved reviewed-week plan:\nMonday 5 easy",
+            "Saved target-week plan:\nMonday 6 easy",
+        ],
     )
     @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
     @patch(
@@ -157,7 +160,8 @@ class WeeklyReviewTest(unittest.TestCase):
         kwargs = coaching_reply.call_args.kwargs
         self.assertEqual(
             kwargs["weekly_plan"],
-            "Saved weekly plan for target week starting 2026-06-01:\nMonday 5 easy",
+            "Reviewed-week plan:\nSaved reviewed-week plan:\nMonday 5 easy\n\n"
+            "Target-week plan:\nSaved target-week plan:\nMonday 6 easy",
         )
         self.assertIn("Reviewed-week deterministic facts:", kwargs["recent_runs"])
         self.assertIn("Completed versus planned mileage: unavailable.", kwargs["recent_runs"])
@@ -168,8 +172,23 @@ class WeeklyReviewTest(unittest.TestCase):
         goal_readiness_context.assert_called_once_with({"snapshot": True})
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("recap that saved plan instead of suggesting a different one", prompt)
+        self.assertIn("Use the labeled reviewed-week plan only", prompt)
+        self.assertIn("Use the labeled target-week plan only", prompt)
         self.assertIn("deterministic goal-readiness snapshot", prompt)
         self.assertIn("reviewed-week deterministic facts", prompt)
+        self.assertEqual(
+            _weekly_plan_context_for_week.call_args_list[0].args,
+            (datetime(2026, 5, 25).date(),),
+        )
+        self.assertEqual(
+            _weekly_plan_context_for_week.call_args_list[0].kwargs,
+            {"prefer_history": True},
+        )
+        self.assertEqual(
+            _weekly_plan_context_for_week.call_args_list[1].args,
+            (datetime(2026, 6, 1).date(),),
+        )
+        self.assertEqual(_weekly_plan_context_for_week.call_args_list[1].kwargs, {})
         append_week_review.assert_called_once_with(
             week_start="2026-05-25",
             week_end="2026-05-31",

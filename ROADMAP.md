@@ -129,17 +129,7 @@ only for forward guidance.
 
 Buildable slices:
 
-1. Update weekly review prompt/context.
-   - Provide separate fields/sections for:
-     reviewed-week plan,
-     reviewed-week deterministic facts,
-     target-week plan,
-     coach log.
-   - Make the prompt say: if reviewed-week plan is missing, do not claim the
-     athlete was over/under the plan; judge from completed runs and say plan
-     comparison is unavailable.
-
-2. Add regression evals.
+1. Add regression evals.
    - Regression eval for "next week's plan saved early" so the review does not
      compare completed runs against a future plan.
 
