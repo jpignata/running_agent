@@ -55,8 +55,19 @@ class GarminContextTest(unittest.TestCase):
                 "training_readiness": {
                     "available": True,
                     "data": [
-                        {"timestampLocal": "2026-05-30T07:00:00", "score": 74, "level": "MODERATE"},
-                        {"timestampLocal": "2026-05-30T11:00:00", "score": 34, "level": "LOW"},
+                        {
+                            "timestampLocal": "2026-05-30T07:00:00",
+                            "score": 74,
+                            "level": "MODERATE",
+                            "recoveryTime": 60,
+                        },
+                        {
+                            "timestampLocal": "2026-05-30T11:00:00",
+                            "score": 34,
+                            "level": "LOW",
+                            "recoveryTime": 390,
+                            "recoveryTimeFactorFeedback": "POOR",
+                        },
                     ],
                 },
                 "training_status": {
@@ -87,6 +98,7 @@ class GarminContextTest(unittest.TestCase):
         self.assertIn("Stress: avg 31, max 74.", context)
         self.assertIn("Body Battery: latest 82, high 82, low 40.", context)
         self.assertIn("Training readiness: 34, LOW.", context)
+        self.assertIn("Recovery time: 6h 30m, Poor.", context)
         self.assertIn("Training status: Productive 3.", context)
         self.assertIn("VO2 max: 55.3.", context)
 
@@ -275,6 +287,7 @@ class GarminContextTest(unittest.TestCase):
                 battery_low=28,
                 sleep_hours=5.5,
                 nap_hours=0.0,
+                recovery_minutes=120,
                 vo2=51.8,
             ),
             _snapshot(
@@ -288,6 +301,7 @@ class GarminContextTest(unittest.TestCase):
                 battery_low=42,
                 sleep_hours=7.0,
                 nap_hours=0.5,
+                recovery_minutes=240,
                 vo2=51.9,
             ),
             _snapshot(
@@ -301,6 +315,7 @@ class GarminContextTest(unittest.TestCase):
                 battery_low=35,
                 sleep_hours=5.8,
                 nap_hours=1.0,
+                recovery_minutes=360,
                 vo2=52.0,
             ),
         ]
@@ -308,6 +323,7 @@ class GarminContextTest(unittest.TestCase):
 
         self.assertIn("Garmin recovery context, last 3 days:", context)
         self.assertIn("Training readiness: avg 44, low days 2, latest 38 (Low).", context)
+        self.assertIn("Recovery time: avg 4h 00m, latest 6h 00m.", context)
         self.assertIn("HRV: avg 43 ms, latest 43 ms (Low).", context)
         self.assertIn("Resting HR: avg 46 bpm, latest 46 bpm.", context)
         self.assertIn("Stress: avg 39, high-stress days 2.", context)
@@ -346,6 +362,7 @@ class GarminContextTest(unittest.TestCase):
                     battery_low=28,
                     sleep_hours=5.5,
                     nap_hours=0.0,
+                    recovery_minutes=120,
                     vo2=51.8,
                 ),
                 _snapshot(
@@ -359,6 +376,7 @@ class GarminContextTest(unittest.TestCase):
                     battery_low=42,
                     sleep_hours=7.0,
                     nap_hours=0.5,
+                    recovery_minutes=240,
                     vo2=51.9,
                 ),
                 _snapshot(
@@ -372,6 +390,7 @@ class GarminContextTest(unittest.TestCase):
                     battery_low=35,
                     sleep_hours=5.8,
                     nap_hours=1.0,
+                    recovery_minutes=360,
                     vo2=52.0,
                 ),
             ],
@@ -385,6 +404,7 @@ class GarminContextTest(unittest.TestCase):
         self.assertIn("Stress: typical 31-44, median 41.", context)
         self.assertIn("Body Battery low: typical 28-42, median 35.", context)
         self.assertIn("Training readiness: typical 32-62, median 38.", context)
+        self.assertIn("Recovery time: typical 2h 00m-6h 00m, median 4h 00m.", context)
 
     def test_format_garmin_baseline_context_uses_middle_range_for_larger_samples(self) -> None:
         context = format_garmin_baseline_context(
@@ -422,13 +442,21 @@ def _snapshot(
     battery_low: int,
     sleep_hours: float,
     nap_hours: float = 0.0,
+    recovery_minutes: float = 0.0,
     vo2: float = 52.0,
 ) -> dict:
     return {
         "date": date,
         "training_readiness": {
             "available": True,
-            "data": [{"timestampLocal": f"{date}T07:00:00", "score": readiness, "level": level}],
+            "data": [
+                {
+                    "timestampLocal": f"{date}T07:00:00",
+                    "score": readiness,
+                    "level": level,
+                    "recoveryTime": recovery_minutes,
+                }
+            ],
         },
         "hrv": {
             "available": True,

@@ -79,6 +79,7 @@ def format_garmin_weekly_context(
     body_battery_lows: list[float] = []
     sleep_hours: list[float] = []
     nap_seconds_values: list[float] = []
+    recovery_minutes: list[float] = []
     vo2_values: list[float] = []
 
     for snapshot in snapshots:
@@ -89,6 +90,9 @@ def format_garmin_weekly_context(
             readiness_scores.append(score)
         if level:
             readiness_levels.append(_humanize_status(level))
+        recovery_time = _recovery_time_minutes(readiness)
+        if recovery_time is not None:
+            recovery_minutes.append(recovery_time)
 
         hrv = _data(snapshot, "hrv")
         if isinstance(hrv, dict):
@@ -153,6 +157,12 @@ def format_garmin_weekly_context(
         )
     else:
         lines.append("Training readiness: unavailable.")
+    if recovery_minutes:
+        lines.append(
+            "Recovery time: "
+            f"avg {_duration_from_minutes(_mean(recovery_minutes))}, "
+            f"latest {_duration_from_minutes(recovery_minutes[-1])}."
+        )
 
     if hrv_values:
         line = f"HRV: avg {_mean(hrv_values):.0f} ms, latest {hrv_values[-1]:.0f} ms"
@@ -217,6 +227,7 @@ def format_garmin_readiness_context(
             _stress_line(_data(snapshot, "stress")),
             _body_battery_line(_data(snapshot, "body_battery"), _data(snapshot, "stats")),
             _training_readiness_line(_data(snapshot, "training_readiness")),
+            _recovery_time_line(_data(snapshot, "training_readiness")),
             _training_status_line(_data(snapshot, "training_status")),
             _vo2_line(_data(snapshot, "vo2max")),
         ]
@@ -245,6 +256,7 @@ def format_garmin_baseline_context(snapshots: list[dict[str, Any]]) -> str:
     _append_baseline_line(lines, "Stress", metrics.get("stress"), "")
     _append_baseline_line(lines, "Body Battery low", metrics.get("body_battery_low"), "")
     _append_baseline_line(lines, "Training readiness", metrics.get("readiness"), "")
+    _append_duration_baseline_line(lines, "Recovery time", metrics.get("recovery_minutes"))
     return "\n".join(lines)
 
 
@@ -271,6 +283,7 @@ def _baseline_metrics(snapshots: list[dict[str, Any]]) -> dict[str, list[float]]
         "stress": [],
         "body_battery_low": [],
         "readiness": [],
+        "recovery_minutes": [],
     }
     for snapshot in snapshots:
         sleep_seconds = _sleep_seconds(_data(snapshot, "sleep"))
@@ -321,6 +334,9 @@ def _baseline_metrics(snapshots: list[dict[str, Any]]) -> dict[str, list[float]]
         score = _first_number(readiness, ["score", "trainingReadinessScore"])
         if score is not None:
             metrics["readiness"].append(score)
+        recovery_time = _recovery_time_minutes(readiness)
+        if recovery_time is not None:
+            metrics["recovery_minutes"].append(recovery_time)
 
     return {key: values for key, values in metrics.items() if values}
 
@@ -339,6 +355,21 @@ def _append_baseline_line(
     lines.append(
         f"{label}: typical {_format_number(low, decimals)}-{_format_number(high, decimals)}"
         f"{unit}, median {_format_number(median, decimals)}{unit}."
+    )
+
+
+def _append_duration_baseline_line(
+    lines: list[str],
+    label: str,
+    values: list[float] | None,
+) -> None:
+    if not values:
+        return
+    low, high = _typical_range(values)
+    median = _median(values)
+    lines.append(
+        f"{label}: typical {_duration_from_minutes(low)}-{_duration_from_minutes(high)}, "
+        f"median {_duration_from_minutes(median)}."
     )
 
 
@@ -466,6 +497,24 @@ def _training_readiness_line(data: Any) -> str:
     if level:
         return f"Training readiness: {level}."
     return "Training readiness: available, no summary fields found."
+
+
+def _recovery_time_line(data: Any) -> str:
+    if isinstance(data, list):
+        data = _latest_dict(data)
+    if not isinstance(data, dict):
+        return "Recovery time: unavailable."
+    minutes = _recovery_time_minutes(data)
+    feedback = _first_string(
+        data,
+        ["recoveryTimeFactorFeedback", "recoveryTimeChangePhrase"],
+    )
+    if minutes is None:
+        return "Recovery time: available, no summary fields found."
+    line = f"Recovery time: {_duration_from_minutes(minutes)}"
+    if feedback:
+        line += f", {_humanize_status(feedback)}"
+    return line + "."
 
 
 def _training_status_line(data: Any) -> str:
@@ -625,6 +674,18 @@ def _duration(seconds: float) -> str:
     hours, remainder = divmod(seconds, 3600)
     minutes = remainder // 60
     return f"{hours}h {minutes:02d}m"
+
+
+def _duration_from_minutes(minutes: float) -> str:
+    minutes = int(round(minutes))
+    hours, remainder = divmod(minutes, 60)
+    return f"{hours}h {remainder:02d}m"
+
+
+def _recovery_time_minutes(data: Any) -> float | None:
+    if not isinstance(data, dict):
+        return None
+    return _first_number(data, ["recoveryTime", "recoveryTimeMinutes"])
 
 
 def _first_number(data: dict[str, Any], keys: list[str]) -> float | None:
