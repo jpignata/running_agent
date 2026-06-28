@@ -52,6 +52,7 @@ class CoachAgentTest(unittest.TestCase):
         self.assertNotIn("/setgoal <goal> -", text)
         self.assertNotIn("/preference <note> -", text)
         self.assertNotIn("/feedback RPE", text)
+        self.assertNotIn("/weeknote", text)
         self.assertNotIn("/garmin -", text)
         self.assertNotIn("/garminweek -", text)
         self.assertNotIn("/tick -", text)
@@ -136,6 +137,34 @@ class CoachAgentTest(unittest.TestCase):
         replies = agent.handle_message("/feedback")
 
         self.assertIn("RPE 6, legs heavy, no pain", replies[0])
+
+    @patch("running_agent.coach_agent.append_weekly_note")
+    def test_week_note_command_saves_plain_text_note(self, append_weekly_note) -> None:
+        append_weekly_note.return_value = {
+            "week_start": "2026-06-22",
+            "note": "moved long run to Sunday because I woke up tired",
+        }
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        replies = agent.handle_message("/weeknote moved long run to Sunday because I woke up tired")
+
+        append_weekly_note.assert_called_once_with(
+            "moved long run to Sunday because I woke up tired"
+        )
+        self.assertEqual(
+            replies,
+            [
+                "Saved this note for week starting 2026-06-22:\n"
+                "moved long run to Sunday because I woke up tired"
+            ],
+        )
+
+    def test_week_note_command_requires_note_text(self) -> None:
+        agent = CoachAgent(strava_client=_FakeStrava())
+
+        replies = agent.handle_message("/weeknote")
+
+        self.assertIn("moved the long run to Sunday", replies[0])
 
     def test_setplan_drafts_plan_for_approval_before_saving(self) -> None:
         state: dict = {}

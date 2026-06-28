@@ -23,6 +23,7 @@ from .plan_store import (
 )
 from .strava_client import StravaClient
 from .weather_client import safe_enrich_activity_weather
+from .weekly_notes import weekly_notes_context
 from .workout_classifier import classify_workout
 
 DETAIL_RUN_LIMIT = 4
@@ -83,7 +84,7 @@ def review_week(
             ),
             training_goal=training_goal_context(),
             goal_readiness=readiness_context,
-            coach_log=_labeled_section("Coach log", coach_log_context()),
+            coach_log=_weekly_review_notes_and_log_context(week_start),
             garmin_context=garmin_context,
             tools_enabled=False,
         )
@@ -172,7 +173,7 @@ def weekly_coaching_message(
         ),
         training_goal=training_goal_context(),
         goal_readiness=readiness_context,
-        coach_log=_labeled_section("Coach log", coach_log_context()),
+        coach_log=_weekly_review_notes_and_log_context(week_start),
         garmin_context=garmin_context,
         tools_enabled=False,
     )
@@ -208,6 +209,15 @@ def _review_context_sections(
 
 def _labeled_section(title: str, body: str) -> str:
     return f"{title}:\n{body}"
+
+
+def _weekly_review_notes_and_log_context(week_start: date) -> str:
+    return "\n\n".join(
+        [
+            _labeled_section("Athlete weekly notes", weekly_notes_context(week_start)),
+            _labeled_section("Coach log", coach_log_context()),
+        ]
+    )
 
 
 def reviewed_week_facts_context(

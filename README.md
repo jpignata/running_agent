@@ -41,6 +41,7 @@ Runtime data lives under `.data/`, which is ignored by git:
 - `.data/training_goal.json` - the current saved training goal.
 - `.data/athlete_profile.txt` - remembered coaching notes.
 - `.data/coach_log.jsonl` - compact planned-versus-completed run outcomes.
+- `.data/weekly_notes.jsonl` - plain-text athlete notes for the current training week.
 - `.data/coach_reflection.json` - the coach's private current training state.
 - `.data/goal_readiness_history.json` - compact weekly goal-readiness snapshots.
 - `.data/pace_calibration.json` - current working VDOT and training pace calibration.
@@ -80,6 +81,8 @@ The coach builds replies from local context instead of treating each message as 
 - The current working VDOT and training pace calibration in `.data/pace_calibration.json`.
 - The local coach log in `.data/coach_log.jsonl`, which records planned-versus-completed
   run outcomes.
+- Plain-text weekly notes in `.data/weekly_notes.jsonl`, such as workout moves, fatigue,
+  travel, or other context the athlete wants included in the next weekly review.
 - Synced local Strava activity history in `.data/strava/`, with compact run summaries
   and per-activity detail files for lap/split lookup.
 - Cached Garmin snapshots in `.data/garmin_snapshots.json`, including baseline ranges for
@@ -333,6 +336,13 @@ store that in `.data/athlete_profile.txt`, and use it in future coaching.
 The same model-tool pattern is available for goals. If you say something like
 `my main goal is Boston on Oct 12, ideally 3:10`, the model may rewrite the saved goal in
 `.data/training_goal.json` so future coaching uses the updated target.
+
+Use `/weeknote` for free-text context that should matter in the next weekly review, without
+turning it into a permanent preference:
+
+```text
+/weeknote moved the long run to Sunday because I woke up tired
+```
 
 Weekly plans can also be drafted through natural chat. If you say something like
 `here is my plan for next week`, the bot repeats back its plain-text interpretation and asks

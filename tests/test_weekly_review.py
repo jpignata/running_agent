@@ -27,6 +27,10 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
     @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
+    @patch(
+        "running_agent.weekly_review.weekly_notes_context",
+        return_value="No athlete notes were saved for the reviewed week.",
+    )
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch("running_agent.weekly_review.weekly_plan_context_for_week", return_value="Weekly plan")
     @patch("running_agent.weekly_review.weekly_quality_detail_context", return_value="")
@@ -39,6 +43,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_quality_detail_context,
         weekly_plan_context_for_week,
         _training_goal_context,
+        _weekly_notes_context,
         _coach_log_context,
         goal_readiness_snapshot,
         goal_readiness_context,
@@ -60,7 +65,9 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("Completed synced mileage in reviewed window: 5.0 mi.", kwargs["recent_runs"])
         self.assertEqual(kwargs["training_goal"], "Goal")
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
-        self.assertEqual(kwargs["coach_log"], "Coach log:\nCoach log")
+        self.assertIn("Athlete weekly notes:", kwargs["coach_log"])
+        self.assertIn("No athlete notes were saved for the reviewed week.", kwargs["coach_log"])
+        self.assertIn("Coach log:\nCoach log", kwargs["coach_log"])
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly")
         self.assertFalse(kwargs["tools_enabled"])
         goal_readiness_snapshot.assert_called_once()
@@ -122,6 +129,10 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
     @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
+    @patch(
+        "running_agent.weekly_review.weekly_notes_context",
+        return_value="Athlete notes for reviewed week:\n- moved long run to Sunday",
+    )
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch(
         "running_agent.weekly_review.weekly_plan_context_for_week",
@@ -141,6 +152,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_quality_detail_context,
         _weekly_plan_context_for_week,
         _training_goal_context,
+        _weekly_notes_context,
         _coach_log_context,
         goal_readiness_snapshot,
         goal_readiness_context,
@@ -166,6 +178,9 @@ class WeeklyReviewTest(unittest.TestCase):
         self.assertIn("Reviewed-week deterministic facts:", kwargs["recent_runs"])
         self.assertIn("Completed versus planned mileage: unavailable.", kwargs["recent_runs"])
         self.assertEqual(kwargs["goal_readiness"], "Readiness")
+        self.assertIn("Athlete weekly notes:", kwargs["coach_log"])
+        self.assertIn("moved long run to Sunday", kwargs["coach_log"])
+        self.assertIn("Coach log:\nCoach log", kwargs["coach_log"])
         self.assertFalse(kwargs["tools_enabled"])
         goal_readiness_snapshot.assert_called_once()
         self.assertEqual(goal_readiness_snapshot.call_args.kwargs["days"], 42)
@@ -207,6 +222,7 @@ class WeeklyReviewTest(unittest.TestCase):
     @patch("running_agent.weekly_review.goal_readiness_context", return_value="Readiness")
     @patch("running_agent.weekly_review.goal_readiness_snapshot", return_value={"snapshot": True})
     @patch("running_agent.weekly_review.coach_log_context", return_value="Coach log")
+    @patch("running_agent.weekly_review.weekly_notes_context", return_value="No notes")
     @patch("running_agent.weekly_review.training_goal_context", return_value="Goal")
     @patch(
         "running_agent.weekly_review.weekly_plan_context_for_week", return_value="No target plan"
@@ -219,6 +235,7 @@ class WeeklyReviewTest(unittest.TestCase):
         _weekly_quality_detail_context,
         _weekly_plan_context_for_week,
         _training_goal_context,
+        _weekly_notes_context,
         _coach_log_context,
         _goal_readiness_snapshot,
         _goal_readiness_context,

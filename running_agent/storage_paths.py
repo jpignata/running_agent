@@ -19,6 +19,7 @@ STRAVA_DETAILS_DIR = DATA_DIR / "strava" / "details"
 TRAINING_GOAL_PATH = DATA_DIR / "training_goal.json"
 WEEKLY_PLAN_PATH = DATA_DIR / "weekly_plan.json"
 WEEKLY_PLAN_HISTORY_PATH = DATA_DIR / "weekly_plan_history.json"
+WEEKLY_NOTES_PATH = DATA_DIR / "weekly_notes.jsonl"
 
 
 def prepare_parent(path: Path) -> None:

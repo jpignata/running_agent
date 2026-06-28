@@ -58,6 +58,7 @@ from .run_summary import run_summary_for_date
 from .strava_client import StravaClient
 from .strava_sync import save_synced_run_detail, sync_strava_runs
 from .weather_client import safe_enrich_activity_weather
+from .weekly_notes import append_weekly_note
 from .weekly_review import current_week_start, weekly_coaching_message
 
 DEFAULT_LOOKBACK_DAYS = 28
@@ -129,6 +130,13 @@ COMMANDS = (
         "_feedback_command",
         show_in_help=False,
         usage="/feedback RPE 6, legs heavy, pain none, notes faded late",
+    ),
+    Command(
+        ("/weeknote", "/weeklynote", "/weekly-note"),
+        "save a plain-text note for this training week",
+        "_week_note_command",
+        show_in_help=False,
+        usage="/weeknote moved long run to Sunday because I woke up tired",
     ),
     Command(
         ("/garmin",),
@@ -281,6 +289,9 @@ class CoachAgent:
 
     def _feedback_command(self, text: str, _command: str) -> list[str]:
         return [self._save_post_run_feedback_from_message(text)]
+
+    def _week_note_command(self, text: str, command: str) -> list[str]:
+        return [self._save_weekly_note_from_message(text, command)]
 
     def _garmin_command(self, _text: str, _command: str) -> list[str]:
         return [current_garmin_context()]
@@ -784,6 +795,16 @@ class CoachAgent:
         if not feedback_text:
             return "Send post-run feedback like:\n" "RPE 6, legs heavy, no pain, faded late"
         return self._save_post_run_feedback_from_text(feedback_text)
+
+    def _save_weekly_note_from_message(self, text: str, command: str) -> str:
+        note = text[len(command) :].strip()
+        if not note:
+            return (
+                "Send a weekly note like:\n"
+                "/weeknote moved the long run to Sunday because I woke up tired."
+            )
+        entry = append_weekly_note(note)
+        return f"Saved this note for week starting {entry['week_start']}:\n{entry['note']}"
 
     def _save_post_run_feedback_from_text(self, feedback_text: str) -> str:
         try:
