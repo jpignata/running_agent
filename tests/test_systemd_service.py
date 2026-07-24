@@ -79,8 +79,9 @@ class SystemdServiceTest(unittest.TestCase):
                 start=False,
             )
 
+            expected_python = project_dir.resolve() / ".venv" / "bin" / "python"
             self.assertIn(
-                f"ExecStart={venv_python} -m running_agent telegram",
+                f"ExecStart={expected_python} -m running_agent telegram",
                 service_path.read_text(encoding="utf-8"),
             )
             run_systemctl.assert_not_called()

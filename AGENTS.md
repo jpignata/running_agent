@@ -39,15 +39,24 @@ summaries.
 
 ## Setup
 
-- Activate the project virtualenv before running commands:
+- This project uses `uv` to create and sync the local `.venv`. Do not add or rely on
+  `.python-version`/`pyenv` for project setup.
+
+- Create or update the project virtualenv:
 
 ```bash
-source .venv/bin/activate
+uv sync --managed-python
 ```
 
-- After activation, use `python` for project commands. If `python` is not available,
-  fix the shell/virtualenv setup rather than changing project docs or examples to
-  use `.venv/bin/python` or `python3`.
+- Run project commands through `uv` instead of activating the shell:
+
+```bash
+uv run python -m running_agent me
+```
+
+- If that fails because `python` is not available, rerun `uv sync --managed-python`
+  and fix the virtualenv setup rather than changing project docs or examples to use
+  `.venv/bin/python` or `python3`.
 
 ## Local Service Workflow
 
@@ -73,13 +82,13 @@ journalctl --user -u running-agent-telegram.service -f
 ## Useful Commands
 
 ```bash
-python -m unittest discover -s tests
-python -m compileall running_agent tests
-python -m running_agent auth-url
-python -m running_agent me
-python -m running_agent repl
-python -m running_agent telegram
-python -m running_agent install-telegram-service
+uv run python -m unittest discover -s tests
+uv run python -m compileall running_agent tests
+uv run python -m running_agent auth-url
+uv run python -m running_agent me
+uv run python -m running_agent repl
+uv run python -m running_agent telegram
+uv run python -m running_agent install-telegram-service
 ```
 
 ## Data Model Notes
@@ -101,7 +110,7 @@ python -m running_agent install-telegram-service
   - `.data/weekly_notes.jsonl` is the source for free-text athlete notes used in weekly reviews.
   - `.data/run_feedback.jsonl` is the source for athlete subjective feedback.
   - `.data/state.json` is ephemeral operational bot state only.
-  - `.data/run_memory.json` is a disposable derived index; rebuild or validate it with `python -m running_agent run-memory --validate` instead of treating it as authoritative.
+  - `.data/run_memory.json` is a disposable derived index; rebuild or validate it with `uv run python -m running_agent run-memory --validate` instead of treating it as authoritative.
 - Keep `.env` and `.strava_tokens.json` separate from `.data/`.
 - Weekly plans are plain text, but parsed by weekday.
 - Races should be explicitly marked in the weekly plan, for example `Saturday 5K race`.

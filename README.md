@@ -15,7 +15,7 @@ Built with Codex.
 
 ### Runtime Behavior
 
-When `python -m running_agent telegram` is running, the bot:
+When `uv run python -m running_agent telegram` is running, the bot:
 
 - Polls Telegram for chat messages and slash commands.
 - Shows Telegram's typing indicator while generating direct chat replies.
@@ -102,7 +102,7 @@ The Strava integration has two paths:
 Backfill the local store with:
 
 ```bash
-python -m running_agent sync-strava --days 365
+uv run python -m running_agent sync-strava --days 365
 ```
 
 That command saves run summaries to `.data/strava/activities.json` and detailed activity
@@ -112,7 +112,7 @@ JSON when a new run appears, so the local store stays warm over time.
 Check local Strava store freshness and missing detailed activities with:
 
 ```bash
-python -m running_agent strava-store-health
+uv run python -m running_agent strava-store-health
 ```
 
 This command only reads local files. It reports the last local summary-store update,
@@ -127,7 +127,7 @@ or coaching replies.
 Regenerate the coach's private training state and working pace calibration with:
 
 ```bash
-python -m running_agent reflect --days 42
+uv run python -m running_agent reflect --days 42
 ```
 
 That command rewrites `.data/coach_reflection.json` from recent Strava, Garmin, plan, goal,
@@ -138,14 +138,14 @@ The Telegram scheduler refreshes them once per day after 7:00pm Eastern.
 When you ask a natural-language question like `what were the splits from my track workout
 last week?`, the model can call local lookup tools to search synced runs and load detailed
 lap data. These tools do not call Strava directly; if a run has not been synced locally, run
-`python -m running_agent sync-strava --days 365`.
+`uv run python -m running_agent sync-strava --days 365`.
 
 Weekly reviews use `.data/weekly_plan_history.json` when a reviewed-week snapshot exists,
 so saving next week's plan early does not corrupt the review of the current week. To seed
 history from the active plan when it has a `week_start`, run:
 
 ```bash
-python -m running_agent weekly-plan-history --backfill-current
+uv run python -m running_agent weekly-plan-history --backfill-current
 ```
 
 The backfill is intentionally conservative: it snapshots only the current active plan and
@@ -153,20 +153,23 @@ does not infer old plans from conversation, Strava, or coach logs.
 
 ## Setup
 
-Activate the project virtualenv before running commands:
+This project uses `uv` to create and sync the local `.venv`. Do not add or rely on
+`.python-version`/`pyenv` for project setup.
+
+Create or update the project virtualenv:
 
 ```bash
-source .venv/bin/activate
+uv sync --managed-python
 ```
 
-After activation, use `python` for project commands. If `python` is not available, fix the
+Run project commands through `uv` instead of activating the shell:
+
+```bash
+uv run python -m running_agent me
+```
+
+If that fails because `python` is not available, rerun `uv sync --managed-python` and fix the
 virtualenv setup before continuing.
-
-Install the project dependencies:
-
-```bash
-python -m pip install -e .
-```
 
 ### Step 1: Connect Strava
 
@@ -191,13 +194,13 @@ STRAVA_REDIRECT_URI=http://localhost/exchange_token
 Generate an authorization URL:
 
 ```bash
-python -m running_agent auth-url
+uv run python -m running_agent auth-url
 ```
 
 Open the URL, approve access, then copy the `code` query parameter from the redirect URL and exchange it:
 
 ```bash
-python -m running_agent exchange-code YOUR_CODE
+uv run python -m running_agent exchange-code YOUR_CODE
 ```
 
 This writes `.strava_tokens.json`, which is ignored by git.
@@ -205,14 +208,14 @@ This writes `.strava_tokens.json`, which is ignored by git.
 Verify the connection:
 
 ```bash
-python -m running_agent me
+uv run python -m running_agent me
 ```
 
 Backfill local Strava run history so the coach can answer older activity questions and
 lap/split questions without fetching Strava during the model tool call:
 
 ```bash
-python -m running_agent sync-strava --days 365
+uv run python -m running_agent sync-strava --days 365
 ```
 
 ### Step 2: Connect Garmin
@@ -258,7 +261,7 @@ OPENAI_MODEL=gpt-5.5
 Run the coach:
 
 ```bash
-python -m running_agent telegram
+uv run python -m running_agent telegram
 ```
 
 When running under the user systemd service, systemd owns crash restarts. The local
@@ -267,13 +270,13 @@ When running under the user systemd service, systemd owns crash restarts. The lo
 To print internal debug events in addition to received/sent message lines:
 
 ```bash
-python -m running_agent telegram --debug-log
+uv run python -m running_agent telegram --debug-log
 ```
 
 To print interaction traces for Telegram messages and scheduled ticks:
 
 ```bash
-python -m running_agent telegram --trace-log
+uv run python -m running_agent telegram --trace-log
 ```
 
 ### Run The Telegram Bot On Boot
@@ -281,13 +284,13 @@ python -m running_agent telegram --trace-log
 Install the Telegram coach as a user-level systemd service:
 
 ```bash
-python -m running_agent install-telegram-service
+uv run python -m running_agent install-telegram-service
 ```
 
 This writes `~/.config/systemd/user/running-agent-telegram.service`, enables it for the
-user systemd session, and starts it immediately. The service runs the current virtualenv's
-Python from this project directory, so install it from the checked-out repo with the virtualenv
-activated.
+user systemd session, and starts it immediately. The service runs the `uv`-managed `.venv`
+Python from this project directory, so run `uv sync --managed-python` from the checked-out repo
+before installing the service.
 
 For cloud or spot instances where the process should start after a reboot before you log in,
 enable linger once:
@@ -389,7 +392,7 @@ command still works, but it is no longer part of the primary help surface.
 Change the Telegram polling interval with:
 
 ```bash
-python -m running_agent telegram --poll-seconds 120 --days 28
+uv run python -m running_agent telegram --poll-seconds 120 --days 28
 ```
 
 When a new run syncs, the bot appends a compact local coach-log entry to `.data/coach_log.jsonl`
@@ -415,9 +418,9 @@ To rebuild the derived run-memory store from local Strava data, coach log entrie
 and post-run feedback:
 
 ```bash
-python -m running_agent run-memory --days 28
-python -m running_agent run-memory --days 28 --sync
-python -m running_agent run-memory --days 28 --validate
+uv run python -m running_agent run-memory --days 28
+uv run python -m running_agent run-memory --days 28 --sync
+uv run python -m running_agent run-memory --days 28 --validate
 ```
 
 This writes `.data/run_memory.json` and prints a compact context view of the recent run
@@ -449,7 +452,7 @@ once per hour so later Strava edits such as renames and race tags are picked up.
 Run unit tests:
 
 ```bash
-python -m unittest discover -s tests
+uv run python -m unittest discover -s tests
 ```
 
 ### Local Diagnostics
@@ -457,7 +460,7 @@ python -m unittest discover -s tests
 To test the coach locally without sending Telegram messages, use the REPL:
 
 ```bash
-python -m running_agent repl
+uv run python -m running_agent repl
 ```
 
 The REPL talks to the same coach agent as Telegram. Type `/help` to list chat commands,
@@ -467,7 +470,7 @@ lines; add `--debug-log` to see them.
 To print one-line interaction traces for each REPL message or scheduled tick:
 
 ```bash
-python -m running_agent repl --trace-log
+uv run python -m running_agent repl --trace-log
 ```
 
 Each trace has a `trace_id`, source, interaction type, start line, end line, status, and
@@ -477,15 +480,15 @@ one scheduled tick. They go to stdout only and do not write disk logs.
 To inspect the context a normal chat reply would send to the model without calling OpenAI:
 
 ```bash
-python -m running_agent debug-context "How's my recovery?"
+uv run python -m running_agent debug-context "How's my recovery?"
 ```
 
 To preview scheduled messages without sending Telegram messages or mutating scheduler state:
 
 ```bash
-python -m running_agent preview morning
-python -m running_agent preview evening --date 2026-06-05
-python -m running_agent preview weekly --date 2026-06-07
+uv run python -m running_agent preview morning
+uv run python -m running_agent preview evening --date 2026-06-05
+uv run python -m running_agent preview weekly --date 2026-06-07
 ```
 
 Preview output includes whether the scheduler would normally send, skip reasons, tools status,
@@ -496,11 +499,11 @@ data sources, and the generated message.
 To run local AI behavior evals:
 
 ```bash
-python -m running_agent evals
-python -m running_agent evals --case adjust_existing_weekly_plan
-python -m running_agent evals --case image_plan_update_from_screenshot
-python -m running_agent evals --case post_run_feedback_roundtrip --debug
-python -m running_agent evals --case uses_deterministic_vdot_table_paces --debug
+uv run python -m running_agent evals
+uv run python -m running_agent evals --case adjust_existing_weekly_plan
+uv run python -m running_agent evals --case image_plan_update_from_screenshot
+uv run python -m running_agent evals --case post_run_feedback_roundtrip --debug
+uv run python -m running_agent evals --case uses_deterministic_vdot_table_paces --debug
 ```
 
 Without `--case`, the command runs all eval cases. Current evals cover weekly plan updates,
