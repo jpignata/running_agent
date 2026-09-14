@@ -36,4 +36,8 @@ def pace_calibration_context(path: Path = PACE_PATH) -> str:
     text = calibration.get("text", "").strip()
     if not text:
         return "No pace calibration has been saved yet."
-    return f"Current VDOT and pace calibration, last updated {updated_at}:\n{text}"
+    return (
+        f"Saved VDOT and pace calibration, last updated {updated_at}:\n{text}\n"
+        "This is a saved estimate, not proof of current fitness. After an injury or training "
+        "break, use it as historical context until post-return evidence supports these paces."
+    )

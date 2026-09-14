@@ -10,11 +10,31 @@ from running_agent.coaching_guidance import (
     GARMIN_COACHING_RUBRIC,
     PROMPT_COACHING_PHILOSOPHY,
     RPE_COACHING_RUBRIC,
+    TRAINING_PROGRESSION_RUBRIC,
     coaching_philosophy_context,
 )
 
 
 class CoachingGuidanceTest(unittest.TestCase):
+    def test_return_guidance_is_present_with_old_fitness_and_no_recent_runs(self) -> None:
+        context = build_coaching_input(
+            message="I restarted Saturday after an injury. My ankle is still faintly sore.",
+            training_summary="No recent synced runs.",
+            recent_runs="No runs available.",
+            athlete_profile_text="Prefer to keep quality work.",
+            coach_reflection_text="Build marathon long runs.",
+            pace_calibration_text="VDOT 50 from a pre-break race.",
+            run_memory_text="Historical runs.",
+        )
+
+        self.assertIn(TRAINING_PROGRESSION_RUBRIC, context)
+        self.assertIn("Return-from-injury guidance takes precedence", context)
+        self.assertIn("Residual pain is not proof of recovery", context)
+        self.assertIn("not a zero-mile week or a partial restart week", context)
+        self.assertIn("Do not invent a detraining percentage", context)
+        self.assertIn("infer an injury from missing synced runs alone", context)
+        self.assertIn("Apply the return-from-injury guidance", COACHING_INSTRUCTIONS)
+
     def test_coaching_philosophy_context_reads_file(self) -> None:
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=True) as handle:
             handle.write("Coaching philosophy:\n- Keep easy days easy.")

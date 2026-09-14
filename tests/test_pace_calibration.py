@@ -35,8 +35,10 @@ class PaceCalibrationTest(unittest.TestCase):
 
         context = pace_calibration_context(path)
 
-        self.assertIn("Current VDOT and pace calibration, last updated 20 minutes ago", context)
+        self.assertIn("Saved VDOT and pace calibration, last updated 20 minutes ago", context)
         self.assertIn("VDOT 50, easy 8:05-8:45/mi", context)
+        self.assertIn("not proof of current fitness", context)
+        self.assertIn("until post-return evidence supports these paces", context)
 
     def test_empty_pace_calibration_raises(self) -> None:
         with self.assertRaises(RuntimeError):

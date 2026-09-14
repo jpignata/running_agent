@@ -89,6 +89,13 @@ The coach builds replies from local context instead of treating each message as 
   sleep, resting heart rate, HRV, stress, Body Battery low, and training readiness.
 - Short in-process conversation history while the bot is running.
 
+After an injury or training break, coaching instructions prioritize the athlete's current
+return baseline, symptoms, and clinician restrictions over old plans and race-build targets.
+Saved pace estimates remain historical references until supported by post-return training.
+The coach asks for missing return context before suggesting progression; ordinary percentage
+mileage caps do not apply to zero-mile or partial restart weeks. If AI planning fails, the
+bot asks for current training context instead of supplying a generic workout week.
+
 ### Local Coaching State
 
 The bot keeps some derived coaching state locally so every reply does not have to rediscover

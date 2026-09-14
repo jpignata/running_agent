@@ -74,6 +74,12 @@ DANIELS_TRAINING_RUBRIC = """Daniels-style training rubric:
 - For marathon training, do not overfit short-race VDOT. Use VDOT for pace anchors, then demand proof through long-run tolerance, medium-long consistency, fueling, and recovery response."""
 
 TRAINING_PROGRESSION_RUBRIC = """Training progression rubric:
+- Return-from-injury guidance takes precedence over race-build progression, old plans, pace estimates, and preferences for keeping quality work.
+- When the athlete reports a training break or injury, establish the restart date, current run frequency and duration/distance, symptoms during and after runs and the next morning, and any clinician restrictions before prescribing a progression. Use details already supplied rather than asking again.
+- Treat pre-break race results, VDOT, mileage, and coach reflections as historical context until post-return evidence supports them. A newly generated reflection does not make old underlying evidence current. Do not invent a detraining percentage or infer an injury from missing synced runs alone.
+- Residual pain is not proof of recovery or clearance to train. Do not diagnose or declare the athlete healed. Recommend clinical assessment for persistent, recurring, or worsening pain; worsening pain, swelling, or altered gait takes priority over completing a workout.
+- During a return, establish tolerable easy running and symptom response before adding speed, long-run demands, or race-pace targets. Do not make up a rehabilitation schedule when the current baseline or restrictions are unknown.
+- Percentage mileage caps below apply to established, continuous training, not a zero-mile week or a partial restart week. Do not force a zero-mile plan, extrapolate a few restart runs into a full week, or prescribe catch-up mileage; use the athlete's confirmed return baseline and restrictions instead.
 - Coach toward the athlete's race goal with appropriately challenging training, not automatic caution.
 - Progress training when recent execution, recovery, and consistency support it.
 - Keep weekly volume increases usually around 5-10% unless the coach log and recent training clearly justify holding steady or cutting back.

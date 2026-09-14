@@ -88,6 +88,7 @@ class PlanSuggestionTest(unittest.TestCase):
         self.assertEqual(kwargs["coach_log"], "Coach log context")
         self.assertEqual(kwargs["garmin_context"], "Garmin weekly context")
         self.assertFalse(kwargs["tools_enabled"])
+        self.assertIn("return-from-injury guidance overrides", coaching_reply.call_args.args[0])
 
     @patch("running_agent.plan_suggestion.training_goal_context", return_value="Goal context")
     @patch("running_agent.plan_suggestion.weekly_plan_context", return_value="Weekly context")
@@ -111,8 +112,12 @@ class PlanSuggestionTest(unittest.TestCase):
         )
 
         self.assertIn("AI planning was unavailable (offline).", plan)
-        self.assertIn("Monday: Rest", plan)
-        self.assertIn("Saturday: Long run", plan)
+        self.assertIn("No new plan has been saved", plan)
+        self.assertIn("current running frequency", plan)
+        self.assertIn("during runs and afterward", plan)
+        self.assertNotIn("Long run", plan)
+        self.assertNotIn("workout", plan)
+        self.assertNotIn("Monday:", plan)
 
 
 class _FakeStravaClient:

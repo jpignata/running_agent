@@ -51,6 +51,9 @@ def suggest_next_week_plan(
         "completed mileage unless the athlete explicitly asks for a bigger jump. If last week "
         "was 38 miles, keep the proposed total at 41 miles or less. Make the daily mileage add "
         "up to that cap; do not write ranges that could exceed the cap when summed. "
+        "For a return after injury or a break, the return-from-injury guidance overrides these "
+        "percentage caps and the requirement for a full daily plan. If the return baseline or "
+        "symptom response is unknown, ask for it instead of inventing daily mileage. "
         "Keep the plan specific and practical. Include each day Monday through Sunday, but write "
         "the days as natural plain-text lines instead of headers. Include the rationale in the "
         "flow of the message, and do not claim the plan has been saved. Do not end with an offer "
@@ -96,13 +99,7 @@ def next_week_start(today: date) -> date:
 def _fallback_plan_note(error: RuntimeError) -> str:
     return (
         f"AI planning was unavailable ({error}).\n\n"
-        "Basic plan idea:\n"
-        "Monday: Rest or very easy recovery.\n"
-        "Tuesday: Easy run with relaxed strides if you feel fresh.\n"
-        "Wednesday: Easy aerobic run.\n"
-        "Thursday: Controlled workout or steady run, not all-out.\n"
-        "Friday: Rest or short recovery jog.\n"
-        "Saturday: Long run at easy effort.\n"
-        "Sunday: Recovery run or rest.\n\n"
-        "Rationale: keep the week controlled until the coach can review recent training context."
+        "I couldn't review your current training and recovery to suggest next week's plan. "
+        "No new plan has been saved. Before planning, I need your current running frequency, "
+        "typical run duration or distance, and how you're feeling during runs and afterward."
     )

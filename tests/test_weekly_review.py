@@ -187,6 +187,7 @@ class WeeklyReviewTest(unittest.TestCase):
         goal_readiness_context.assert_called_once_with({"snapshot": True})
         prompt = coaching_reply.call_args.args[0]
         self.assertIn("recap that saved plan instead of suggesting a different one", prompt)
+        self.assertIn("return-from-injury guidance overrides", prompt)
         self.assertIn("Use the labeled reviewed-week plan only", prompt)
         self.assertIn("Use the labeled target-week plan only", prompt)
         self.assertIn("deterministic goal-readiness snapshot", prompt)
